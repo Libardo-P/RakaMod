@@ -138,19 +138,32 @@ local function BlankCycle()
   return { active = false, shown = nil, alpha = nil }
 end
 
+local function AlphaTarget(frame)
+  if frame and frame._visWrap then
+    return frame._visWrap
+  end
+  return frame
+end
+
 local function Remember(frame, cycle)
   if cycle.active then
     return
   end
-  local okShown, shown = pcall(frame.IsShown, frame)
+  local target = AlphaTarget(frame)
+  local okShown, shown = pcall(target.IsShown, target)
   if okShown then
     cycle.shown = shown and true or false
   end
-  local okAlpha, alpha = pcall(frame.GetAlpha, frame)
+  local okAlpha, alpha = pcall(target.GetAlpha, target)
   if okAlpha then
     cycle.alpha = alpha
   end
   cycle.active = true
+end
+
+local function ForceAlpha(frame)
+  local target = AlphaTarget(frame)
+  pcall(target.SetAlpha, target, 1)
 end
 
 local function InstallDriver(frame, cycle)
@@ -184,36 +197,35 @@ local function RemoveDriver(frame)
   return true
 end
 
-local function VisibilityFns()
-  local found = {}
-  pcall(function()
-    for name, value in pairs(_G) do
-      if type(name) == "string" and type(value) == "function"
-        and string.find(name, "Visibility", 1, true)
-        and (string.find(name, "Player", 1, true) or string.find(name, "UnitFrames", 1, true)) then
-        found[#found + 1] = value
-      end
-    end
-  end)
-  return found
+local function VisibilityUpdate()
+  local root = EllesmereUI
+  if type(root) ~= "table" then
+    return nil
+  end
+  local registry = root._ModuleNS
+  if type(registry) ~= "table" then
+    return nil
+  end
+  local frames = registry.EllesmereUIUnitFrames
+  if type(frames) ~= "table" then
+    return nil
+  end
+  local update = frames.UpdateFrameVisibility
+  if type(update) ~= "function" then
+    return nil
+  end
+  return update
 end
 
 local function Restore(frame, cycle)
-  local found = VisibilityFns()
-  if #found == 1 then
-    pcall(found[1])
-    return
-  end
-  if cycle.shown == nil then
-    return
-  end
-  if cycle.shown then
+  if cycle.shown == true then
     pcall(frame.Show, frame)
-  else
+  elseif cycle.shown == false then
     pcall(frame.Hide, frame)
   end
   if cycle.alpha ~= nil then
-    pcall(frame.SetAlpha, frame, cycle.alpha)
+    local target = AlphaTarget(frame)
+    pcall(target.SetAlpha, target, cycle.alpha)
   end
 end
 
@@ -231,7 +243,13 @@ local function Release(frame)
   if not RemoveDriver(frame) then
     return false
   end
-  if Protected(frame) and Locked() then
+  local update = VisibilityUpdate()
+  if update then
+    pcall(update)
+    ClearCycle(frame)
+    return true
+  end
+  if Locked() then
     return false
   end
   Restore(frame, cycle)
@@ -240,27 +258,24 @@ local function Release(frame)
 end
 
 local function Activate(frame, triggers)
-  local onlyCombat = triggers.combat and not triggers.casting and not triggers.health and not triggers.mouseover
-  if Protected(frame) and Locked() and onlyCombat then
-    local cycle = cycles[frame] or BlankCycle()
-    cycles[frame] = cycle
+  local cycle = cycles[frame] or BlankCycle()
+  cycles[frame] = cycle
+  if Protected(frame) and Locked() and triggers.combat then
     InstallDriver(frame, cycle)
-    if cycle.active then
-      pcall(frame.SetAlpha, frame, 1)
-    end
+    ForceAlpha(frame)
     return
   end
   if Locked() then
+    Remember(frame, cycle)
+    ForceAlpha(frame)
     return
   end
-  local cycle = cycles[frame] or BlankCycle()
-  cycles[frame] = cycle
   if not RemoveDriver(frame) then
     return
   end
   Remember(frame, cycle)
   pcall(frame.Show, frame)
-  pcall(frame.SetAlpha, frame, 1)
+  ForceAlpha(frame)
 end
 
 local function Apply(frame, triggers)
