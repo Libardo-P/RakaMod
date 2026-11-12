@@ -10,3 +10,4 @@ Logic.lua
 Core.lua
 Media.lua
 Settings.lua
+Overlay.lua
