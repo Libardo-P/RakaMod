@@ -14,3 +14,4 @@ Overlay.lua
 Reveal.lua
 ZoneText.lua
 AFK.lua
+Gradient.lua
