@@ -92,6 +92,21 @@ function Gradient:Apply()
   end
 end
 
+local function HookRaidHealth(buttons, getFFD)
+  if not buttons or not getFFD then
+    return
+  end
+  for i = 1, #buttons do
+    pcall(function()
+      local data = getFFD(buttons[i])
+      local health = data and data.health
+      if health and health.GetObjectType and health:GetObjectType() == "StatusBar" then
+        RakaMod.Gradient:Hook(health)
+      end
+    end)
+  end
+end
+
 local function Rescan()
   local found = {}
   if AddonOn("EllesmereUIUnitFrames") then
@@ -101,19 +116,12 @@ local function Rescan()
   end
   if AddonOn("EllesmereUIRaidFrames") then
     local rf = EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS.EllesmereUIRaidFrames
-    local buttons = rf and (rf._allButtons or (rf._internals and rf._internals.allButtons))
     local getFFD = rf and (rf.GetFFD or (rf._internals and rf._internals.GetFFD))
-    if buttons and getFFD then
-      for i = 1, #buttons do
-        pcall(function()
-          local data = getFFD(buttons[i])
-          local health = data and data.health
-          if health and health.GetObjectType and health:GetObjectType() == "StatusBar" then
-            RakaMod.Gradient:Hook(health)
-          end
-        end)
-      end
-    end
+    local internals = rf and rf._internals
+    local raidButtons = rf and (rf._allButtons or (internals and internals.allButtons))
+    local partyButtons = rf and (rf._partyAllButtons or (internals and internals.partyAllButtons))
+    HookRaidHealth(raidButtons, getFFD)
+    HookRaidHealth(partyButtons, getFFD)
   end
   if AddonOn("EllesmereUINameplates") then
     local np = EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS.EllesmereUINameplates
@@ -130,26 +138,6 @@ local function Rescan()
     end
   end
   Gradient:Apply()
-end
-
-local function ClearPaint(bar)
-  local ok, tex = pcall(function()
-    return bar:GetStatusBarTexture()
-  end)
-  if not ok or not tex then
-    return
-  end
-  local color = bar.RakaModLastColor
-  local cleared = false
-  if type(color) == "table" and type(tex.SetGradient) == "function" and type(CreateColor) == "function" then
-    cleared = pcall(function()
-      local solid = CreateColor(color[1], color[2], color[3], color[4] or 1)
-      tex:SetGradient("HORIZONTAL", solid, solid)
-    end)
-  end
-  if not cleared and type(tex.SetVertexColor) == "function" and type(color) == "table" then
-    pcall(tex.SetVertexColor, tex, color[1], color[2], color[3], color[4] or 1)
-  end
 end
 
 function Gradient:Enable()
@@ -177,7 +165,6 @@ function Gradient:Disable()
       end
     end
     if bar then
-      ClearPaint(bar)
       bar.RakaModHooked = nil
     end
     hooked[i] = nil
