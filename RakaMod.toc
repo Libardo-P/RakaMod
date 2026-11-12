@@ -12,3 +12,4 @@ Media.lua
 Settings.lua
 Overlay.lua
 Reveal.lua
+ZoneText.lua
