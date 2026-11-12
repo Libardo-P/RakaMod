@@ -34,6 +34,7 @@ local enterHooked = false
 local leaveHooked = false
 local cycles = {}
 local drivers = {}
+local visibilityHooked = false
 
 local events
 
@@ -187,14 +188,55 @@ local function RemoveDriver(frame)
   if Locked() and Protected(frame) then
     return false
   end
-  if type(UnregisterStateDriver) == "function" then
-    local ok = pcall(UnregisterStateDriver, frame, "visibility")
-    if not ok then
-      return false
-    end
+  if type(UnregisterStateDriver) ~= "function" then
+    drivers[frame] = nil
+    return true
+  end
+  local ok = pcall(UnregisterStateDriver, frame, "visibility")
+  if not ok then
+    return false
   end
   drivers[frame] = nil
+  pcall(function()
+    frame._euiVisDriver = nil
+  end)
   return true
+end
+
+local function ReapplyActiveAlpha()
+  local any = false
+  for _, cycle in pairs(cycles) do
+    if cycle.active then
+      any = true
+      break
+    end
+  end
+  if not any then
+    return
+  end
+  for frame, cycle in pairs(cycles) do
+    if cycle.active then
+      ForceAlpha(frame)
+    end
+  end
+end
+
+local function HookVisibility()
+  if visibilityHooked or type(hooksecurefunc) ~= "function" then
+    return
+  end
+  local root = EllesmereUI
+  if type(root) ~= "table" or type(root._ModuleNS) ~= "table" then
+    return
+  end
+  local frames = root._ModuleNS.EllesmereUIUnitFrames
+  if type(frames) ~= "table" or type(frames.UpdateFrameVisibility) ~= "function" then
+    return
+  end
+  local ok = pcall(hooksecurefunc, frames, "UpdateFrameVisibility", ReapplyActiveAlpha)
+  if ok then
+    visibilityHooked = true
+  end
 end
 
 local function VisibilityUpdate()
@@ -243,11 +285,10 @@ local function Release(frame)
   if not RemoveDriver(frame) then
     return false
   end
-  pcall(function()
-    frame._euiVisDriver = nil
-  end)
+  HookVisibility()
   local update = VisibilityUpdate()
   if update then
+    cycle.active = false
     pcall(update)
     ClearCycle(frame)
     return true
@@ -260,12 +301,12 @@ local function Release(frame)
   return true
 end
 
-local function Activate(frame, triggers)
+local function Activate(frame, armCombat)
   local cycle = cycles[frame] or BlankCycle()
   cycles[frame] = cycle
-  if Protected(frame) and Locked() and triggers.combat then
+  if armCombat then
     InstallDriver(frame, cycle)
-    ForceAlpha(frame)
+  elseif not Locked() and not RemoveDriver(frame) then
     return
   end
   if Locked() then
@@ -273,17 +314,14 @@ local function Activate(frame, triggers)
     ForceAlpha(frame)
     return
   end
-  if not RemoveDriver(frame) then
-    return
-  end
   Remember(frame, cycle)
   pcall(frame.Show, frame)
   ForceAlpha(frame)
 end
 
-local function Apply(frame, triggers)
+local function Apply(frame, triggers, armCombat)
   if triggers.any then
-    Activate(frame, triggers)
+    Activate(frame, armCombat)
   else
     Release(frame)
   end
@@ -374,6 +412,7 @@ function Reveal:Update()
     return
   end
   TryHookPlayer()
+  HookVisibility()
   local cfg = Config()
   if not cfg then
     ReleaseKnown()
@@ -384,13 +423,13 @@ function Reveal:Update()
   local player = EllesmereUIUnitFrames_Player
   if player then
     keep[player] = true
-    Apply(player, triggers)
+    Apply(player, triggers, cfg.combat == true)
   end
   if cfg.pet == true then
     local pet = EllesmereUIUnitFrames_Pet
     if pet then
       keep[pet] = true
-      Apply(pet, triggers)
+      Apply(pet, triggers, cfg.combat == true)
     end
   end
   ReleaseStale(keep)
