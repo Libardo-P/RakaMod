@@ -19,7 +19,6 @@ local UNIT_GLOBALS = {
   "EllesmereUIUnitFrames_Boss8",
 }
 
-local RAID_PREFIX = "EllesmereUIRaidFrames"
 local hooked = {}
 local events
 
@@ -93,7 +92,7 @@ function Gradient:Apply()
   end
 end
 
-local function Rescan(unit)
+local function Rescan()
   local found = {}
   if AddonOn("EllesmereUIUnitFrames") then
     for i = 1, #UNIT_GLOBALS do
@@ -101,29 +100,56 @@ local function Rescan(unit)
     end
   end
   if AddonOn("EllesmereUIRaidFrames") then
-    for name, object in pairs(_G) do
-      if type(name) == "string" and string.sub(name, 1, #RAID_PREFIX) == RAID_PREFIX then
-        pcall(Scan, object, 1, found)
+    local rf = EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS.EllesmereUIRaidFrames
+    local buttons = rf and (rf._allButtons or (rf._internals and rf._internals.allButtons))
+    local getFFD = rf and (rf.GetFFD or (rf._internals and rf._internals.GetFFD))
+    if buttons and getFFD then
+      for i = 1, #buttons do
+        pcall(function()
+          local data = getFFD(buttons[i])
+          local health = data and data.health
+          if health and health.GetObjectType and health:GetObjectType() == "StatusBar" then
+            RakaMod.Gradient:Hook(health)
+          end
+        end)
       end
     end
   end
-  if AddonOn("EllesmereUINameplates") and C_NamePlate then
-    if C_NamePlate.GetNamePlates then
-      local ok, plates = pcall(C_NamePlate.GetNamePlates)
-      if ok and type(plates) == "table" then
-        for _, plate in ipairs(plates) do
-          pcall(Scan, plate, 1, found)
-        end
-      end
-    end
-    if unit and C_NamePlate.GetNamePlateForUnit then
-      local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
-      if ok then
-        pcall(Scan, plate, 1, found)
+  if AddonOn("EllesmereUINameplates") then
+    local np = EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS.EllesmereUINameplates
+    local plates = np and np.plates
+    if plates then
+      for _, plate in pairs(plates) do
+        pcall(function()
+          local health = plate and plate.health
+          if health and health.GetObjectType and health:GetObjectType() == "StatusBar" then
+            RakaMod.Gradient:Hook(health)
+          end
+        end)
       end
     end
   end
   Gradient:Apply()
+end
+
+local function ClearPaint(bar)
+  local ok, tex = pcall(function()
+    return bar:GetStatusBarTexture()
+  end)
+  if not ok or not tex then
+    return
+  end
+  local color = bar.RakaModLastColor
+  local cleared = false
+  if type(color) == "table" and type(tex.SetGradient) == "function" and type(CreateColor) == "function" then
+    cleared = pcall(function()
+      local solid = CreateColor(color[1], color[2], color[3], color[4] or 1)
+      tex:SetGradient("HORIZONTAL", solid, solid)
+    end)
+  end
+  if not cleared and type(tex.SetVertexColor) == "function" and type(color) == "table" then
+    pcall(tex.SetVertexColor, tex, color[1], color[2], color[3], color[4] or 1)
+  end
 end
 
 function Gradient:Enable()
@@ -151,6 +177,7 @@ function Gradient:Disable()
       end
     end
     if bar then
+      ClearPaint(bar)
       bar.RakaModHooked = nil
     end
     hooked[i] = nil
@@ -158,11 +185,11 @@ function Gradient:Disable()
 end
 
 events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event, unit)
+events:SetScript("OnEvent", function(_, event)
   if event == "GROUP_ROSTER_UPDATE" then
     Rescan()
   elseif event == "NAME_PLATE_UNIT_ADDED" then
-    Rescan(unit)
+    Rescan()
   end
 end)
 
