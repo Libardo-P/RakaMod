@@ -35,6 +35,8 @@ local leaveHooked = false
 local cycles = {}
 local drivers = {}
 local visibilityHooked = false
+local alphaPinned = {}
+local pinning = false
 
 local events
 
@@ -162,8 +164,31 @@ local function Remember(frame, cycle)
   cycle.active = true
 end
 
+local function PinAlpha(frame)
+  local target = AlphaTarget(frame)
+  if not target or alphaPinned[target] or type(hooksecurefunc) ~= "function" then
+    return
+  end
+  local ok = pcall(hooksecurefunc, target, "SetAlpha", function(_, alpha)
+    if pinning then
+      return
+    end
+    local cycle = cycles[frame]
+    if not cycle or not cycle.active or alpha == 1 then
+      return
+    end
+    pinning = true
+    pcall(target.SetAlpha, target, 1)
+    pinning = false
+  end)
+  if ok then
+    alphaPinned[target] = true
+  end
+end
+
 local function ForceAlpha(frame)
   local target = AlphaTarget(frame)
+  PinAlpha(frame)
   pcall(target.SetAlpha, target, 1)
 end
 
@@ -296,6 +321,7 @@ local function Release(frame)
   if Locked() then
     return false
   end
+  cycle.active = false
   Restore(frame, cycle)
   ClearCycle(frame)
   return true
