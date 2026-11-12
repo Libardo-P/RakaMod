@@ -1,0 +1,10 @@
+## Interface: 120105, 16001
+## Title: RakaMod
+## Author: Raka
+## Version: 0.1.0
+## SavedVariables: RakaModDB
+## Dependencies: EllesmereUI
+## OptionalDeps: EllesmereUIUnitFrames, EllesmereUIRaidFrames, EllesmereUINameplates, EllesmereUIDataBars, LibSharedMedia-3.0
+
+Logic.lua
+Core.lua

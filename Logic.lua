@@ -135,4 +135,6 @@ function Logic.AfkSuppressed(now, suppressUntil)
   return type(suppressUntil) == "number" and now < suppressUntil
 end
 
+RakaMod = RakaMod or {}
+RakaMod.Logic = Logic
 return Logic
