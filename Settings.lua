@@ -212,6 +212,9 @@ local function AddSlider(text, section, key, minValue, maxValue)
     end
     saved[key] = intValue
     RakaMod.Core:RefreshModules()
+    if section == "zoneText" and RakaMod.ZoneText and RakaMod.ZoneText.Apply then
+      RakaMod.ZoneText:Apply()
+    end
   end)
   PassWheel(slider)
 
@@ -283,6 +286,9 @@ local function AddZoneSwatch(text)
     return RakaMod.db and RakaMod.db.zoneText
   end, function()
     RakaMod.Core:RefreshModules()
+    if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
+      RakaMod.ZoneText:Apply()
+    end
   end)
 end
 
@@ -342,6 +348,9 @@ outlineButton:SetScript("OnClick", function(self)
   zoneText.outline = nextValue
   self:SetText(nextValue)
   RakaMod.Core:RefreshModules()
+  if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
+    RakaMod.ZoneText:Apply()
+  end
 end)
 PassWheel(outlineButton)
 Advance()

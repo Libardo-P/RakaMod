@@ -18,11 +18,15 @@ function ZoneText:Apply()
     return
   end
   local font = RakaMod.Media and RakaMod.Media.FontPath
+  local outline = db.outline
+  if outline == "NONE" or outline == nil then
+    outline = ""
+  end
   for i = 1, #STRINGS do
     local fontString = _G[STRINGS[i]]
     if fontString then
-      pcall(fontString.SetFont, fontString, font, db.size, db.outline)
-      fontString:SetTextColor(db.r, db.g, db.b)
+      pcall(fontString.SetFont, fontString, font, db.size, outline)
+      pcall(fontString.SetTextColor, fontString, db.r, db.g, db.b)
     end
   end
 end
