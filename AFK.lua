@@ -17,6 +17,8 @@ local castRetry = false
 local cameraOn = false
 local enteredByKey = false
 local holdUntilFlag = false
+local pendingShowParent = false
+local enabled = false
 local ticker
 local modelTimer
 local chatLines = {}
@@ -142,7 +144,7 @@ function AFK:Enter()
   if posed then
     model:Show()
     pcall(model.SetAnimation, model, 67)
-    modelTimer = C_Timer.After(2.3, function() if model then model:SetAnimation(0) end end)
+    modelTimer = C_Timer.After(2.3, function() if model then pcall(model.SetAnimation, model, 0) end end)
   else
     model:Hide()
   end
@@ -165,7 +167,24 @@ function AFK:Enter()
   end
 end
 
+local function ShowParent()
+  local inCombat = type(InCombatLockdown) == "function" and InCombatLockdown() and true or false
+  local ok = pcall(UIParent.Show, UIParent)
+  pendingShowParent = (not ok) or inCombat
+end
+
+local function RestoreParent()
+  if pendingShowParent then
+    ShowParent()
+  end
+end
+
 function AFK:Leave(fromKey)
+  if not active then
+    RestoreParent()
+    return
+  end
+
   CancelHandle(ticker)
   ticker = nil
   CancelHandle(modelTimer)
@@ -178,7 +197,6 @@ function AFK:Leave(fromKey)
 
   UnregisterChat()
   frame:Hide()
-  UIParent:Show()
 
   active = false
   enteredByKey = fromKey == true
@@ -190,6 +208,8 @@ function AFK:Leave(fromKey)
     suppressUntil = nil
     holdUntilFlag = true
   end
+
+  ShowParent()
 end
 
 Consider = function()
@@ -230,22 +250,31 @@ Consider = function()
 end
 
 function AFK:Enable()
+  enabled = true
   events:RegisterEvent("PLAYER_FLAGS_CHANGED")
   events:RegisterEvent("PLAYER_REGEN_DISABLED")
+  events:RegisterEvent("PLAYER_REGEN_ENABLED")
   events:RegisterEvent("LFG_PROPOSAL_SHOW")
   events:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
   holdUntilFlag = false
   castRetry = false
+  RestoreParent()
   Consider()
 end
 
 function AFK:Disable()
+  enabled = false
   events:UnregisterEvent("PLAYER_FLAGS_CHANGED")
   events:UnregisterEvent("PLAYER_REGEN_DISABLED")
   events:UnregisterEvent("LFG_PROPOSAL_SHOW")
   events:UnregisterEvent("UPDATE_BATTLEFIELD_STATUS")
   if active then
     self:Leave(false)
+  else
+    RestoreParent()
+  end
+  if not pendingShowParent then
+    events:UnregisterEvent("PLAYER_REGEN_ENABLED")
   end
 end
 
@@ -330,6 +359,13 @@ end)
 
 events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, arg1)
+  if event == "PLAYER_REGEN_ENABLED" then
+    RestoreParent()
+    if not enabled and not pendingShowParent then
+      events:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    end
+    return
+  end
   if event == "PLAYER_FLAGS_CHANGED" then
     if arg1 == "player" then
       Consider()
