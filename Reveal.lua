@@ -174,7 +174,7 @@ local function PinAlpha(frame)
       return
     end
     local cycle = cycles[frame]
-    if not cycle or not cycle.active or alpha == 1 then
+    if not cycle or not cycle.active or (not IsSecret(alpha) and alpha == 1) then
       return
     end
     pinning = true
