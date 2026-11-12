@@ -243,6 +243,9 @@ local function Release(frame)
   if not RemoveDriver(frame) then
     return false
   end
+  pcall(function()
+    frame._euiVisDriver = nil
+  end)
   local update = VisibilityUpdate()
   if update then
     pcall(update)
