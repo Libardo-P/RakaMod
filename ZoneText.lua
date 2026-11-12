@@ -13,6 +13,9 @@ local STRINGS = {
 local events
 
 function ZoneText:Apply()
+  if RakaMod.db.zoneText.enabled ~= true then
+    return
+  end
   local db = RakaMod.db and RakaMod.db.zoneText
   if type(db) ~= "table" then
     return
