@@ -44,11 +44,109 @@ local function AddonOn(name)
   return core and core.AddonLoaded and core:AddonLoaded(name) and true or false
 end
 
-function Gradient:Hook(bar)
+local function ResolveUnit(bar)
+  if bar and type(bar.RakaModUnit) == "string" and bar.RakaModUnit ~= "" then
+    return bar.RakaModUnit
+  end
+  local frame = bar
+  for _ = 1, 10 do
+    if not frame then
+      break
+    end
+    if type(frame.unit) == "string" and frame.unit ~= "" then
+      return frame.unit
+    end
+    if frame.GetAttribute then
+      local ok, unit = pcall(frame.GetAttribute, frame, "unit")
+      if ok and type(unit) == "string" and unit ~= "" then
+        return unit
+      end
+    end
+    frame = frame.GetParent and frame:GetParent() or nil
+  end
+  return nil
+end
+
+local function SafeCall(fn, ...)
+  if type(fn) ~= "function" then
+    return false
+  end
+  local ok, result = pcall(fn, ...)
+  if ok then
+    return result and true or false, result
+  end
+  return false
+end
+
+local function UnitInfo(unit)
+  local info = {
+    dead = false,
+    offline = false,
+    disconnected = false,
+    tapped = false,
+    isPlayer = false,
+    classFile = nil,
+    reactionKey = "neutral",
+  }
+  if type(unit) ~= "string" or unit == "" then
+    return info
+  end
+  if not UnitExists or not UnitExists(unit) then
+    return info
+  end
+
+  info.dead = SafeCall(UnitIsDeadOrGhost, unit) and true or false
+
+  local isPlayer = SafeCall(UnitIsPlayer, unit) and true or false
+  info.isPlayer = isPlayer
+
+  local connected = true
+  if UnitIsConnected then
+    local ok, value = pcall(UnitIsConnected, unit)
+    if ok then
+      connected = value and true or false
+    end
+  end
+  if isPlayer and not connected then
+    info.offline = true
+  end
+
+  if UnitIsTapDenied then
+    info.tapped = SafeCall(UnitIsTapDenied, unit) and true or false
+  elseif UnitIsTapped and UnitIsTappedByPlayer then
+    local tapped = SafeCall(UnitIsTapped, unit)
+    local byPlayer = SafeCall(UnitIsTappedByPlayer, unit)
+    info.tapped = tapped and not byPlayer
+  end
+
+  if isPlayer and UnitClass then
+    local ok, _, classFile = pcall(UnitClass, unit)
+    if ok and type(classFile) == "string" then
+      info.classFile = classFile
+    end
+  end
+
+  if UnitReaction then
+    local ok, reaction = pcall(UnitReaction, unit, "player")
+    if ok then
+      info.reactionKey = RakaMod.Logic.ReactionKey(reaction)
+    end
+  end
+
+  return info
+end
+
+function Gradient:Hook(bar, unitHint)
   if not bar or bar.RakaModHooked then
+    if bar and type(unitHint) == "string" and unitHint ~= "" then
+      bar.RakaModUnit = unitHint
+    end
     return
   end
   bar.RakaModHooked = true
+  if type(unitHint) == "string" and unitHint ~= "" then
+    bar.RakaModUnit = unitHint
+  end
   bar.RakaModOriginalColor = bar.SetStatusBarColor
   if not bar.RakaModLastColor and bar.GetStatusBarColor then
     local ok, r, g, b, a = pcall(bar.GetStatusBarColor, bar)
@@ -60,7 +158,7 @@ function Gradient:Hook(bar)
   function bar:SetStatusBarColor(r, g, b, a)
     bar.RakaModLastColor = { r, g, b, a }
     bar.RakaModOriginalColor(bar, r, g, b, a)
-    if RakaMod.db.gradient.enabled then
+    if RakaMod.db and RakaMod.db.gradient and RakaMod.db.gradient.enabled then
       RakaMod.Gradient:Paint(bar)
     end
   end
@@ -68,8 +166,14 @@ end
 
 function Gradient:Paint(bar)
   local gradient = RakaMod.db and RakaMod.db.gradient
-  local left = gradient and gradient.left
-  local right = gradient and gradient.right
+  if type(gradient) ~= "table" then
+    return
+  end
+  local unit = ResolveUnit(bar)
+  local info = UnitInfo(unit)
+  local chosen = RakaMod.Logic.PickGradientPair(gradient, info)
+  local left = chosen and chosen.left
+  local right = chosen and chosen.right
   if type(left) ~= "table" or type(right) ~= "table" then
     return
   end
@@ -98,10 +202,12 @@ local function HookRaidHealth(buttons, getFFD)
   end
   for i = 1, #buttons do
     pcall(function()
-      local data = getFFD(buttons[i])
+      local button = buttons[i]
+      local data = getFFD(button)
       local health = data and data.health
       if health and health.GetObjectType and health:GetObjectType() == "StatusBar" then
-        RakaMod.Gradient:Hook(health)
+        local unit = button and button.unit
+        RakaMod.Gradient:Hook(health, unit)
       end
     end)
   end
@@ -131,7 +237,7 @@ local function Rescan()
         pcall(function()
           local health = plate and plate.health
           if health and health.GetObjectType and health:GetObjectType() == "StatusBar" then
-            RakaMod.Gradient:Hook(health)
+            RakaMod.Gradient:Hook(health, plate.unit)
           end
         end)
       end
@@ -148,12 +254,20 @@ function Gradient:Enable()
   end
   events:RegisterEvent("GROUP_ROSTER_UPDATE")
   events:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+  events:RegisterEvent("UNIT_FLAGS")
+  events:RegisterEvent("UNIT_CONNECTION")
+  events:RegisterEvent("PLAYER_TARGET_CHANGED")
+  events:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
   Rescan()
 end
 
 function Gradient:Disable()
   events:UnregisterEvent("GROUP_ROSTER_UPDATE")
   events:UnregisterEvent("NAME_PLATE_UNIT_ADDED")
+  events:UnregisterEvent("UNIT_FLAGS")
+  events:UnregisterEvent("UNIT_CONNECTION")
+  events:UnregisterEvent("PLAYER_TARGET_CHANGED")
+  events:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
   for i = 1, #hooked do
     local bar = hooked[i]
     local original = bar and bar.RakaModOriginalColor
@@ -166,6 +280,7 @@ function Gradient:Disable()
     end
     if bar then
       bar.RakaModHooked = nil
+      bar.RakaModUnit = nil
     end
     hooked[i] = nil
   end
@@ -173,10 +288,10 @@ end
 
 events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event)
-  if event == "GROUP_ROSTER_UPDATE" then
+  if event == "GROUP_ROSTER_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" then
     Rescan()
-  elseif event == "NAME_PLATE_UNIT_ADDED" then
-    Rescan()
+  else
+    Gradient:Apply()
   end
 end)
 

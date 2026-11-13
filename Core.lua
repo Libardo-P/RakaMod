@@ -8,11 +8,17 @@ local DEFAULTS = {
   reveal = { enabled = true, casting = true, health = true, healthPercent = 90, mouseover = true, combat = true, pet = false },
   zoneText = { enabled = true, size = 32, r = 1, g = 1, b = 1, outline = "OUTLINE" },
   afk = { enabled = true, cameraPan = true },
-  gradient = {
-    enabled = false,
-    left = { r = 0.91, g = 0.84, b = 0.64 },
-    right = { r = 0.15, g = 0.14, b = 0.13 },
-  },
+  gradient = (function()
+    local colors = {}
+    for i = 1, #Logic.CLASS_FILES do
+      local file = Logic.CLASS_FILES[i]
+      local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[file]
+      if type(c) == "table" and type(c.r) == "number" then
+        colors[file] = { r = c.r, g = c.g, b = c.b }
+      end
+    end
+    return Logic.BuildGradientDefaults(colors)
+  end)(),
   played = {},
 }
 
