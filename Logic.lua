@@ -149,6 +149,99 @@ function Logic.AfkSuppressed(now, suppressUntil)
   return type(suppressUntil) == "number" and now < suppressUntil
 end
 
+-- True when a WhatsNew entry should show for this client (Forever vs Retail flags).
+function Logic.EllesmereEntryVisible(entry, isForever)
+  if type(entry) ~= "table" then
+    return false
+  end
+  if entry.forever == true and not isForever then
+    return false
+  end
+  if entry.retail == true and isForever then
+    return false
+  end
+  return true
+end
+
+-- Format EllesmereUI._WHATSNEW_PATCHES[1] for the AFK left panel.
+-- Returns header, body (WoW |c color codes). Nil header when unavailable.
+function Logic.FormatEllesmereChangelog(patches, isForever, maxFeatures, maxFixes)
+  maxFeatures = maxFeatures or 8
+  maxFixes = maxFixes or 8
+  if type(patches) ~= "table" or type(patches[1]) ~= "table" then
+    return nil, nil
+  end
+  local patch = patches[1]
+  local version = tostring(patch.version or "")
+  if version == "" then
+    return nil, nil
+  end
+
+  local featureLines = {}
+  if type(patch.features) == "table" then
+    for i = 1, #patch.features do
+      local entry = patch.features[i]
+      if Logic.EllesmereEntryVisible(entry, isForever) then
+        local title = type(entry.title) == "string" and entry.title or ""
+        local desc = type(entry.desc) == "string" and entry.desc or ""
+        local line
+        if title ~= "" and desc ~= "" then
+          line = "• " .. title .. " — " .. desc
+        elseif title ~= "" then
+          line = "• " .. title
+        elseif desc ~= "" then
+          line = "• " .. desc
+        end
+        if line then
+          featureLines[#featureLines + 1] = line
+          if #featureLines >= maxFeatures then
+            break
+          end
+        end
+      end
+    end
+  end
+
+  local fixLines = {}
+  if type(patch.fixes) == "table" then
+    for i = 1, #patch.fixes do
+      local entry = patch.fixes[i]
+      if Logic.EllesmereEntryVisible(entry, isForever) then
+        local text = type(entry.text) == "string" and entry.text or ""
+        if text ~= "" then
+          fixLines[#fixLines + 1] = "• " .. text
+          if #fixLines >= maxFixes then
+            break
+          end
+        end
+      end
+    end
+  end
+
+  if #featureLines == 0 and #fixLines == 0 then
+    return "Latest changelog for " .. version, "No entries for this client."
+  end
+
+  local parts = {}
+  if #featureLines > 0 then
+    parts[#parts + 1] = "|cff3dff7aNEW FEATURES|r"
+    for i = 1, #featureLines do
+      parts[#parts + 1] = featureLines[i]
+    end
+  end
+  if #fixLines > 0 then
+    if #parts > 0 then
+      parts[#parts + 1] = ""
+    end
+    parts[#parts + 1] = "|cffff66aaBUG FIXES|r"
+    for i = 1, #fixLines do
+      parts[#parts + 1] = fixLines[i]
+    end
+  end
+
+  return "Latest changelog for " .. version, table.concat(parts, "\n")
+end
+
 Logic.CLASS_FILES = {
   "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "DEATHKNIGHT", "SHAMAN",
   "MAGE", "WARLOCK", "MONK", "DRUID", "DEMONHUNTER", "EVOKER",
@@ -182,6 +275,20 @@ local function clamp01(value)
     return 1
   end
   return value
+end
+
+function Logic.ClassRgb(classFile, classColors)
+  if type(classFile) == "string" and type(classColors) == "table" then
+    local c = classColors[classFile]
+    if type(c) == "table" and type(c.r) == "number" then
+      return clamp01(c.r), clamp01(c.g), clamp01(c.b)
+    end
+  end
+  local fallback = Logic.CLASS_FALLBACK_COLORS[classFile]
+  if type(fallback) == "table" then
+    return fallback.r, fallback.g, fallback.b
+  end
+  return 1, 1, 1
 end
 
 local function rgb(r, g, b)

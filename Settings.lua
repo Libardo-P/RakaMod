@@ -1093,7 +1093,7 @@ AddCheck(overlay, "Professions", "overlay", "professions")
 overlay.Finish()
 
 local afk = CreatePage("afk")
-AddDescription(afk, "Full AFK screen behavior.")
+AddDescription(afk, "Toxi-style AFK overlay: logo, timer, character info, dancing model, Ellesmere changelog. Dismiss with any key or mouse.")
 AddCheck(afk, "Enabled", "afk", "enabled")
 AddCheck(afk, "Camera pan", "afk", "cameraPan")
 afk.Finish()

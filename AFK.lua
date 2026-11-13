@@ -9,6 +9,9 @@ local CHAT_EVENTS = {
   "CHAT_MSG_GUILD",
 }
 local CHAT_LIMIT = 500
+local DANCE_ANIM = 69
+local INPUT_GRACE = 0.6
+local TIMER_CYAN = { r = 0.0, g = 0.95, b = 1.0 }
 
 local active = false
 local suppressUntil
@@ -22,12 +25,22 @@ local enabled = false
 local ticker
 local modelTimer
 local chatLines = {}
+local lastCursorX
+local lastCursorY
+local inputArmed = false
 
 local frame
 local model
+local logo
 local nameText
-local guildText
+local titleText
 local timerText
+local levelText
+local classIcon
+local classText
+local changelogHeader
+local changelogBody
+local footerText
 local chat
 local events
 local Consider
@@ -38,12 +51,12 @@ local function CancelHandle(handle)
   end
 end
 
-local function Paint(fs, size, r, g, b)
+local function Paint(fs, size, r, g, b, a)
   local path = RakaMod.Media and RakaMod.Media.FontPath
   if path then
     pcall(fs.SetFont, fs, path, size, "OUTLINE")
   end
-  fs:SetTextColor(r, g, b)
+  fs:SetTextColor(r, g, b, a or 1)
   fs:SetShadowOffset(1, -1)
   fs:SetShadowColor(0, 0, 0, 1)
 end
@@ -85,24 +98,102 @@ local function UnregisterChat()
   ClearChat()
 end
 
-local function NameLine()
-  local name = UnitName("player") or ""
-  local realm = GetRealmName() or ""
-  if realm ~= "" then
-    return name .. " - " .. realm
-  end
-  return name
+local function PlayerName()
+  return UnitName("player") or ""
 end
 
-local function GuildLine()
-  local guildName, guildRank = GetGuildInfo("player")
-  if type(guildName) == "string" and guildName ~= "" then
-    if type(guildRank) == "string" and guildRank ~= "" then
-      return guildName .. "-" .. guildRank
-    end
-    return guildName
+local function PlayerTitle()
+  if type(GetCurrentTitle) ~= "function" or type(GetTitleName) ~= "function" then
+    return nil
   end
-  return "No Guild"
+  local ok, titleId = pcall(GetCurrentTitle)
+  if not ok or type(titleId) ~= "number" or titleId <= 0 then
+    return nil
+  end
+  local okName, title = pcall(GetTitleName, titleId)
+  if okName and type(title) == "string" and title ~= "" then
+    return title
+  end
+  return nil
+end
+
+local function ClassInfo()
+  local localized, classFile = UnitClass("player")
+  return localized or "", classFile or "WARRIOR"
+end
+
+local function ClassColor(classFile)
+  return RakaMod.Logic.ClassRgb(classFile, RAID_CLASS_COLORS)
+end
+
+local function ApplyClassIcon(classFile)
+  local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[classFile]
+  if type(coords) ~= "table" then
+    classIcon:Hide()
+    return
+  end
+  classIcon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CharacterCreate-Classes")
+  classIcon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+  classIcon:Show()
+end
+
+local function EllesmerePatches()
+  if EllesmereUI and type(EllesmereUI._WHATSNEW_PATCHES) == "table" then
+    return EllesmereUI._WHATSNEW_PATCHES
+  end
+  -- WhatsNew lives in EllesmereUIOptions; load it if present but not yet loaded.
+  if C_AddOns and C_AddOns.LoadAddOn then
+    pcall(C_AddOns.LoadAddOn, "EllesmereUIOptions")
+  elseif type(LoadAddOn) == "function" then
+    pcall(LoadAddOn, "EllesmereUIOptions")
+  end
+  if EllesmereUI and type(EllesmereUI._WHATSNEW_PATCHES) == "table" then
+    return EllesmereUI._WHATSNEW_PATCHES
+  end
+  return nil
+end
+
+local function FillChangelog()
+  local patches = EllesmerePatches()
+  local isForever = RakaMod.Core and RakaMod.Core:IsForever() or false
+  local header, body = RakaMod.Logic.FormatEllesmereChangelog(patches, isForever, 8, 8)
+  if header and body then
+    changelogHeader:SetText(header)
+    changelogBody:SetText(body)
+    changelogHeader:Show()
+    changelogBody:Show()
+    return
+  end
+  if type(EllesmereUI) ~= "table" then
+    changelogHeader:SetText("EllesmereUI changelog unavailable")
+    changelogBody:SetText("EllesmereUI is not loaded.")
+  else
+    changelogHeader:SetText("EllesmereUI changelog unavailable")
+    changelogBody:SetText("Could not read patch notes from EllesmereUI.")
+  end
+  changelogHeader:Show()
+  changelogBody:Show()
+end
+
+local function PoseModel()
+  CancelHandle(modelTimer)
+  modelTimer = nil
+  model:SetScript("OnAnimFinished", nil)
+
+  local posed = pcall(model.SetUnit, model, "player")
+  if not posed then
+    model:Hide()
+    return
+  end
+
+  model:Show()
+  pcall(model.SetCamDistanceScale, model, 3.2)
+  pcall(model.SetPosition, model, 0, 0, -0.15)
+  pcall(model.SetFacing, model, 0.35)
+  pcall(model.SetAnimation, model, DANCE_ANIM)
+  model:SetScript("OnAnimFinished", function(self)
+    pcall(self.SetAnimation, self, DANCE_ANIM)
+  end)
 end
 
 local function CastIsTheBlock()
@@ -121,6 +212,31 @@ local function CastIsTheBlock()
   return UnitCastingInfo("player") or UnitChannelInfo("player")
 end
 
+local function ArmInputWatch()
+  inputArmed = false
+  lastCursorX, lastCursorY = nil, nil
+  C_Timer.After(INPUT_GRACE, function()
+    if not active then
+      return
+    end
+    inputArmed = true
+    local x, y = GetCursorPosition()
+    lastCursorX, lastCursorY = x, y
+  end)
+end
+
+local function ShowParent()
+  local inCombat = type(InCombatLockdown) == "function" and InCombatLockdown() and true or false
+  local ok = pcall(UIParent.Show, UIParent)
+  pendingShowParent = (not ok) or inCombat
+end
+
+local function RestoreParent()
+  if pendingShowParent then
+    ShowParent()
+  end
+end
+
 function AFK:Enter()
   if active then
     return
@@ -133,24 +249,48 @@ function AFK:Enter()
   pcall(CloseAllWindows)
   UIParent:Hide()
   frame:Show()
-
-  nameText:SetText(NameLine())
-  guildText:SetText(GuildLine())
-  timerText:SetText(RakaMod.Logic.FormatClock(0))
-
-  CancelHandle(modelTimer)
-  modelTimer = nil
-  local posed = pcall(model.SetUnit, model, "player")
-  if posed then
-    model:Show()
-    pcall(model.SetAnimation, model, 67)
-    modelTimer = C_Timer.After(2.3, function() if model then pcall(model.SetAnimation, model, 0) end end)
-  else
-    model:Hide()
+  if frame.EnableKeyboard then
+    frame:EnableKeyboard(true)
+  end
+  if frame.SetPropagateKeyboardInput then
+    pcall(frame.SetPropagateKeyboardInput, frame, false)
   end
 
+  local localized, classFile = ClassInfo()
+  local cr, cg, cb = ClassColor(classFile)
+  nameText:SetText(PlayerName())
+  nameText:SetTextColor(cr, cg, cb, 1)
+
+  local title = PlayerTitle()
+  if title then
+    titleText:SetText(title)
+    titleText:Show()
+    classIcon:ClearAllPoints()
+    classIcon:SetPoint("TOP", titleText, "BOTTOM", 0, -18)
+  else
+    titleText:SetText("")
+    titleText:Hide()
+    classIcon:ClearAllPoints()
+    classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, -18)
+  end
+
+  levelText:SetText("Lv " .. tostring(UnitLevel("player") or "?"))
+  classText:SetText(localized)
+  classText:SetTextColor(cr, cg, cb, 1)
+  ApplyClassIcon(classFile)
+
+  local iconPath = RakaMod.Media and RakaMod.Media.IconPath
+  if iconPath then
+    logo:SetTexture(iconPath)
+  end
+
+  timerText:SetText(RakaMod.Logic.FormatClock(0))
+  FillChangelog()
+  PoseModel()
+  ArmInputWatch()
+
   CancelHandle(ticker)
-  ticker = C_Timer.NewTicker(1, function()
+  ticker = C_Timer.NewTicker(0.25, function()
     if not active or not startedAt then
       return
     end
@@ -167,18 +307,6 @@ function AFK:Enter()
   end
 end
 
-local function ShowParent()
-  local inCombat = type(InCombatLockdown) == "function" and InCombatLockdown() and true or false
-  local ok = pcall(UIParent.Show, UIParent)
-  pendingShowParent = (not ok) or inCombat
-end
-
-local function RestoreParent()
-  if pendingShowParent then
-    ShowParent()
-  end
-end
-
 function AFK:Leave(fromKey)
   if not active then
     RestoreParent()
@@ -189,6 +317,12 @@ function AFK:Leave(fromKey)
   ticker = nil
   CancelHandle(modelTimer)
   modelTimer = nil
+  inputArmed = false
+  lastCursorX, lastCursorY = nil, nil
+
+  if model then
+    model:SetScript("OnAnimFinished", nil)
+  end
 
   if cameraOn then
     pcall(MoveViewLeftStop)
@@ -278,6 +412,10 @@ function AFK:Disable()
   end
 end
 
+-------------------------------------------------------------------------------
+-- Frames (ToxiUI-style: left changelog, center brand, right model)
+-------------------------------------------------------------------------------
+
 frame = CreateFrame("Frame", "RakaModAFK", WorldFrame)
 frame:SetAllPoints(WorldFrame)
 frame:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -288,7 +426,7 @@ frame:Hide()
 
 local shade = frame:CreateTexture(nil, "BACKGROUND")
 shade:SetAllPoints()
-shade:SetColorTexture(0, 0, 0, 0.28)
+shade:SetColorTexture(0, 0, 0, 0.72)
 
 frame:SetScript("OnKeyDown", function(self, key)
   if self.SetPropagateKeyboardInput then
@@ -301,35 +439,96 @@ frame:SetScript("OnKeyDown", function(self, key)
   AFK:Leave(true)
 end)
 
+frame:SetScript("OnMouseDown", function()
+  if active then
+    AFK:Leave(true)
+  end
+end)
+
+frame:SetScript("OnUpdate", function()
+  if not active or not inputArmed then
+    return
+  end
+  local x, y = GetCursorPosition()
+  if lastCursorX and lastCursorY then
+    if math.abs(x - lastCursorX) > 4 or math.abs(y - lastCursorY) > 4 then
+      AFK:Leave(true)
+      return
+    end
+  end
+  lastCursorX, lastCursorY = x, y
+end)
+
+logo = frame:CreateTexture(nil, "ARTWORK")
+logo:SetSize(112, 112)
+logo:SetPoint("TOP", frame, "TOP", 0, -96)
+do
+  local path = RakaMod.Media and RakaMod.Media.IconPath
+  if path then
+    logo:SetTexture(path)
+  end
+end
+
+timerText = frame:CreateFontString(nil, "OVERLAY")
+timerText:SetPoint("TOP", logo, "BOTTOM", 0, -18)
+timerText:SetJustifyH("CENTER")
+Paint(timerText, 36, TIMER_CYAN.r, TIMER_CYAN.g, TIMER_CYAN.b)
+
+nameText = frame:CreateFontString(nil, "OVERLAY")
+nameText:SetPoint("TOP", timerText, "BOTTOM", 0, -22)
+nameText:SetJustifyH("CENTER")
+Paint(nameText, 28, 1, 1, 1)
+
+titleText = frame:CreateFontString(nil, "OVERLAY")
+titleText:SetPoint("TOP", nameText, "BOTTOM", 0, -6)
+titleText:SetJustifyH("CENTER")
+Paint(titleText, 16, 0.85, 0.85, 0.85)
+titleText:Hide()
+
+classIcon = frame:CreateTexture(nil, "ARTWORK")
+classIcon:SetSize(22, 22)
+classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, -18)
+classIcon:Hide()
+
+levelText = frame:CreateFontString(nil, "OVERLAY")
+levelText:SetPoint("RIGHT", classIcon, "LEFT", -6, 0)
+levelText:SetJustifyH("RIGHT")
+Paint(levelText, 18, 1, 1, 1)
+
+classText = frame:CreateFontString(nil, "OVERLAY")
+classText:SetPoint("LEFT", classIcon, "RIGHT", 6, 0)
+classText:SetJustifyH("LEFT")
+Paint(classText, 18, 1, 1, 1)
+
+changelogHeader = frame:CreateFontString(nil, "OVERLAY")
+changelogHeader:SetPoint("TOPLEFT", frame, "TOPLEFT", 48, -100)
+changelogHeader:SetJustifyH("LEFT")
+changelogHeader:SetWidth(460)
+Paint(changelogHeader, 20, 1, 1, 1, 0.9)
+
+changelogBody = frame:CreateFontString(nil, "OVERLAY")
+changelogBody:SetPoint("TOPLEFT", changelogHeader, "BOTTOMLEFT", 0, -14)
+changelogBody:SetJustifyH("LEFT")
+changelogBody:SetJustifyV("TOP")
+changelogBody:SetWidth(460)
+changelogBody:SetWordWrap(true)
+Paint(changelogBody, 13, 1, 1, 1, 0.82)
+
 model = CreateFrame("PlayerModel", nil, frame)
-model:SetSize(520, 640)
-model:SetPoint("LEFT", frame, "LEFT", 72, -16)
+model:SetSize(560, 680)
+model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 36)
 model:SetFrameLevel(frame:GetFrameLevel() + 1)
 model:Hide()
 
-nameText = frame:CreateFontString(nil, "OVERLAY")
-nameText:SetPoint("TOPLEFT", frame, "CENTER", 36, 88)
-nameText:SetJustifyH("LEFT")
-nameText:SetWordWrap(false)
-nameText:SetWidth(480)
-Paint(nameText, 40, 1, 1, 1)
-
-guildText = frame:CreateFontString(nil, "OVERLAY")
-guildText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -10)
-guildText:SetJustifyH("LEFT")
-guildText:SetWordWrap(false)
-guildText:SetWidth(480)
-Paint(guildText, 18, 0.91, 0.84, 0.64)
-
-timerText = frame:CreateFontString(nil, "OVERLAY")
-timerText:SetPoint("TOPLEFT", guildText, "BOTTOMLEFT", 0, -18)
-timerText:SetJustifyH("LEFT")
-timerText:SetWidth(480)
-Paint(timerText, 32, 1, 1, 1)
+footerText = frame:CreateFontString(nil, "OVERLAY")
+footerText:SetPoint("BOTTOM", frame, "BOTTOM", 0, 22)
+footerText:SetJustifyH("CENTER")
+Paint(footerText, 12, 1, 1, 1, 0.45)
+footerText:SetText("Press any key or move the mouse to dismiss  ·  RakaMod")
 
 chat = CreateFrame("ScrollingMessageFrame", nil, frame)
-chat:SetSize(520, 220)
-chat:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -64, 48)
+chat:SetSize(420, 160)
+chat:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 48, 48)
 chat:SetFrameLevel(frame:GetFrameLevel() + 2)
 chat:SetJustifyH("LEFT")
 chat:SetFading(false)
@@ -339,7 +538,7 @@ chat:EnableMouseWheel(true)
 do
   local path = RakaMod.Media and RakaMod.Media.FontPath
   if path then
-    pcall(chat.SetFont, chat, path, 14, "OUTLINE")
+    pcall(chat.SetFont, chat, path, 13, "OUTLINE")
   end
 end
 pcall(chat.SetShadowOffset, chat, 1, -1)

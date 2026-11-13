@@ -94,6 +94,50 @@ eq(Logic.AfkBlocked({ enabled = true, isAFK = true, locked = false, cinematic = 
 eq(Logic.AfkSuppressed(10, 70), true, "inside suppress window")
 eq(Logic.AfkSuppressed(70, 70), false, "suppress expired")
 
+eq(Logic.EllesmereEntryVisible({ forever = true }, true), true, "forever entry on forever")
+eq(Logic.EllesmereEntryVisible({ forever = true }, false), false, "forever entry on retail")
+eq(Logic.EllesmereEntryVisible({ retail = true }, true), false, "retail entry on forever")
+eq(Logic.EllesmereEntryVisible({ retail = true }, false), true, "retail entry on retail")
+eq(Logic.EllesmereEntryVisible({ title = "x" }, true), true, "shared entry")
+
+local hNil, bNil = Logic.FormatEllesmereChangelog(nil, true)
+eq(hNil, nil, "missing patches header")
+eq(bNil, nil, "missing patches body")
+
+local sample = {
+  {
+    version = "9.8.4",
+    features = {
+      { forever = true, title = "Divine Spirit", desc = "Priest raid buff reminder" },
+      { retail = true, title = "Group Notes", desc = "Show notes" },
+      { title = "Pins", desc = "Per character pins" },
+    },
+    fixes = {
+      { text = "Bags categories work" },
+      { forever = true, text = "Friends ruleset label" },
+      { retail = true, text = "Premade portal menu" },
+    },
+  },
+}
+local hF, bF = Logic.FormatEllesmereChangelog(sample, true, 8, 8)
+eq(hF, "Latest changelog for 9.8.4", "forever header")
+assert(type(bF) == "string" and bF:find("Divine Spirit", 1, true), "forever feature kept")
+assert(type(bF) == "string" and bF:find("Pins", 1, true), "shared feature kept")
+assert(type(bF) == "string" and not bF:find("Group Notes", 1, true), "retail feature dropped on forever")
+assert(type(bF) == "string" and bF:find("Friends ruleset", 1, true), "forever fix kept")
+assert(type(bF) == "string" and not bF:find("Premade portal", 1, true), "retail fix dropped on forever")
+assert(type(bF) == "string" and bF:find("NEW FEATURES", 1, true), "features category")
+assert(type(bF) == "string" and bF:find("BUG FIXES", 1, true), "fixes category")
+
+local hR, bR = Logic.FormatEllesmereChangelog(sample, false, 8, 8)
+assert(type(bR) == "string" and bR:find("Group Notes", 1, true), "retail feature kept")
+assert(type(bR) == "string" and not bR:find("Divine Spirit", 1, true), "forever feature dropped on retail")
+
+local r, g, b = Logic.ClassRgb("SHAMAN", nil)
+eq(r, 0.00, "shaman r")
+eq(g, 0.44, "shaman g")
+eq(b, 0.87, "shaman b")
+
 if failures > 0 then
   os.exit(1)
 end
