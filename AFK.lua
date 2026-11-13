@@ -83,30 +83,49 @@ local function Paint(fs, size, r, g, b, a)
   fs:SetShadowColor(0, 0, 0, 1)
 end
 
--- Changelog uses Blizzard GameFontNormal (chat/UI default size), not RakaMod display sizes.
+-- Changelog: smaller than GameFontNormal (GameFontNormalSmall / ~10–11px).
 local function PaintChangelog(fs, r, g, b, a)
-  if GameFontNormal and fs.SetFontObject then
-    pcall(fs.SetFontObject, fs, GameFontNormal)
+  if GameFontNormalSmall and fs.SetFontObject then
+    pcall(fs.SetFontObject, fs, GameFontNormalSmall)
+  elseif GameFontHighlightSmall and fs.SetFontObject then
+    pcall(fs.SetFontObject, fs, GameFontHighlightSmall)
+  elseif GameFontNormal and GameFontNormal.GetFont then
+    local path, size = GameFontNormal:GetFont()
+    if path then
+      pcall(fs.SetFont, fs, path, math.max(9, (size or 12) - 2), "")
+    else
+      EnsureFont(fs, 10, "")
+    end
   else
-    EnsureFont(fs, 12, "")
+    EnsureFont(fs, 10, "")
   end
   fs:SetTextColor(r, g, b, a or 1)
 end
 
 local function ScreenSize()
-  local w = (UIParent and UIParent.GetWidth and UIParent:GetWidth()) or 0
-  local h = (UIParent and UIParent.GetHeight and UIParent:GetHeight()) or 0
+  -- Prefer the AFK frame / WorldFrame size (UIParent is hidden while AFK).
+  local w, h = 0, 0
+  if frame and frame.GetWidth then
+    w = frame:GetWidth() or 0
+    h = frame:GetHeight() or 0
+  end
   if (not w or w <= 0) and type(GetScreenWidth) == "function" then
     w = GetScreenWidth() or 0
   end
   if (not h or h <= 0) and type(GetScreenHeight) == "function" then
     h = GetScreenHeight() or 0
   end
-  if (not w or w <= 0) and frame then
-    w = frame:GetWidth() or 1920
+  if (not w or w <= 0) and UIParent and UIParent.GetWidth then
+    w = UIParent:GetWidth() or 0
   end
-  if (not h or h <= 0) and frame then
-    h = frame:GetHeight() or 1080
+  if (not h or h <= 0) and UIParent and UIParent.GetHeight then
+    h = UIParent:GetHeight() or 0
+  end
+  if not w or w <= 0 then
+    w = 1920
+  end
+  if not h or h <= 0 then
+    h = 1080
   end
   return w, h
 end
@@ -117,21 +136,26 @@ local function ApplyLayout()
   end
   local w, h = ScreenSize()
   local s = RakaMod.Logic.AfkLayoutScale(w, h)
-  local pad = math.floor(28 * s + 0.5)
+  local pad = math.floor(24 * s + 0.5)
   local logoSize = math.floor(72 * s + 0.5)
   local logoTop = math.floor(52 * s + 0.5)
   local gapLogo = -math.floor(12 * s + 0.5)
   local gapTimer = -math.floor(14 * s + 0.5)
   local gapName = -math.floor(4 * s + 0.5)
   local classPx = math.floor(16 * s + 0.5)
-  local changelogW = math.min(math.floor(w * 0.28 + 0.5), math.floor(380 * s + 0.5))
-  if changelogW < 220 then
-    changelogW = 220
+  -- Changelog column: top-left, modest width so it stays left of center brand.
+  local changelogW = math.min(math.floor(w * 0.24 + 0.5), math.floor(320 * s + 0.5))
+  if changelogW < 200 then
+    changelogW = 200
   end
-  local modelW = math.floor(math.min(w * 0.30, 420 * s) + 0.5)
-  local modelH = math.floor(math.min(h * 0.58, 520 * s) + 0.5)
-  local chatW = math.floor(math.min(w * 0.28, 340 * s) + 0.5)
-  local chatH = math.floor(120 * s + 0.5)
+  local changelogTop = math.floor(36 * s + 0.5)
+  local changelogLeft = math.floor(20 * s + 0.5)
+  -- Model: larger, hugged to bottom-right (leave center clear for logo stack).
+  local modelW = math.floor(math.min(w * 0.40, 560 * s) + 0.5)
+  local modelH = math.floor(math.min(h * 0.72, 720 * s) + 0.5)
+  local modelPad = math.floor(10 * s + 0.5)
+  local chatW = math.floor(math.min(w * 0.24, 300 * s) + 0.5)
+  local chatH = math.floor(110 * s + 0.5)
   local timerSize = math.max(18, math.floor(26 * s + 0.5))
   local nameSize = math.max(16, math.floor(20 * s + 0.5))
   local titleSize = math.max(12, math.floor(13 * s + 0.5))
@@ -170,19 +194,23 @@ local function ApplyLayout()
   EnsureFont(classText, levelSize, "OUTLINE")
 
   changelogHeader:ClearAllPoints()
-  changelogHeader:SetPoint("TOPLEFT", frame, "TOPLEFT", pad, -logoTop)
+  changelogHeader:SetPoint("TOPLEFT", frame, "TOPLEFT", changelogLeft, -changelogTop)
   changelogHeader:SetWidth(changelogW)
+  changelogHeader:SetJustifyH("LEFT")
   PaintChangelog(changelogHeader, 1, 1, 1, 0.9)
 
   changelogBody:ClearAllPoints()
-  changelogBody:SetPoint("TOPLEFT", changelogHeader, "BOTTOMLEFT", 0, -math.floor(6 * s + 0.5))
+  changelogBody:SetPoint("TOPLEFT", changelogHeader, "BOTTOMLEFT", 0, -math.floor(4 * s + 0.5))
   changelogBody:SetWidth(changelogW)
+  changelogBody:SetJustifyH("LEFT")
   PaintChangelog(changelogBody, 1, 1, 1, 0.85)
 
   model:SetSize(modelW, modelH)
   model:ClearAllPoints()
-  model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
-  pcall(model.SetCamDistanceScale, model, 3.6)
+  model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -modelPad, modelPad)
+  -- Lower scale = larger character; keep model visually in the right third.
+  pcall(model.SetCamDistanceScale, model, 2.6)
+  pcall(model.SetPosition, model, 0.05, 0.05, -0.05)
 
   footerText:ClearAllPoints()
   footerText:SetPoint("BOTTOM", frame, "BOTTOM", 0, footerPad)
@@ -330,9 +358,10 @@ local function PoseModel()
   end
 
   model:Show()
-  pcall(model.SetCamDistanceScale, model, 3.2)
-  pcall(model.SetPosition, model, 0, 0, -0.15)
-  pcall(model.SetFacing, model, 0.35)
+  -- Match ApplyLayout: larger figure, seated in bottom-right frame.
+  pcall(model.SetCamDistanceScale, model, 2.6)
+  pcall(model.SetPosition, model, 0.05, 0.05, -0.05)
+  pcall(model.SetFacing, model, 0.25)
   pcall(model.SetAnimation, model, DANCE_ANIM)
   model:SetScript("OnAnimFinished", function(self)
     pcall(self.SetAnimation, self, DANCE_ANIM)
@@ -646,13 +675,13 @@ EnsureFont(classText, 13, "OUTLINE")
 
 changelogHeader = frame:CreateFontString(nil, "OVERLAY")
 changelogHeader:SetJustifyH("LEFT")
-EnsureFont(changelogHeader, 12, "")
+EnsureFont(changelogHeader, 10, "")
 
 changelogBody = frame:CreateFontString(nil, "OVERLAY")
 changelogBody:SetJustifyH("LEFT")
 changelogBody:SetJustifyV("TOP")
 changelogBody:SetWordWrap(true)
-EnsureFont(changelogBody, 12, "")
+EnsureFont(changelogBody, 10, "")
 
 model = CreateFrame("PlayerModel", nil, frame)
 model:SetFrameLevel(frame:GetFrameLevel() + 1)
