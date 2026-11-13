@@ -218,34 +218,471 @@ local function PassWheel(scroll, widget)
   end)
 end
 
-local function PickColor(target, onChange)
+local colorClipboard = nil
+local pickerSession = nil
+local rakaPicker
+local pickerButtons = {}
+local pickerFields = {}
+local editingRgb = false
+local ORANGE = { r = 1, g = 0.82, b = 0.2 }
+
+local function PlayerClassColor()
+  local classFile
+  if UnitClass then
+    local ok, _, file = pcall(UnitClass, "player")
+    if ok and type(file) == "string" then
+      classFile = file
+    end
+  end
+  if not classFile then
+    return { r = 1, g = 1, b = 1 }
+  end
+  local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
+  if type(c) == "table" and type(c.r) == "number" then
+    return { r = c.r, g = c.g, b = c.b }
+  end
+  local fallback = RakaMod.Logic and RakaMod.Logic.CLASS_FALLBACK_COLORS and RakaMod.Logic.CLASS_FALLBACK_COLORS[classFile]
+  if type(fallback) == "table" then
+    return { r = fallback.r, g = fallback.g, b = fallback.b }
+  end
+  return { r = 1, g = 1, b = 1 }
+end
+
+local function ClampByte(value)
+  value = tonumber(value) or 0
+  if value < 0 then
+    return 0
+  end
+  if value > 255 then
+    return 255
+  end
+  return math.floor(value + 0.5)
+end
+
+local function Clamp01(value)
+  if type(value) ~= "number" then
+    return 0
+  end
+  if value < 0 then
+    return 0
+  end
+  if value > 1 then
+    return 1
+  end
+  return value
+end
+
+local function MakePickerButton(parent, text, width, height)
+  local button = CreateFrame("Button", nil, parent, template)
+  button:SetSize(width, height or 24)
+  if button.SetBackdrop then
+    button:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8x8",
+      edgeFile = "Interface\\Buttons\\WHITE8x8",
+      edgeSize = 1,
+      insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    button:SetBackdropColor(0.10, 0.10, 0.12, 1)
+    button:SetBackdropBorderColor(0, 0, 0, 1)
+  end
+  local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("CENTER")
+  label:SetText(text)
+  label:SetTextColor(ORANGE.r, ORANGE.g, ORANGE.b)
+  button.label = label
+  button:SetScript("OnEnter", function(self)
+    if self:IsEnabled() and self.SetBackdropColor then
+      self:SetBackdropColor(0.16, 0.16, 0.18, 1)
+    end
+  end)
+  button:SetScript("OnLeave", function(self)
+    if self.SetBackdropColor then
+      self:SetBackdropColor(0.10, 0.10, 0.12, 1)
+    end
+  end)
+  return button
+end
+
+local function MakeRgbBox(parent, width, maxLetters, numeric)
+  local box = CreateFrame("EditBox", nil, parent, template)
+  box:SetSize(width, 22)
+  box:SetAutoFocus(false)
+  box:SetMaxLetters(maxLetters)
+  box:SetNumeric(numeric and true or false)
+  box:SetJustifyH("CENTER")
+  box:SetTextInsets(4, 4, 0, 0)
+  box:SetFontObject(GameFontHighlight)
+  box:SetTextColor(1, 1, 1)
+  if box.SetBackdrop then
+    box:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8x8",
+      edgeFile = "Interface\\Buttons\\WHITE8x8",
+      edgeSize = 1,
+      insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    box:SetBackdropColor(0.08, 0.08, 0.10, 1)
+    box:SetBackdropBorderColor(0, 0, 0, 1)
+  end
+  return box
+end
+
+local function UpdatePasteButton()
+  local paste = pickerButtons.paste
+  if not paste then
+    return
+  end
+  local has = type(colorClipboard) == "table"
+  paste:SetEnabled(has)
+  if has then
+    paste:SetAlpha(1)
+    paste.label:SetTextColor(ORANGE.r, ORANGE.g, ORANGE.b)
+  else
+    paste:SetAlpha(0.55)
+    paste.label:SetTextColor(0.55, 0.55, 0.55)
+  end
+end
+
+local function UpdateRgbFields(r, g, b)
+  if editingRgb or not pickerFields.hex then
+    return
+  end
+  if type(r) ~= "number" then
+    if rakaPicker and rakaPicker.GetColorRGB then
+      r, g, b = rakaPicker:GetColorRGB()
+    else
+      return
+    end
+  end
+  local rb = ClampByte((r or 0) * 255)
+  local gb = ClampByte((g or 0) * 255)
+  local bb = ClampByte((b or 0) * 255)
+  editingRgb = true
+  pickerFields.hex:SetText(string.format("%02x%02x%02x", rb, gb, bb))
+  pickerFields.r:SetText(tostring(rb))
+  pickerFields.g:SetText(tostring(gb))
+  pickerFields.b:SetText(tostring(bb))
+  if pickerFields.newSwatch then
+    pickerFields.newSwatch:SetColorTexture(r or 0, g or 0, b or 0, 1)
+  end
+  editingRgb = false
+end
+
+local function SetPickerRGB(r, g, b)
+  r, g, b = Clamp01(r), Clamp01(g), Clamp01(b)
+  if rakaPicker and rakaPicker.SetColorRGB then
+    rakaPicker:SetColorRGB(r, g, b)
+  end
+  if pickerSession and pickerSession.write then
+    pickerSession.write(r, g, b)
+  end
+  UpdateRgbFields(r, g, b)
+end
+
+local function ApplyFromRgbFields()
+  if editingRgb then
+    return
+  end
+  SetPickerRGB(
+    ClampByte(pickerFields.r:GetText()) / 255,
+    ClampByte(pickerFields.g:GetText()) / 255,
+    ClampByte(pickerFields.b:GetText()) / 255
+  )
+end
+
+local function ApplyFromHexField()
+  if editingRgb then
+    return
+  end
+  local text = string.lower(pickerFields.hex:GetText() or ""):gsub("[^0-9a-f]", "")
+  if #text ~= 6 then
+    return
+  end
+  local r = tonumber(text:sub(1, 2), 16)
+  local g = tonumber(text:sub(3, 4), 16)
+  local b = tonumber(text:sub(5, 6), 16)
+  if not r or not g or not b then
+    return
+  end
+  SetPickerRGB(r / 255, g / 255, b / 255)
+end
+
+local function SetupColorSelectTextures(dest)
+  -- Standard Blizzard color-picker art (works on Forever + retail).
+  if dest.SetColorWheelTexture then
+    pcall(dest.SetColorWheelTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Wheel")
+  end
+  if dest.SetColorWheelThumbTexture then
+    pcall(dest.SetColorWheelThumbTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
+  end
+  if dest.SetColorValueTexture then
+    pcall(dest.SetColorValueTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
+  end
+  if dest.SetColorValueThumbTexture then
+    pcall(dest.SetColorValueThumbTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
+  end
+  -- Prefer live textures from ColorPickerFrame when available.
+  if ColorPickerFrame then
+    if dest.SetColorWheelTexture and ColorPickerFrame.GetColorWheelTexture then
+      local ok, tex = pcall(ColorPickerFrame.GetColorWheelTexture, ColorPickerFrame)
+      if ok and tex then
+        pcall(dest.SetColorWheelTexture, dest, tex)
+      end
+    end
+    if dest.SetColorWheelThumbTexture and ColorPickerFrame.GetColorWheelThumbTexture then
+      local ok, tex = pcall(ColorPickerFrame.GetColorWheelThumbTexture, ColorPickerFrame)
+      if ok and tex then
+        pcall(dest.SetColorWheelThumbTexture, dest, tex)
+      end
+    end
+    if dest.SetColorValueTexture and ColorPickerFrame.GetColorValueTexture then
+      local ok, tex = pcall(ColorPickerFrame.GetColorValueTexture, ColorPickerFrame)
+      if ok and tex then
+        pcall(dest.SetColorValueTexture, dest, tex)
+      end
+    end
+    if dest.SetColorValueThumbTexture and ColorPickerFrame.GetColorValueThumbTexture then
+      local ok, tex = pcall(ColorPickerFrame.GetColorValueThumbTexture, ColorPickerFrame)
+      if ok and tex then
+        pcall(dest.SetColorValueThumbTexture, dest, tex)
+      end
+    end
+  end
+end
+
+local function EnsureRakaPicker()
+  if rakaPicker then
+    return rakaPicker
+  end
+
+  -- Exact Toxi-style layout from the print:
+  -- Title
+  -- Wheel + value (left) | swatches, Copy/Paste, Class, Default, Hex (right)
+  -- R G B horizontal under wheel
+  -- Okay | Cancel
+  local f = CreateFrame("ColorSelect", "RakaModColorPicker", UIParent, template)
+  f:SetSize(360, 340)
+  f:SetPoint("CENTER")
+  f:SetFrameStrata("FULLSCREEN_DIALOG")
+  f:SetToplevel(true)
+  f:EnableMouse(true)
+  f:SetMovable(true)
+  f:RegisterForDrag("LeftButton")
+  f:SetScript("OnDragStart", f.StartMoving)
+  f:SetScript("OnDragStop", f.StopMovingOrSizing)
+  f:Hide()
+  if UISpecialFrames then
+    UISpecialFrames[#UISpecialFrames + 1] = "RakaModColorPicker"
+  end
+
+  if f.SetBackdrop then
+    f:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8x8",
+      edgeFile = "Interface\\Buttons\\WHITE8x8",
+      edgeSize = 1,
+      insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    f:SetBackdropColor(0.14, 0.14, 0.16, 1)
+    f:SetBackdropBorderColor(0.05, 0.05, 0.05, 1)
+  end
+
+  local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  title:SetPoint("TOP", 0, -12)
+  title:SetText("Color Picker")
+  title:SetTextColor(ORANGE.r, ORANGE.g, ORANGE.b)
+
+  SetupColorSelectTextures(f)
+
+  -- Right column
+  local colX = -18
+  local newSwatch = f:CreateTexture(nil, "ARTWORK")
+  newSwatch:SetSize(72, 18)
+  newSwatch:SetPoint("TOPRIGHT", colX, -42)
+  newSwatch:SetColorTexture(1, 1, 1, 1)
+  local oldSwatch = f:CreateTexture(nil, "ARTWORK")
+  oldSwatch:SetSize(72, 18)
+  oldSwatch:SetPoint("TOPRIGHT", newSwatch, "BOTTOMRIGHT", 0, -2)
+  oldSwatch:SetColorTexture(1, 1, 1, 1)
+  pickerFields.newSwatch = newSwatch
+  pickerFields.oldSwatch = oldSwatch
+
+  -- Column width 146 under the swatches (Copy|Paste, Class, Default, Hex)
+  local copy = MakePickerButton(f, "Copy", 70, 24)
+  copy:SetPoint("TOPRIGHT", f, "TOPRIGHT", -94, -92)
+  local paste = MakePickerButton(f, "Paste", 70, 24)
+  paste:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -92)
+
+  local classBtn = MakePickerButton(f, "Class", 146, 24)
+  classBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -122)
+  local defaultBtn = MakePickerButton(f, "Default", 146, 24)
+  defaultBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -152)
+
+  local hex = MakeRgbBox(f, 146, 6, false)
+  hex:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -184)
+  local hexHash = hex:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  hexHash:SetPoint("LEFT", 6, 0)
+  hexHash:SetText("#")
+  hexHash:SetTextColor(1, 1, 1)
+  hex:SetTextInsets(18, 4, 0, 0)
+  hex:SetJustifyH("LEFT")
+
+  -- RGB under wheel, one horizontal row
+  local rLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  rLabel:SetPoint("BOTTOMLEFT", 28, 56)
+  rLabel:SetText("R")
+  rLabel:SetTextColor(1, 1, 1)
+  local rBox = MakeRgbBox(f, 40, 3, true)
+  rBox:SetPoint("LEFT", rLabel, "RIGHT", 4, 0)
+
+  local gLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  gLabel:SetPoint("LEFT", rBox, "RIGHT", 12, 0)
+  gLabel:SetText("G")
+  gLabel:SetTextColor(1, 1, 1)
+  local gBox = MakeRgbBox(f, 40, 3, true)
+  gBox:SetPoint("LEFT", gLabel, "RIGHT", 4, 0)
+
+  local bLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  bLabel:SetPoint("LEFT", gBox, "RIGHT", 12, 0)
+  bLabel:SetText("B")
+  bLabel:SetTextColor(1, 1, 1)
+  local bBox = MakeRgbBox(f, 40, 3, true)
+  bBox:SetPoint("LEFT", bLabel, "RIGHT", 4, 0)
+
+  local okay = MakePickerButton(f, "Okay", 150, 28)
+  okay:SetPoint("BOTTOMLEFT", 24, 16)
+  local cancel = MakePickerButton(f, "Cancel", 150, 28)
+  cancel:SetPoint("BOTTOMRIGHT", -24, 16)
+
+  pickerButtons.copy = copy
+  pickerButtons.paste = paste
+  pickerButtons.class = classBtn
+  pickerButtons.default = defaultBtn
+  pickerButtons.okay = okay
+  pickerButtons.cancel = cancel
+  pickerFields.hex = hex
+  pickerFields.r = rBox
+  pickerFields.g = gBox
+  pickerFields.b = bBox
+
+  copy:SetScript("OnClick", function()
+    local r, g, b = f:GetColorRGB()
+    colorClipboard = { r = r, g = g, b = b }
+    UpdatePasteButton()
+  end)
+  paste:SetScript("OnClick", function()
+    if type(colorClipboard) ~= "table" then
+      return
+    end
+    SetPickerRGB(colorClipboard.r, colorClipboard.g, colorClipboard.b)
+  end)
+  classBtn:SetScript("OnClick", function()
+    local c = PlayerClassColor()
+    SetPickerRGB(c.r, c.g, c.b)
+  end)
+  defaultBtn:SetScript("OnClick", function()
+    if not pickerSession or type(pickerSession.getDefault) ~= "function" then
+      return
+    end
+    local c = pickerSession.getDefault()
+    if type(c) ~= "table" then
+      return
+    end
+    SetPickerRGB(c.r, c.g, c.b)
+  end)
+
+  local function BindBox(box, apply)
+    box:SetScript("OnEnterPressed", function(self)
+      apply()
+      self:ClearFocus()
+    end)
+    box:SetScript("OnEditFocusLost", apply)
+  end
+  BindBox(rBox, ApplyFromRgbFields)
+  BindBox(gBox, ApplyFromRgbFields)
+  BindBox(bBox, ApplyFromRgbFields)
+  hex:SetScript("OnEnterPressed", function(self)
+    ApplyFromHexField()
+    self:ClearFocus()
+  end)
+  hex:SetScript("OnEditFocusLost", ApplyFromHexField)
+  hex:SetScript("OnTextChanged", function(_, userInput)
+    if userInput and #(hex:GetText() or ""):gsub("[^0-9a-fA-F]", "") == 6 then
+      ApplyFromHexField()
+    end
+  end)
+
+  f:SetScript("OnColorSelect", function(self)
+    local r, g, b = self:GetColorRGB()
+    if pickerSession and pickerSession.write then
+      pickerSession.write(r, g, b)
+    end
+    UpdateRgbFields(r, g, b)
+  end)
+
+  okay:SetScript("OnClick", function()
+    local r, g, b = f:GetColorRGB()
+    if pickerSession and pickerSession.write then
+      pickerSession.write(r, g, b)
+    end
+    f:Hide()
+    pickerSession = nil
+  end)
+  cancel:SetScript("OnClick", function()
+    if pickerSession and pickerSession.previous and pickerSession.write then
+      local p = pickerSession.previous
+      pickerSession.write(p.r, p.g, p.b)
+    end
+    f:Hide()
+    pickerSession = nil
+  end)
+
+  f:SetScript("OnShow", function()
+    SetupColorSelectTextures(f)
+    UpdatePasteButton()
+    local hasDefault = pickerSession and type(pickerSession.getDefault) == "function"
+    defaultBtn:SetEnabled(hasDefault and true or false)
+    if hasDefault then
+      defaultBtn:SetAlpha(1)
+      defaultBtn.label:SetTextColor(ORANGE.r, ORANGE.g, ORANGE.b)
+    else
+      defaultBtn:SetAlpha(0.55)
+      defaultBtn.label:SetTextColor(0.55, 0.55, 0.55)
+    end
+  end)
+
+  rakaPicker = f
+  return f
+end
+
+local function PickColor(target, onChange, opts)
+  opts = opts or {}
   local previous = { r = target.r, g = target.g, b = target.b }
   local function write(r, g, b)
     target.r, target.g, target.b = r, g, b
     onChange()
   end
-  if ColorPickerFrame.SetupColorPickerAndShow then
-    ColorPickerFrame:SetupColorPickerAndShow({
-      r = target.r, g = target.g, b = target.b, opacity = 1, hasOpacity = false,
-      swatchFunc = function()
-        local r, g, b = ColorPickerFrame:GetColorRGB()
-        write(r, g, b)
-      end,
-      cancelFunc = function()
-        write(previous.r, previous.g, previous.b)
-      end,
-    })
-  else
-    ColorPickerFrame.func = function()
-      local r, g, b = ColorPickerFrame:GetColorRGB()
-      write(r, g, b)
-    end
-    ColorPickerFrame.cancelFunc = function()
-      write(previous.r, previous.g, previous.b)
-    end
-    ColorPickerFrame:SetColorRGB(target.r, target.g, target.b)
-    ColorPickerFrame:Show()
+  pickerSession = {
+    target = target,
+    write = write,
+    getDefault = opts.getDefault,
+    previous = previous,
+  }
+  local f = EnsureRakaPicker()
+  if pickerFields.oldSwatch then
+    pickerFields.oldSwatch:SetColorTexture(previous.r, previous.g, previous.b, 1)
   end
+  f:SetColorRGB(previous.r, previous.g, previous.b)
+  UpdateRgbFields(previous.r, previous.g, previous.b)
+  UpdatePasteButton()
+  f:Show()
+  f:Raise()
+end
+
+local cachedGradientDefaults
+local function GradientDefaults()
+  if not cachedGradientDefaults and RakaMod.Logic and RakaMod.Logic.BuildGradientDefaults then
+    cachedGradientDefaults = RakaMod.Logic.BuildGradientDefaults()
+  end
+  return cachedGradientDefaults
 end
 
 local function NextOutline(current)
@@ -386,7 +823,7 @@ local function AddSlider(ctx, text, section, key, minValue, maxValue)
   return slider
 end
 
-local function AddColorButton(ctx, text, getTarget, onChange)
+local function AddColorButton(ctx, text, getTarget, onChange, getDefault)
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 32, ctx.LocalY() - 6)
   label:SetText(text)
@@ -422,7 +859,7 @@ local function AddColorButton(ctx, text, getTarget, onChange)
     PickColor(target, function()
       paint()
       onChange()
-    end)
+    end, { getDefault = getDefault })
   end)
   PassWheel(ctx.scroll, swatch)
   swatches[#swatches + 1] = { paint = paint }
@@ -438,6 +875,8 @@ local function AddZoneSwatch(ctx, text)
     if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
       RakaMod.ZoneText:Apply()
     end
+  end, function()
+    return { r = 1, g = 1, b = 1 }
   end)
 end
 
@@ -599,7 +1038,7 @@ local function PaintPreview(preview, left, right)
   end
 end
 
-local function AddPairRow(ctx, x, y, labelText, labelColor, getPair)
+local function AddPairRow(ctx, x, y, labelText, labelColor, getPair, getDefaultPair)
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, y - 4)
   label:SetWidth(100)
@@ -638,7 +1077,12 @@ local function AddPairRow(ctx, x, y, labelText, labelColor, getPair)
       if RakaMod.Gradient and RakaMod.Gradient.Apply then
         RakaMod.Gradient:Apply()
       end
-    end)
+    end, {
+      getDefault = function()
+        local defaults = getDefaultPair and getDefaultPair()
+        return defaults and defaults.left
+      end,
+    })
   end)
   rightSwatch:SetScript("OnClick", function()
     local pair = getPair()
@@ -650,7 +1094,12 @@ local function AddPairRow(ctx, x, y, labelText, labelColor, getPair)
       if RakaMod.Gradient and RakaMod.Gradient.Apply then
         RakaMod.Gradient:Apply()
       end
-    end)
+    end, {
+      getDefault = function()
+        local defaults = getDefaultPair and getDefaultPair()
+        return defaults and defaults.right
+      end,
+    })
   end)
 
   swatches[#swatches + 1] = { paint = refresh }
@@ -711,6 +1160,9 @@ do
     AddPairRow(gradient, x, y, ClassDisplayName(file), ClassLabelColor(file), function()
       local g = RakaMod.db and RakaMod.db.gradient
       return g and g.classes and g.classes[file]
+    end, function()
+      local d = GradientDefaults()
+      return d and d.classes and d.classes[file]
     end)
   end
   for _ = 1, rows do
@@ -731,6 +1183,9 @@ do
     AddPairRow(gradient, 8, startY - (i - 1) * PAIR_ROW, row.label, row.color, function()
       local g = RakaMod.db and RakaMod.db.gradient
       return g and g.npc and g.npc[row.key]
+    end, function()
+      local d = GradientDefaults()
+      return d and d.npc and d.npc[row.key]
     end)
   end
   for _ = 1, #npcRows do
@@ -752,6 +1207,9 @@ do
     AddPairRow(gradient, 8, startY - (i - 1) * PAIR_ROW, row.label, { r = 0.85, g = 0.85, b = 0.85 }, function()
       local g = RakaMod.db and RakaMod.db.gradient
       return g and g.states and g.states[row.key]
+    end, function()
+      local d = GradientDefaults()
+      return d and d.states and d.states[row.key]
     end)
   end
   for _ = 1, #stateRows do
