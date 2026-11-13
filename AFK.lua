@@ -51,11 +51,33 @@ local function CancelHandle(handle)
   end
 end
 
-local function Paint(fs, size, r, g, b, a)
-  local path = RakaMod.Media and RakaMod.Media.FontPath
-  if path then
-    pcall(fs.SetFont, fs, path, size, "OUTLINE")
+-- Always assign a font before any SetText (BugGrabber: "Font not set").
+local function EnsureFont(fs, size, flags)
+  if not fs then
+    return
   end
+  local path = RakaMod.Media and RakaMod.Media.FontPath
+  if path and type(size) == "number" then
+    local ok = pcall(fs.SetFont, fs, path, size, flags or "OUTLINE")
+    if ok then
+      return
+    end
+  end
+  if GameFontNormal and fs.SetFontObject then
+    if pcall(fs.SetFontObject, fs, GameFontNormal) then
+      return
+    end
+  end
+  if GameFontNormal and GameFontNormal.GetFont then
+    local gPath, gSize = GameFontNormal:GetFont()
+    if gPath then
+      pcall(fs.SetFont, fs, gPath, size or gSize or 12, flags or "")
+    end
+  end
+end
+
+local function Paint(fs, size, r, g, b, a)
+  EnsureFont(fs, size, "OUTLINE")
   fs:SetTextColor(r, g, b, a or 1)
   fs:SetShadowOffset(1, -1)
   fs:SetShadowColor(0, 0, 0, 1)
@@ -66,16 +88,7 @@ local function PaintChangelog(fs, r, g, b, a)
   if GameFontNormal and fs.SetFontObject then
     pcall(fs.SetFontObject, fs, GameFontNormal)
   else
-    local path, size
-    if GameFontNormal and GameFontNormal.GetFont then
-      path, size = GameFontNormal:GetFont()
-    end
-    if path and size then
-      pcall(fs.SetFont, fs, path, size, "")
-    else
-      Paint(fs, 12, r, g, b, a)
-      return
-    end
+    EnsureFont(fs, 12, "")
   end
   fs:SetTextColor(r, g, b, a or 1)
 end
@@ -136,13 +149,7 @@ local function ApplyLayout()
 
   nameText:ClearAllPoints()
   nameText:SetPoint("TOP", timerText, "BOTTOM", 0, gapTimer)
-  -- color reapplied on Enter; keep size here
-  do
-    local path = RakaMod.Media and RakaMod.Media.FontPath
-    if path then
-      pcall(nameText.SetFont, nameText, path, nameSize, "OUTLINE")
-    end
-  end
+  EnsureFont(nameText, nameSize, "OUTLINE")
 
   titleText:ClearAllPoints()
   titleText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
@@ -160,12 +167,7 @@ local function ApplyLayout()
   Paint(levelText, levelSize, 1, 1, 1)
   classText:ClearAllPoints()
   classText:SetPoint("LEFT", classIcon, "RIGHT", math.floor(4 * s + 0.5), 0)
-  do
-    local path = RakaMod.Media and RakaMod.Media.FontPath
-    if path then
-      pcall(classText.SetFont, classText, path, levelSize, "OUTLINE")
-    end
-  end
+  EnsureFont(classText, levelSize, "OUTLINE")
 
   changelogHeader:ClearAllPoints()
   changelogHeader:SetPoint("TOPLEFT", frame, "TOPLEFT", pad, -logoTop)
@@ -620,12 +622,15 @@ end
 
 timerText = frame:CreateFontString(nil, "OVERLAY")
 timerText:SetJustifyH("CENTER")
+EnsureFont(timerText, 26, "OUTLINE")
 
 nameText = frame:CreateFontString(nil, "OVERLAY")
 nameText:SetJustifyH("CENTER")
+EnsureFont(nameText, 20, "OUTLINE")
 
 titleText = frame:CreateFontString(nil, "OVERLAY")
 titleText:SetJustifyH("CENTER")
+EnsureFont(titleText, 13, "OUTLINE")
 titleText:Hide()
 
 classIcon = frame:CreateTexture(nil, "ARTWORK")
@@ -633,17 +638,21 @@ classIcon:Hide()
 
 levelText = frame:CreateFontString(nil, "OVERLAY")
 levelText:SetJustifyH("RIGHT")
+EnsureFont(levelText, 13, "OUTLINE")
 
 classText = frame:CreateFontString(nil, "OVERLAY")
 classText:SetJustifyH("LEFT")
+EnsureFont(classText, 13, "OUTLINE")
 
 changelogHeader = frame:CreateFontString(nil, "OVERLAY")
 changelogHeader:SetJustifyH("LEFT")
+EnsureFont(changelogHeader, 12, "")
 
 changelogBody = frame:CreateFontString(nil, "OVERLAY")
 changelogBody:SetJustifyH("LEFT")
 changelogBody:SetJustifyV("TOP")
 changelogBody:SetWordWrap(true)
+EnsureFont(changelogBody, 12, "")
 
 model = CreateFrame("PlayerModel", nil, frame)
 model:SetFrameLevel(frame:GetFrameLevel() + 1)
@@ -651,6 +660,7 @@ model:Hide()
 
 footerText = frame:CreateFontString(nil, "OVERLAY")
 footerText:SetJustifyH("CENTER")
+EnsureFont(footerText, 11, "OUTLINE")
 footerText:SetText("Press any key or move the mouse to dismiss  ·  RakaMod")
 
 chat = CreateFrame("ScrollingMessageFrame", nil, frame)
