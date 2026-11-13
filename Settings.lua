@@ -407,7 +407,9 @@ local function ApplyFromHexField()
 end
 
 -- ColorSelect setters take Texture widgets (or a texture's global name), not file paths.
--- Passing a path silently fails and leaves no wheel/value regions to show.
+-- Wheel/value canvases must stay blank: the engine paints HSV onto them. Setting a
+-- file (or SetColorTexture) on those canvases clears/blocks the engine wheel.
+-- Thumbs use shared Blizzard button art; underlay uses shipped Media colorwheel.
 local THUMB_PATH = "Interface\\Buttons\\UI-ColorPicker-Buttons"
 local THUMB_FALLBACK = "Interface\\Buttons\\WHITE8x8"
 
@@ -415,25 +417,50 @@ local function WheelArtPath()
   if RakaMod.Media and type(RakaMod.Media.ColorWheelPath) == "string" then
     return RakaMod.Media.ColorWheelPath
   end
-  return "Interface\\AddOns\\RakaMod\\Media\\colorwheel.tga"
+  return "Interface\\AddOns\\RakaMod\\Media\\colorwheel"
 end
 
-local function ApplyTexture(tex, path)
+local function TextureResolved(tex)
+  if not tex or not tex.GetTexture then
+    return false
+  end
+  local got = tex:GetTexture()
+  return got ~= nil and got ~= "" and got ~= 0 and got ~= false
+end
+
+local function TrySetTexture(tex, path)
   if not tex or not tex.SetTexture or type(path) ~= "string" then
     return false
   end
-  return pcall(tex.SetTexture, tex, path)
+  local ok = pcall(tex.SetTexture, tex, path)
+  return ok and TextureResolved(tex)
+end
+
+local function ApplyThumb(tex, withCoords)
+  if TrySetTexture(tex, THUMB_PATH) then
+    if withCoords and tex.SetTexCoord then
+      withCoords(tex)
+    end
+    return
+  end
+  TrySetTexture(tex, THUMB_FALLBACK)
 end
 
 local function SetupColorSelectWheel(dest)
+  -- Visible underlay when engine paint is missing (Forever); Retail engine art covers it.
+  -- BORDER sits above the solid backdrop fill so the circle is not covered.
+  -- Always use shipped Media art here: GetTexture() can still report a missing
+  -- UI-ColorPicker-Wheel path as "set", so Blizzard-first fallback is unreliable.
+  local underlay = dest:CreateTexture(nil, "BORDER")
+  underlay:SetSize(128, 128)
+  underlay:SetPoint("TOPLEFT", 24, -42)
+  TrySetTexture(underlay, WheelArtPath())
+  underlay:Show()
+
   local wheel = dest:CreateTexture(nil, "ARTWORK")
   wheel:SetSize(128, 128)
   wheel:SetPoint("TOPLEFT", 24, -42)
-  -- Ship wheel art in Media so Forever still shows a circle when Blizzard's
-  -- UI-ColorPicker-Wheel path is missing.
-  if not ApplyTexture(wheel, WheelArtPath()) then
-    ApplyTexture(wheel, "Interface\\Buttons\\UI-ColorPicker-Wheel")
-  end
+  -- Intentionally no SetTexture: ColorSelect draws the live hue wheel here.
   wheel:Show()
   if dest.SetColorWheelTexture then
     dest:SetColorWheelTexture(wheel)
@@ -441,11 +468,9 @@ local function SetupColorSelectWheel(dest)
 
   local wheelThumb = dest:CreateTexture(nil, "OVERLAY")
   wheelThumb:SetSize(10, 10)
-  if ApplyTexture(wheelThumb, THUMB_PATH) and wheelThumb.SetTexCoord then
-    wheelThumb:SetTexCoord(0, 0.15625, 0, 0.625)
-  else
-    ApplyTexture(wheelThumb, THUMB_FALLBACK)
-  end
+  ApplyThumb(wheelThumb, function(tex)
+    tex:SetTexCoord(0, 0.15625, 0, 0.625)
+  end)
   wheelThumb:Show()
   if dest.SetColorWheelThumbTexture then
     dest:SetColorWheelThumbTexture(wheelThumb)
@@ -454,8 +479,7 @@ local function SetupColorSelectWheel(dest)
   local value = dest:CreateTexture(nil, "ARTWORK")
   value:SetSize(32, 128)
   value:SetPoint("LEFT", wheel, "RIGHT", 10, 0)
-  -- Blank canvas; ColorSelect paints the brightness gradient.
-  value:SetColorTexture(1, 1, 1, 1)
+  -- Intentionally no SetColorTexture: ColorSelect draws the value gradient.
   value:Show()
   if dest.SetColorValueTexture then
     dest:SetColorValueTexture(value)
@@ -463,16 +487,15 @@ local function SetupColorSelectWheel(dest)
 
   local valueThumb = dest:CreateTexture(nil, "OVERLAY")
   valueThumb:SetSize(48, 14)
-  if ApplyTexture(valueThumb, THUMB_PATH) and valueThumb.SetTexCoord then
-    valueThumb:SetTexCoord(0.25, 1, 0, 0.875)
-  else
-    ApplyTexture(valueThumb, THUMB_FALLBACK)
-  end
+  ApplyThumb(valueThumb, function(tex)
+    tex:SetTexCoord(0.25, 1, 0, 0.875)
+  end)
   valueThumb:Show()
   if dest.SetColorValueThumbTexture then
     dest:SetColorValueThumbTexture(valueThumb)
   end
 
+  dest.rakaWheelUnderlay = underlay
   dest.rakaWheel = wheel
   dest.rakaValue = value
 end
@@ -664,6 +687,9 @@ local function EnsureRakaPicker()
   end)
 
   f:SetScript("OnShow", function()
+    if f.rakaWheelUnderlay then
+      f.rakaWheelUnderlay:Show()
+    end
     if f.rakaWheel then
       f.rakaWheel:Show()
     end
