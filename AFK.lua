@@ -83,23 +83,38 @@ local function Paint(fs, size, r, g, b, a)
   fs:SetShadowColor(0, 0, 0, 1)
 end
 
--- Changelog: smaller than GameFontNormal (GameFontNormalSmall / ~10–11px).
-local function PaintChangelog(fs, r, g, b, a)
-  if GameFontNormalSmall and fs.SetFontObject then
-    pcall(fs.SetFontObject, fs, GameFontNormalSmall)
-  elseif GameFontHighlightSmall and fs.SetFontObject then
-    pcall(fs.SetFontObject, fs, GameFontHighlightSmall)
-  elseif GameFontNormal and GameFontNormal.GetFont then
-    local path, size = GameFontNormal:GetFont()
-    if path then
-      pcall(fs.SetFont, fs, path, math.max(9, (size or 12) - 2), "")
-    else
-      EnsureFont(fs, 10, "")
-    end
+-- Tiny UI text (~8–9px). Avoid GameFontNormalSmall — still too large on Forever.
+local SMALL_UI_SIZE = 8
+local function PaintSmall(fs, r, g, b, a)
+  local path
+  if GameFontNormal and GameFontNormal.GetFont then
+    path = GameFontNormal:GetFont()
+  end
+  if path then
+    pcall(fs.SetFont, fs, path, SMALL_UI_SIZE, "")
   else
-    EnsureFont(fs, 10, "")
+    EnsureFont(fs, SMALL_UI_SIZE, "")
   end
   fs:SetTextColor(r, g, b, a or 1)
+  fs:SetShadowOffset(1, -1)
+  fs:SetShadowColor(0, 0, 0, 1)
+end
+
+local function PaintChangelog(fs, r, g, b, a)
+  PaintSmall(fs, r, g, b, a)
+end
+
+-- Drop the 3D figure so feet sit near the bottom of the model frame / screen.
+local function PoseModelCamera()
+  if not model then
+    return
+  end
+  pcall(model.SetPortraitZoom, model, 0)
+  -- Lower cam distance = larger character.
+  pcall(model.SetCamDistanceScale, model, 2.1)
+  -- z negative moves the unit down in the model viewport (feet toward bottom).
+  pcall(model.SetPosition, model, 0, 0, -1.15)
+  pcall(model.SetFacing, model, 0.2)
 end
 
 local function ScreenSize()
@@ -150,18 +165,17 @@ local function ApplyLayout()
   end
   local changelogTop = math.floor(36 * s + 0.5)
   local changelogLeft = math.floor(20 * s + 0.5)
-  -- Model: larger, hugged to bottom-right (leave center clear for logo stack).
-  local modelW = math.floor(math.min(w * 0.40, 560 * s) + 0.5)
-  local modelH = math.floor(math.min(h * 0.72, 720 * s) + 0.5)
-  local modelPad = math.floor(10 * s + 0.5)
+  -- Model: large frame flush to screen bottom-right; camera drops feet to the edge.
+  local modelW = math.floor(math.min(w * 0.46, 640 * s) + 0.5)
+  local modelH = math.floor(math.min(h * 0.88, 900 * s) + 0.5)
+  local modelPad = 0
   local chatW = math.floor(math.min(w * 0.24, 300 * s) + 0.5)
   local chatH = math.floor(110 * s + 0.5)
   local timerSize = math.max(18, math.floor(26 * s + 0.5))
   local nameSize = math.max(16, math.floor(20 * s + 0.5))
   local titleSize = math.max(12, math.floor(13 * s + 0.5))
   local levelSize = math.max(12, math.floor(13 * s + 0.5))
-  local footerSize = math.max(10, math.floor(11 * s + 0.5))
-  local footerPad = math.floor(16 * s + 0.5)
+  local footerPad = math.floor(10 * s + 0.5)
 
   logo:SetSize(logoSize, logoSize)
   logo:ClearAllPoints()
@@ -208,13 +222,11 @@ local function ApplyLayout()
   model:SetSize(modelW, modelH)
   model:ClearAllPoints()
   model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -modelPad, modelPad)
-  -- Lower scale = larger character; keep model visually in the right third.
-  pcall(model.SetCamDistanceScale, model, 2.6)
-  pcall(model.SetPosition, model, 0.05, 0.05, -0.05)
+  PoseModelCamera()
 
   footerText:ClearAllPoints()
   footerText:SetPoint("BOTTOM", frame, "BOTTOM", 0, footerPad)
-  Paint(footerText, footerSize, 1, 1, 1, 0.45)
+  PaintSmall(footerText, 1, 1, 1, 0.45)
 
   chat:SetSize(chatW, chatH)
   chat:ClearAllPoints()
@@ -358,10 +370,7 @@ local function PoseModel()
   end
 
   model:Show()
-  -- Match ApplyLayout: larger figure, seated in bottom-right frame.
-  pcall(model.SetCamDistanceScale, model, 2.6)
-  pcall(model.SetPosition, model, 0.05, 0.05, -0.05)
-  pcall(model.SetFacing, model, 0.25)
+  PoseModelCamera()
   pcall(model.SetAnimation, model, DANCE_ANIM)
   model:SetScript("OnAnimFinished", function(self)
     pcall(self.SetAnimation, self, DANCE_ANIM)
@@ -675,13 +684,13 @@ EnsureFont(classText, 13, "OUTLINE")
 
 changelogHeader = frame:CreateFontString(nil, "OVERLAY")
 changelogHeader:SetJustifyH("LEFT")
-EnsureFont(changelogHeader, 10, "")
+EnsureFont(changelogHeader, SMALL_UI_SIZE, "")
 
 changelogBody = frame:CreateFontString(nil, "OVERLAY")
 changelogBody:SetJustifyH("LEFT")
 changelogBody:SetJustifyV("TOP")
 changelogBody:SetWordWrap(true)
-EnsureFont(changelogBody, 10, "")
+EnsureFont(changelogBody, SMALL_UI_SIZE, "")
 
 model = CreateFrame("PlayerModel", nil, frame)
 model:SetFrameLevel(frame:GetFrameLevel() + 1)
@@ -689,7 +698,7 @@ model:Hide()
 
 footerText = frame:CreateFontString(nil, "OVERLAY")
 footerText:SetJustifyH("CENTER")
-EnsureFont(footerText, 11, "OUTLINE")
+EnsureFont(footerText, SMALL_UI_SIZE, "")
 footerText:SetText("Press any key or move the mouse to dismiss  ·  RakaMod")
 
 chat = CreateFrame("ScrollingMessageFrame", nil, frame)
