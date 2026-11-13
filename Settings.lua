@@ -32,7 +32,7 @@ local NAV = {
 
 local template = BackdropTemplateMixin and "BackdropTemplate" or nil
 local frame = CreateFrame("Frame", "RakaModSettingsFrame", UIParent, template)
-frame:SetSize(640, 520)
+frame:SetSize(800, 560)
 frame:SetPoint("CENTER")
 frame:SetFrameStrata("DIALOG")
 frame:SetMovable(true)
@@ -430,17 +430,6 @@ local function AddColorButton(ctx, text, getTarget, onChange)
   return swatch
 end
 
-local function AddSwatch(ctx, text, which)
-  return AddColorButton(ctx, text, function()
-    local gradient = RakaMod.db and RakaMod.db.gradient
-    return gradient and gradient[which]
-  end, function()
-    if RakaMod.Gradient and RakaMod.Gradient.Apply then
-      RakaMod.Gradient:Apply()
-    end
-  end)
-end
-
 local function AddZoneSwatch(ctx, text)
   return AddColorButton(ctx, text, function()
     return RakaMod.db and RakaMod.db.zoneText
@@ -473,7 +462,7 @@ local function AddDescription(ctx, text)
 
   local body = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   body:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 4)
-  body:SetWidth(380)
+  body:SetWidth(560)
   body:SetJustifyH("LEFT")
   body:SetWordWrap(true)
   body:SetText(text)
@@ -550,12 +539,226 @@ AddCheck(afk, "Enabled", "afk", "enabled")
 AddCheck(afk, "Camera pan", "afk", "cameraPan")
 afk.Finish()
 
+local PAIR_ROW = 26
+local CLASS_COL2_X = 310
+
+local function AddSectionHeader(ctx, text)
+  local header = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  header:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 4)
+  header:SetText(text)
+  header:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+  ctx.Advance()
+  return header
+end
+
+local function MakeSwatch(parent, scroll, size)
+  local swatch = CreateFrame("Button", nil, parent)
+  swatch:SetSize(size, size)
+  local edge = swatch:CreateTexture(nil, "BACKGROUND")
+  edge:SetColorTexture(0, 0, 0, 1)
+  edge:SetPoint("TOPLEFT", -1, 1)
+  edge:SetPoint("BOTTOMRIGHT", 1, -1)
+  local color = swatch:CreateTexture(nil, "ARTWORK")
+  color:SetAllPoints()
+  swatch.color = color
+  PassWheel(scroll, swatch)
+  return swatch
+end
+
+local function PaintSwatch(swatch, target)
+  local r, g, b = 1, 1, 1
+  if target then
+    if type(target.r) == "number" then r = target.r end
+    if type(target.g) == "number" then g = target.g end
+    if type(target.b) == "number" then b = target.b end
+  end
+  swatch.color:SetColorTexture(r, g, b, 1)
+end
+
+local function PaintPreview(preview, left, right)
+  if not preview then
+    return
+  end
+  local lr, lg, lb = 0.5, 0.5, 0.5
+  local rr, rg, rb = 0.8, 0.8, 0.8
+  if left then
+    if type(left.r) == "number" then lr = left.r end
+    if type(left.g) == "number" then lg = left.g end
+    if type(left.b) == "number" then lb = left.b end
+  end
+  if right then
+    if type(right.r) == "number" then rr = right.r end
+    if type(right.g) == "number" then rg = right.g end
+    if type(right.b) == "number" then rb = right.b end
+  end
+  preview:SetColorTexture(1, 1, 1, 1)
+  if preview.SetGradient and CreateColor then
+    pcall(preview.SetGradient, preview, "HORIZONTAL", CreateColor(lr, lg, lb, 1), CreateColor(rr, rg, rb, 1))
+  else
+    preview:SetColorTexture((lr + rr) * 0.5, (lg + rg) * 0.5, (lb + rb) * 0.5, 1)
+  end
+end
+
+local function AddPairRow(ctx, x, y, labelText, labelColor, getPair)
+  local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, y - 4)
+  label:SetWidth(100)
+  label:SetJustifyH("LEFT")
+  label:SetText(labelText)
+  if labelColor then
+    label:SetTextColor(labelColor.r or 1, labelColor.g or 1, labelColor.b or 1)
+  end
+
+  local leftSwatch = MakeSwatch(ctx.content, ctx.scroll, 18)
+  leftSwatch:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x + 104, y - 3)
+  local arrow = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  arrow:SetPoint("LEFT", leftSwatch, "RIGHT", 4, 0)
+  arrow:SetText(">")
+  local rightSwatch = MakeSwatch(ctx.content, ctx.scroll, 18)
+  rightSwatch:SetPoint("LEFT", arrow, "RIGHT", 4, 0)
+
+  local preview = ctx.content:CreateTexture(nil, "ARTWORK")
+  preview:SetPoint("LEFT", rightSwatch, "RIGHT", 8, 0)
+  preview:SetSize(88, 14)
+
+  local function refresh()
+    local pair = getPair()
+    PaintSwatch(leftSwatch, pair and pair.left)
+    PaintSwatch(rightSwatch, pair and pair.right)
+    PaintPreview(preview, pair and pair.left, pair and pair.right)
+  end
+
+  leftSwatch:SetScript("OnClick", function()
+    local pair = getPair()
+    if not pair or type(pair.left) ~= "table" then
+      return
+    end
+    PickColor(pair.left, function()
+      refresh()
+      if RakaMod.Gradient and RakaMod.Gradient.Apply then
+        RakaMod.Gradient:Apply()
+      end
+    end)
+  end)
+  rightSwatch:SetScript("OnClick", function()
+    local pair = getPair()
+    if not pair or type(pair.right) ~= "table" then
+      return
+    end
+    PickColor(pair.right, function()
+      refresh()
+      if RakaMod.Gradient and RakaMod.Gradient.Apply then
+        RakaMod.Gradient:Apply()
+      end
+    end)
+  end)
+
+  swatches[#swatches + 1] = { paint = refresh }
+  refresh()
+end
+
+local function ClassLabelColor(classFile)
+  local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
+  if type(c) == "table" and type(c.r) == "number" then
+    return { r = c.r, g = c.g, b = c.b }
+  end
+  local fallback = RakaMod.Logic and RakaMod.Logic.CLASS_FALLBACK_COLORS and RakaMod.Logic.CLASS_FALLBACK_COLORS[classFile]
+  if type(fallback) == "table" then
+    return fallback
+  end
+  return { r = 1, g = 1, b = 1 }
+end
+
+local CLASS_DISPLAY = {
+  WARRIOR = "Warrior",
+  PALADIN = "Paladin",
+  HUNTER = "Hunter",
+  ROGUE = "Rogue",
+  PRIEST = "Priest",
+  DEATHKNIGHT = "Death Knight",
+  SHAMAN = "Shaman",
+  MAGE = "Mage",
+  WARLOCK = "Warlock",
+  MONK = "Monk",
+  DRUID = "Druid",
+  DEMONHUNTER = "Demon Hunter",
+  EVOKER = "Evoker",
+}
+
+local function ClassDisplayName(classFile)
+  if LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[classFile] then
+    return LOCALIZED_CLASS_NAMES_MALE[classFile]
+  end
+  return CLASS_DISPLAY[classFile] or classFile
+end
+
 local gradient = CreatePage("gradient")
-AddDescription(gradient, "Two-color health bar gradient via Ellesmere modules.")
+AddDescription(gradient, "Health bar gradients shift by class, NPC reaction, and unit state.")
 AddCheck(gradient, "Enabled", "gradient", "enabled")
-AddSwatch(gradient, "Left", "left")
-AddSwatch(gradient, "Right", "right")
 gradientNote = AddNote(gradient, "No Ellesmere health-bar module is installed.")
+AddSectionHeader(gradient, "Class Colors")
+
+do
+  local files = RakaMod.Logic and RakaMod.Logic.CLASS_FILES or {}
+  local startY = gradient.LocalY()
+  local rows = math.ceil(#files / 2)
+  for i = 1, #files do
+    local file = files[i]
+    local col = (i % 2 == 1) and 0 or 1
+    local row = math.floor((i - 1) / 2)
+    local x = col == 0 and 8 or CLASS_COL2_X
+    local y = startY - row * PAIR_ROW
+    AddPairRow(gradient, x, y, ClassDisplayName(file), ClassLabelColor(file), function()
+      local g = RakaMod.db and RakaMod.db.gradient
+      return g and g.classes and g.classes[file]
+    end)
+  end
+  for _ = 1, rows do
+    gradient.Advance()
+  end
+end
+
+AddSectionHeader(gradient, "NPC Colors")
+do
+  local npcRows = {
+    { key = "friendly", label = "Friendly", color = { r = 0.35, g = 0.85, b = 0.35 } },
+    { key = "enemy", label = "Enemy", color = { r = 0.95, g = 0.30, b = 0.30 } },
+    { key = "neutral", label = "Neutral", color = { r = 0.95, g = 0.82, b = 0.40 } },
+  }
+  local startY = gradient.LocalY()
+  for i = 1, #npcRows do
+    local row = npcRows[i]
+    AddPairRow(gradient, 8, startY - (i - 1) * PAIR_ROW, row.label, row.color, function()
+      local g = RakaMod.db and RakaMod.db.gradient
+      return g and g.npc and g.npc[row.key]
+    end)
+  end
+  for _ = 1, #npcRows do
+    gradient.Advance()
+  end
+end
+
+AddSectionHeader(gradient, "State Colors")
+do
+  local stateRows = {
+    { key = "dead", label = "Dead" },
+    { key = "offline", label = "Offline" },
+    { key = "tapped", label = "Tapped" },
+    { key = "disconnected", label = "Disconnected" },
+  }
+  local startY = gradient.LocalY()
+  for i = 1, #stateRows do
+    local row = stateRows[i]
+    AddPairRow(gradient, 8, startY - (i - 1) * PAIR_ROW, row.label, { r = 0.85, g = 0.85, b = 0.85 }, function()
+      local g = RakaMod.db and RakaMod.db.gradient
+      return g and g.states and g.states[row.key]
+    end)
+  end
+  for _ = 1, #stateRows do
+    gradient.Advance()
+  end
+end
+
 gradient.Finish()
 
 Settings:SelectPage("overlay")

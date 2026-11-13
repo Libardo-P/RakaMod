@@ -13,15 +13,32 @@ eq(Logic.IsForever(120105), false, "retail")
 
 local defaults = {
   overlay = { enabled = true, collections = true, played = true, professions = true },
-  gradient = { enabled = false, left = { r = 0.91, g = 0.84, b = 0.64 }, right = { r = 0.15, g = 0.14, b = 0.13 } },
+  gradient = Logic.BuildGradientDefaults(),
   played = {},
 }
 local merged = Logic.MergeDefaults({ overlay = { enabled = false }, gradient = "bad", played = { a = { totalSeconds = 10 } } }, defaults)
 eq(merged.overlay.enabled, false, "keep saved bool")
 eq(merged.overlay.collections, true, "fill missing key")
 eq(merged.gradient.enabled, false, "reset bad section")
+eq(type(merged.gradient.classes.MAGE), "table", "gradient classes seeded")
 eq(merged.played.a.totalSeconds, 10, "keep played records")
 eq(defaults.overlay.enabled, true, "defaults untouched")
+
+local magePair = Logic.ClassPairFromRgb(0.25, 0.78, 0.92)
+eq(magePair.left.r < magePair.right.r, true, "class pair darkens left")
+eq(Logic.ReactionKey(8), "friendly", "reaction friendly")
+eq(Logic.ReactionKey(2), "enemy", "reaction enemy")
+eq(Logic.ReactionKey(4), "neutral", "reaction neutral")
+
+local g = Logic.BuildGradientDefaults()
+local pickedDead = Logic.PickGradientPair(g, { dead = true, isPlayer = true, classFile = "MAGE" })
+eq(pickedDead, g.states.dead, "dead beats class")
+local pickedMage = Logic.PickGradientPair(g, { isPlayer = true, classFile = "MAGE" })
+eq(pickedMage, g.classes.MAGE, "player class pair")
+local pickedEnemy = Logic.PickGradientPair(g, { isPlayer = false, reactionKey = "enemy" })
+eq(pickedEnemy, g.npc.enemy, "npc enemy pair")
+local pickedFallback = Logic.PickGradientPair(g, { isPlayer = false })
+eq(pickedFallback, g.npc.neutral, "npc neutral fallback")
 
 eq(Logic.HealthBelow(50, 100, 90, false), true, "hurt")
 eq(Logic.HealthBelow(90, 100, 90, false), false, "exact threshold")

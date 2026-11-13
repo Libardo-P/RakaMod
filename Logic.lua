@@ -135,6 +135,135 @@ function Logic.AfkSuppressed(now, suppressUntil)
   return type(suppressUntil) == "number" and now < suppressUntil
 end
 
+Logic.CLASS_FILES = {
+  "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "DEATHKNIGHT", "SHAMAN",
+  "MAGE", "WARLOCK", "MONK", "DRUID", "DEMONHUNTER", "EVOKER",
+}
+
+-- Classic / retail RAID_CLASS_COLORS-ish fallbacks for out-of-game defaults.
+Logic.CLASS_FALLBACK_COLORS = {
+  WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+  PALADIN = { r = 0.96, g = 0.55, b = 0.73 },
+  HUNTER = { r = 0.67, g = 0.83, b = 0.45 },
+  ROGUE = { r = 1.00, g = 0.96, b = 0.41 },
+  PRIEST = { r = 1.00, g = 1.00, b = 1.00 },
+  DEATHKNIGHT = { r = 0.77, g = 0.12, b = 0.23 },
+  SHAMAN = { r = 0.00, g = 0.44, b = 0.87 },
+  MAGE = { r = 0.25, g = 0.78, b = 0.92 },
+  WARLOCK = { r = 0.53, g = 0.53, b = 0.93 },
+  MONK = { r = 0.00, g = 1.00, b = 0.60 },
+  DRUID = { r = 1.00, g = 0.49, b = 0.04 },
+  DEMONHUNTER = { r = 0.64, g = 0.19, b = 0.79 },
+  EVOKER = { r = 0.20, g = 0.58, b = 0.50 },
+}
+
+local function clamp01(value)
+  if type(value) ~= "number" then
+    return 0
+  end
+  if value < 0 then
+    return 0
+  end
+  if value > 1 then
+    return 1
+  end
+  return value
+end
+
+local function rgb(r, g, b)
+  return { r = clamp01(r), g = clamp01(g), b = clamp01(b) }
+end
+
+local function pair(left, right)
+  return { left = left, right = right }
+end
+
+function Logic.ClassPairFromRgb(r, g, b)
+  r, g, b = clamp01(r), clamp01(g), clamp01(b)
+  return pair(
+    rgb(r * 0.55, g * 0.55, b * 0.55),
+    rgb(r + (1 - r) * 0.35, g + (1 - g) * 0.35, b + (1 - b) * 0.35)
+  )
+end
+
+function Logic.BuildGradientDefaults(classColors)
+  local classes = {}
+  for i = 1, #Logic.CLASS_FILES do
+    local file = Logic.CLASS_FILES[i]
+    local c = (type(classColors) == "table" and classColors[file]) or Logic.CLASS_FALLBACK_COLORS[file]
+    if type(c) ~= "table" then
+      c = { r = 0.5, g = 0.5, b = 0.5 }
+    end
+    classes[file] = Logic.ClassPairFromRgb(c.r, c.g, c.b)
+  end
+  return {
+    enabled = false,
+    classes = classes,
+    npc = {
+      friendly = pair(rgb(0.20, 0.45, 0.20), rgb(0.35, 0.85, 0.35)),
+      enemy = pair(rgb(0.55, 0.12, 0.12), rgb(0.95, 0.30, 0.30)),
+      neutral = pair(rgb(0.55, 0.45, 0.20), rgb(0.95, 0.82, 0.40)),
+    },
+    states = {
+      dead = pair(rgb(0.35, 0.35, 0.35), rgb(0.55, 0.55, 0.55)),
+      offline = pair(rgb(0.25, 0.25, 0.30), rgb(0.45, 0.45, 0.55)),
+      tapped = pair(rgb(0.40, 0.40, 0.40), rgb(0.65, 0.65, 0.65)),
+      disconnected = pair(rgb(0.30, 0.20, 0.20), rgb(0.55, 0.35, 0.35)),
+    },
+  }
+end
+
+function Logic.ReactionKey(reaction)
+  if type(reaction) ~= "number" then
+    return "neutral"
+  end
+  if reaction >= 5 then
+    return "friendly"
+  end
+  if reaction <= 3 then
+    return "enemy"
+  end
+  return "neutral"
+end
+
+function Logic.PickGradientPair(gradient, info)
+  if type(gradient) ~= "table" or type(info) ~= "table" then
+    return nil
+  end
+  local states = gradient.states
+  if info.dead and type(states) == "table" and type(states.dead) == "table" then
+    return states.dead
+  end
+  if info.offline and type(states) == "table" and type(states.offline) == "table" then
+    return states.offline
+  end
+  if info.disconnected and type(states) == "table" and type(states.disconnected) == "table" then
+    return states.disconnected
+  end
+  if info.tapped and type(states) == "table" and type(states.tapped) == "table" then
+    return states.tapped
+  end
+  if info.isPlayer and type(info.classFile) == "string" then
+    local classes = gradient.classes
+    local classPair = type(classes) == "table" and classes[info.classFile]
+    if type(classPair) == "table" then
+      return classPair
+    end
+  end
+  local npc = gradient.npc
+  if type(npc) ~= "table" then
+    return nil
+  end
+  local key = info.reactionKey
+  if type(key) ~= "string" then
+    key = "neutral"
+  end
+  if type(npc[key]) == "table" then
+    return npc[key]
+  end
+  return npc.neutral
+end
+
 RakaMod = RakaMod or {}
 RakaMod.Logic = Logic
 return Logic
