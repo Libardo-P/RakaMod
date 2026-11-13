@@ -24,10 +24,9 @@ local gradientNote
 
 local NAV = {
   { key = "general", label = "General" },
-  { key = "overlay", label = "Overlay" },
+  { key = "features", label = "Features" },
   { key = "reveal", label = "Player Frame" },
   { key = "zoneText", label = "Zone Text" },
-  { key = "afk", label = "AFK" },
   { key = "gradient", label = "Gradient" },
 }
 
@@ -1016,14 +1015,6 @@ AddDescription(general, "Addon-wide options.")
 AddCheck(general, "Show minimap icon", "general", "showMinimapIcon")
 general.Finish()
 
-local overlay = CreatePage("overlay")
-AddDescription(overlay, "Escape overlay buttons (collections / played / professions).")
-AddCheck(overlay, "Enabled", "overlay", "enabled")
-AddCheck(overlay, "Collections", "overlay", "collections")
-AddCheck(overlay, "Played", "overlay", "played")
-AddCheck(overlay, "Professions", "overlay", "professions")
-overlay.Finish()
-
 local reveal = CreatePage("reveal")
 AddDescription(
   reveal,
@@ -1046,12 +1037,6 @@ AddOutlineButton(zoneText)
 AddZoneSwatch(zoneText, "Color")
 zoneText.Finish()
 
-local afk = CreatePage("afk")
-AddDescription(afk, "Full AFK screen behavior.")
-AddCheck(afk, "Enabled", "afk", "enabled")
-AddCheck(afk, "Camera pan", "afk", "cameraPan")
-afk.Finish()
-
 local PAIR_ROW = 26
 local CLASS_COL2_X = 310
 
@@ -1063,6 +1048,18 @@ local function AddSectionHeader(ctx, text)
   ctx.Advance()
   return header
 end
+
+local features = CreatePage("features")
+AddDescription(features, "Optional RakaMod behaviors for the Escape menu and AFK screen.")
+AddSectionHeader(features, "Game Menu")
+AddCheck(features, "Enabled", "overlay", "enabled")
+AddCheck(features, "Collections", "overlay", "collections")
+AddCheck(features, "Played", "overlay", "played")
+AddCheck(features, "Professions", "overlay", "professions")
+AddSectionHeader(features, "AFK")
+AddCheck(features, "Enabled", "afk", "enabled")
+AddCheck(features, "Camera pan", "afk", "cameraPan")
+features.Finish()
 
 local function MakeSwatch(parent, scroll, size)
   local swatch = CreateFrame("Button", nil, parent)
