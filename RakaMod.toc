@@ -4,11 +4,12 @@
 ## Version: 0.1.0
 ## SavedVariables: RakaModDB
 ## Dependencies: EllesmereUI
-## OptionalDeps: EllesmereUIUnitFrames, EllesmereUIRaidFrames, EllesmereUINameplates, EllesmereUIDataBars, LibSharedMedia-3.0
+## OptionalDeps: EllesmereUIUnitFrames, EllesmereUIRaidFrames, EllesmereUINameplates, EllesmereUIDataBars, LibSharedMedia-3.0, LibDBIcon-1.0
 
 Logic.lua
 Core.lua
 Media.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 Settings.lua
 MinimapIcon.lua
 Overlay.lua

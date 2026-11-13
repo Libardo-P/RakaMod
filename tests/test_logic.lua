@@ -12,19 +12,20 @@ eq(Logic.IsForever(16001), true, "forever")
 eq(Logic.IsForever(120105), false, "retail")
 
 local defaults = {
-  general = { showMinimapIcon = true, minimapIconAngle = 210 },
+  general = { showMinimapIcon = true, hide = false, minimapPos = 210 },
   overlay = { enabled = true, collections = true, played = true, professions = true },
   gradient = Logic.BuildGradientDefaults(),
   played = {},
 }
 local merged = Logic.MergeDefaults({
-  general = { showMinimapIcon = false },
+  general = { showMinimapIcon = false, hide = true },
   overlay = { enabled = false },
   gradient = "bad",
   played = { a = { totalSeconds = 10 } },
 }, defaults)
 eq(merged.general.showMinimapIcon, false, "keep general bool")
-eq(merged.general.minimapIconAngle, 210, "fill general angle")
+eq(merged.general.hide, true, "keep libdbicon hide")
+eq(merged.general.minimapPos, 210, "fill minimapPos")
 eq(merged.overlay.enabled, false, "keep saved bool")
 eq(merged.overlay.collections, true, "fill missing key")
 eq(merged.gradient.enabled, false, "reset bad section")
