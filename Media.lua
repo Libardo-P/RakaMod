@@ -2,8 +2,9 @@ RakaMod = RakaMod or {}
 RakaMod.Media = {
   FontPath = "Interface\\AddOns\\RakaMod\\Media\\RakaMod.ttf",
   StatusbarPath = "Interface\\AddOns\\RakaMod\\Media\\statusbar.tga",
-  -- Extensionless path (WoW resolves .tga/.blp). Used as Forever underlay fallback.
+  -- Extensionless paths (WoW resolves .tga/.blp). Safer on Forever.
   ColorWheelPath = "Interface\\AddOns\\RakaMod\\Media\\colorwheel",
+  IconPath = "Interface\\AddOns\\RakaMod\\Media\\icon",
   FontName = "RakaMod",
   StatusbarName = "RakaMod Statusbar",
 }

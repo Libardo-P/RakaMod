@@ -23,14 +23,11 @@ local function EnsureDataObject()
   if not ldb then
     return nil
   end
-  local iconPath = (RakaMod.Media and RakaMod.Media.StatusbarPath) or "Interface\\Buttons\\WHITE8x8"
+  local iconPath = (RakaMod.Media and RakaMod.Media.IconPath) or "Interface\\AddOns\\RakaMod\\Media\\icon"
   dataObject = ldb:NewDataObject(ICON_NAME, {
     type = "launcher",
     text = "RakaMod",
     icon = iconPath,
-    iconR = 0.45,
-    iconG = 0.70,
-    iconB = 0.95,
     OnClick = function(_, button)
       if InCombatLockdown and InCombatLockdown() then
         return

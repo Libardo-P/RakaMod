@@ -63,8 +63,14 @@ if UISpecialFrames then
   UISpecialFrames[#UISpecialFrames + 1] = "RakaModSettingsFrame"
 end
 
+local titleIcon = frame:CreateTexture(nil, "ARTWORK")
+titleIcon:SetSize(22, 22)
+titleIcon:SetPoint("TOPLEFT", 14, -10)
+local titleIconPath = (RakaMod.Media and RakaMod.Media.IconPath) or "Interface\\AddOns\\RakaMod\\Media\\icon"
+titleIcon:SetTexture(titleIconPath)
+
 local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-title:SetPoint("TOPLEFT", 16, -12)
+title:SetPoint("LEFT", titleIcon, "RIGHT", 8, 0)
 title:SetText("RakaMod")
 
 local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
@@ -1377,10 +1383,16 @@ end
 local function RegisterBlizzardCategory()
   local panel = CreateFrame("Frame")
   panel.name = "RakaMod"
+  local iconPath = (RakaMod.Media and RakaMod.Media.IconPath) or "Interface\\AddOns\\RakaMod\\Media\\icon"
+
+  local crest = panel:CreateTexture(nil, "ARTWORK")
+  crest:SetSize(64, 64)
+  crest:SetPoint("CENTER", panel, "CENTER", 0, 40)
+  crest:SetTexture(iconPath)
 
   local btn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
   btn:SetSize(200, 30)
-  btn:SetPoint("CENTER", panel, "CENTER", 0, 0)
+  btn:SetPoint("TOP", crest, "BOTTOM", 0, -16)
   btn:SetText("Open RakaMod")
   btn:SetScript("OnClick", function()
     if SettingsPanel and SettingsPanel.IsShown and SettingsPanel:IsShown() and HideUIPanel then
@@ -1398,6 +1410,9 @@ local function RegisterBlizzardCategory()
 
   if Settings and Settings.RegisterCanvasLayoutCategory then
     local category = Settings.RegisterCanvasLayoutCategory(panel, "RakaMod")
+    if type(category) == "table" then
+      category.icon = iconPath
+    end
     if Settings.RegisterAddOnCategory then
       Settings.RegisterAddOnCategory(category)
     end

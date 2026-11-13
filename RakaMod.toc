@@ -2,6 +2,7 @@
 ## Title: RakaMod
 ## Author: Raka
 ## Version: 0.1.0
+## IconTexture: Interface\AddOns\RakaMod\Media\icon.tga
 ## SavedVariables: RakaModDB
 ## Dependencies: EllesmereUI
 ## OptionalDeps: EllesmereUIUnitFrames, EllesmereUIRaidFrames, EllesmereUINameplates, EllesmereUIDataBars, LibSharedMedia-3.0, LibDBIcon-1.0
