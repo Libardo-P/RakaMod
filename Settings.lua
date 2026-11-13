@@ -4,10 +4,13 @@ local Settings = {}
 RakaMod.Settings = Settings
 
 local ACCENT = { r = 0.45, g = 0.70, b = 0.95 }
-local SIDEBAR_WIDTH = 140
-local NAV_HEIGHT = 28
-local NAV_GAP = 4
-local NAV_PAD = 6
+local SIDEBAR_WIDTH = 150
+local NAV_HEIGHT = 24
+local NAV_GAP = 2
+local NAV_PAD = 8
+local NAV_ITEM_INDENT = 12
+local HEADER_HEIGHT = 20
+local HEADER_GAP = 10
 local OUTLINES = { "NONE", "OUTLINE", "THICKOUTLINE" }
 local ROW = 28
 
@@ -21,10 +24,14 @@ local pages = {}
 local selectedKey = "general"
 local revealNote
 local gradientNote
+local navPageKeys = {}
 
+-- Category headers are non-clickable labels; items open existing pages.
 local NAV = {
+  { header = "Core" },
   { key = "general", label = "General" },
   { key = "features", label = "Features" },
+  { header = "Appearance" },
   { key = "reveal", label = "Player Frame" },
   { key = "zoneText", label = "Zone Text" },
   { key = "gradient", label = "Gradient" },
@@ -100,7 +107,7 @@ local sidebar = CreateFrame("Frame", nil, frame, template)
 sidebar:SetPoint("TOPLEFT", 12, -40)
 sidebar:SetPoint("BOTTOMLEFT", 12, 12)
 sidebar:SetWidth(SIDEBAR_WIDTH)
-ApplyDarkPanel(sidebar, 0.11, 0.11, 0.13, 0.95)
+ApplyDarkPanel(sidebar, 0.04, 0.05, 0.07, 0.98)
 
 local contentHost = CreateFrame("Frame", nil, frame, template)
 contentHost:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 8, 0)
@@ -111,11 +118,11 @@ local function PaintNav(button, selected)
   button.selected = selected and true or false
   if button.SetBackdropColor then
     if button.selected then
-      button:SetBackdropColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.35)
-      button:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.90)
+      button:SetBackdropColor(0.06, 0.08, 0.12, 0.55)
+      button:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 1)
     else
-      button:SetBackdropColor(0.12, 0.12, 0.14, 0.95)
-      button:SetBackdropBorderColor(0.18, 0.18, 0.22, 0.80)
+      button:SetBackdropColor(0, 0, 0, 0)
+      button:SetBackdropBorderColor(0, 0, 0, 0)
     end
   end
   if button.highlight then
@@ -126,9 +133,9 @@ local function PaintNav(button, selected)
     end
   end
   if button.selected then
-    button.label:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+    button.label:SetTextColor(1, 1, 1)
   else
-    button.label:SetTextColor(0.82, 0.82, 0.84)
+    button.label:SetTextColor(0.72, 0.72, 0.74)
   end
 end
 
@@ -152,52 +159,78 @@ function Settings:SelectPage(key)
   end
 end
 
-for i = 1, #NAV do
-  local nav = NAV[i]
-  local button = CreateFrame("Button", nil, sidebar, template)
-  local yOff = -NAV_PAD - (i - 1) * (NAV_HEIGHT + NAV_GAP)
-  button:SetHeight(NAV_HEIGHT)
-  button:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD, yOff)
-  button:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -NAV_PAD, yOff)
+do
+  local yOff = -NAV_PAD
+  for i = 1, #NAV do
+    local nav = NAV[i]
+    if nav.header then
+      if i > 1 then
+        yOff = yOff - HEADER_GAP
+      end
+      local header = sidebar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+      header:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD, yOff)
+      header:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -NAV_PAD, yOff)
+      header:SetJustifyH("LEFT")
+      header:SetText(nav.header)
+      header:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+      yOff = yOff - HEADER_HEIGHT
+    elseif nav.key then
+      local button = CreateFrame("Button", nil, sidebar, template)
+      button:SetHeight(NAV_HEIGHT)
+      button:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD + NAV_ITEM_INDENT, yOff)
+      button:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -NAV_PAD, yOff)
 
-  if button.SetBackdrop then
-    button:SetBackdrop({
-      bgFile = "Interface\\Buttons\\WHITE8x8",
-      edgeFile = "Interface\\Buttons\\WHITE8x8",
-      edgeSize = 1,
-      insets = { left = 1, right = 1, top = 1, bottom = 1 },
-    })
-  else
-    local fill = button:CreateTexture(nil, "BACKGROUND")
-    fill:SetAllPoints()
-    fill:SetColorTexture(0.12, 0.12, 0.14, 0.95)
-    local highlight = button:CreateTexture(nil, "BORDER")
-    highlight:SetAllPoints()
-    highlight:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 0.35)
-    highlight:Hide()
-    button.highlight = highlight
-  end
+      if button.SetBackdrop then
+        button:SetBackdrop({
+          bgFile = "Interface\\Buttons\\WHITE8x8",
+          edgeFile = "Interface\\Buttons\\WHITE8x8",
+          edgeSize = 1,
+          insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+        button:SetBackdropColor(0, 0, 0, 0)
+        button:SetBackdropBorderColor(0, 0, 0, 0)
+      else
+        local fill = button:CreateTexture(nil, "BACKGROUND")
+        fill:SetAllPoints()
+        fill:SetColorTexture(0, 0, 0, 0)
+        local highlight = button:CreateTexture(nil, "BORDER")
+        highlight:SetAllPoints()
+        highlight:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 0.20)
+        highlight:Hide()
+        button.highlight = highlight
+      end
 
-  local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  label:SetPoint("LEFT", 10, 0)
-  label:SetJustifyH("LEFT")
-  label:SetText(nav.label)
-  button.label = label
+      local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+      label:SetPoint("LEFT", 8, 0)
+      label:SetJustifyH("LEFT")
+      label:SetText(nav.label)
+      label:SetTextColor(0.72, 0.72, 0.74)
+      button.label = label
 
-  button:SetScript("OnClick", function()
-    Settings:SelectPage(nav.key)
-  end)
-  button:SetScript("OnEnter", function(self)
-    if self.selected or not self.SetBackdropColor then
-      return
+      button:SetScript("OnClick", function()
+        Settings:SelectPage(nav.key)
+      end)
+      button:SetScript("OnEnter", function(self)
+        if self.selected then
+          return
+        end
+        if self.SetBackdropColor then
+          self:SetBackdropColor(0.10, 0.12, 0.16, 0.45)
+          self:SetBackdropBorderColor(0.20, 0.24, 0.30, 0.50)
+        elseif self.highlight then
+          self.highlight:Show()
+        end
+        self.label:SetTextColor(0.90, 0.90, 0.92)
+      end)
+      button:SetScript("OnLeave", function(self)
+        PaintNav(self, self.selected)
+      end)
+
+      pages[nav.key] = { button = button }
+      navPageKeys[#navPageKeys + 1] = nav.key
+      yOff = yOff - (NAV_HEIGHT + NAV_GAP)
     end
-    self:SetBackdropColor(0.18, 0.20, 0.24, 0.95)
-  end)
-  button:SetScript("OnLeave", function(self)
-    PaintNav(self, self.selected)
-  end)
-
-  pages[nav.key] = { button = button }
+  end
 end
 
 local function OnMouseWheel(scroll, delta)
@@ -1372,8 +1405,8 @@ function Settings:Show()
   self:SelectPage(selectedKey or "general")
   frame:Show()
   self:RefreshNotes()
-  for i = 1, #NAV do
-    UpdateScrollChildWidth(NAV[i].key)
+  for i = 1, #navPageKeys do
+    UpdateScrollChildWidth(navPageKeys[i])
   end
 end
 
