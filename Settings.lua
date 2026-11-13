@@ -778,7 +778,7 @@ local function CreatePage(key)
     scroll = scroll,
     content = content,
     LocalY = function() return y end,
-    Advance = function() y = y - ROW end,
+    Advance = function(step) y = y - (step or ROW) end,
     Finish = function()
       content:SetHeight((-y) + 16)
     end,
@@ -1225,7 +1225,7 @@ do
     end)
   end
   for _ = 1, rows do
-    gradient.Advance()
+    gradient.Advance(PAIR_ROW)
   end
 end
 
@@ -1248,7 +1248,7 @@ do
     end)
   end
   for _ = 1, #npcRows do
-    gradient.Advance()
+    gradient.Advance(PAIR_ROW)
   end
 end
 
@@ -1272,7 +1272,7 @@ do
     end)
   end
   for _ = 1, #stateRows do
-    gradient.Advance()
+    gradient.Advance(PAIR_ROW)
   end
 end
 
