@@ -3,19 +3,36 @@ RakaMod = RakaMod or {}
 local Settings = {}
 RakaMod.Settings = Settings
 
+local ACCENT = { r = 0.45, g = 0.70, b = 0.95 }
+local SIDEBAR_WIDTH = 140
+local NAV_HEIGHT = 28
+local NAV_GAP = 4
+local NAV_PAD = 6
 local OUTLINES = { "NONE", "OUTLINE", "THICKOUTLINE" }
 local ROW = 28
-local VIEW_TOP = -36
 
 local checks = {}
 local sliders = {}
 local swatches = {}
+local outlineButton
 local applying = false
 local skinned = false
+local pages = {}
+local selectedKey = "overlay"
+local revealNote
+local gradientNote
+
+local NAV = {
+  { key = "overlay", label = "Overlay" },
+  { key = "reveal", label = "Player Frame" },
+  { key = "zoneText", label = "Zone Text" },
+  { key = "afk", label = "AFK" },
+  { key = "gradient", label = "Gradient" },
+}
 
 local template = BackdropTemplateMixin and "BackdropTemplate" or nil
 local frame = CreateFrame("Frame", "RakaModSettingsFrame", UIParent, template)
-frame:SetSize(480, 560)
+frame:SetSize(640, 520)
 frame:SetPoint("CENTER")
 frame:SetFrameStrata("DIALOG")
 frame:SetMovable(true)
@@ -28,13 +45,17 @@ frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 
 if frame.SetBackdrop then
   frame:SetBackdrop({
-    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-    tile = true,
-    tileSize = 32,
-    edgeSize = 32,
-    insets = { left = 11, right = 12, top = 12, bottom = 11 },
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+    insets = { left = 1, right = 1, top = 1, bottom = 1 },
   })
+  frame:SetBackdropColor(0.08, 0.08, 0.10, 0.95)
+  frame:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.85)
+else
+  local fill = frame:CreateTexture(nil, "BACKGROUND")
+  fill:SetAllPoints()
+  fill:SetColorTexture(0.08, 0.08, 0.10, 0.95)
 end
 
 if UISpecialFrames then
@@ -42,7 +63,7 @@ if UISpecialFrames then
 end
 
 local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-title:SetPoint("TOP", 0, -12)
+title:SetPoint("TOPLEFT", 16, -12)
 title:SetText("RakaMod")
 
 local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
@@ -52,25 +73,128 @@ close:SetScript("OnClick", function()
 end)
 frame.Close = close
 
-local scroll = CreateFrame("ScrollFrame", "RakaModSettingsScroll", frame, "UIPanelScrollFrameTemplate")
-scroll:SetPoint("TOPLEFT", 16, VIEW_TOP)
-scroll:SetPoint("BOTTOMRIGHT", -32, 16)
-
-local content = CreateFrame("Frame", nil, scroll)
-content:SetSize(420, 680)
-scroll:SetScrollChild(content)
-
-local y = VIEW_TOP
-
-local function LocalY()
-  return y - VIEW_TOP
+local function ApplyDarkPanel(target, r, g, b, a)
+  if not target.SetBackdrop then
+    local fill = target:CreateTexture(nil, "BACKGROUND")
+    fill:SetAllPoints()
+    fill:SetColorTexture(r, g, b, a)
+    return
+  end
+  target:SetBackdrop({
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+    insets = { left = 1, right = 1, top = 1, bottom = 1 },
+  })
+  target:SetBackdropColor(r, g, b, a)
+  target:SetBackdropBorderColor(0.20, 0.22, 0.26, 0.90)
 end
 
-local function Advance()
-  y = y - ROW
+local sidebar = CreateFrame("Frame", nil, frame, template)
+sidebar:SetPoint("TOPLEFT", 12, -40)
+sidebar:SetPoint("BOTTOMLEFT", 12, 12)
+sidebar:SetWidth(SIDEBAR_WIDTH)
+ApplyDarkPanel(sidebar, 0.11, 0.11, 0.13, 0.95)
+
+local contentHost = CreateFrame("Frame", nil, frame, template)
+contentHost:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 8, 0)
+contentHost:SetPoint("BOTTOMRIGHT", -12, 12)
+ApplyDarkPanel(contentHost, 0.07, 0.07, 0.09, 0.95)
+
+local function PaintNav(button, selected)
+  button.selected = selected and true or false
+  if button.SetBackdropColor then
+    if button.selected then
+      button:SetBackdropColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.35)
+      button:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.90)
+    else
+      button:SetBackdropColor(0.12, 0.12, 0.14, 0.95)
+      button:SetBackdropBorderColor(0.18, 0.18, 0.22, 0.80)
+    end
+  end
+  if button.highlight then
+    if button.selected then
+      button.highlight:Show()
+    else
+      button.highlight:Hide()
+    end
+  end
+  if button.selected then
+    button.label:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+  else
+    button.label:SetTextColor(0.82, 0.82, 0.84)
+  end
 end
 
-local function OnMouseWheel(_, delta)
+function Settings:SelectPage(key)
+  if not pages[key] then
+    return
+  end
+  selectedKey = key
+  for pageKey, entry in pairs(pages) do
+    local selected = pageKey == key
+    if entry.page then
+      if selected then
+        entry.page:Show()
+      else
+        entry.page:Hide()
+      end
+    end
+    if entry.button then
+      PaintNav(entry.button, selected)
+    end
+  end
+end
+
+for i = 1, #NAV do
+  local nav = NAV[i]
+  local button = CreateFrame("Button", nil, sidebar, template)
+  local yOff = -NAV_PAD - (i - 1) * (NAV_HEIGHT + NAV_GAP)
+  button:SetHeight(NAV_HEIGHT)
+  button:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD, yOff)
+  button:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -NAV_PAD, yOff)
+
+  if button.SetBackdrop then
+    button:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8x8",
+      edgeFile = "Interface\\Buttons\\WHITE8x8",
+      edgeSize = 1,
+      insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+  else
+    local fill = button:CreateTexture(nil, "BACKGROUND")
+    fill:SetAllPoints()
+    fill:SetColorTexture(0.12, 0.12, 0.14, 0.95)
+    local highlight = button:CreateTexture(nil, "BORDER")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 0.35)
+    highlight:Hide()
+    button.highlight = highlight
+  end
+
+  local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("LEFT", 10, 0)
+  label:SetJustifyH("LEFT")
+  label:SetText(nav.label)
+  button.label = label
+
+  button:SetScript("OnClick", function()
+    Settings:SelectPage(nav.key)
+  end)
+  button:SetScript("OnEnter", function(self)
+    if self.selected or not self.SetBackdropColor then
+      return
+    end
+    self:SetBackdropColor(0.18, 0.20, 0.24, 0.95)
+  end)
+  button:SetScript("OnLeave", function(self)
+    PaintNav(self, self.selected)
+  end)
+
+  pages[nav.key] = { button = button }
+end
+
+local function OnMouseWheel(scroll, delta)
   local step = delta > 0 and -ROW or ROW
   local nextScroll = (scroll:GetVerticalScroll() or 0) + step
   if nextScroll < 0 then
@@ -87,11 +211,11 @@ local function OnMouseWheel(_, delta)
   end
 end
 
-scroll:SetScript("OnMouseWheel", OnMouseWheel)
-
-local function PassWheel(widget)
+local function PassWheel(scroll, widget)
   widget:EnableMouseWheel(true)
-  widget:SetScript("OnMouseWheel", OnMouseWheel)
+  widget:SetScript("OnMouseWheel", function(_, delta)
+    OnMouseWheel(scroll, delta)
+  end)
 end
 
 local function PickColor(target, onChange)
@@ -135,13 +259,46 @@ local function NextOutline(current)
   return OUTLINES[(index % #OUTLINES) + 1]
 end
 
+local function CreatePage(key)
+  local page = CreateFrame("Frame", nil, contentHost)
+  page:SetAllPoints()
+  page:Hide()
+
+  local scroll = CreateFrame("ScrollFrame", "RakaModSettingsScroll_" .. key, page, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", 8, -8)
+  scroll:SetPoint("BOTTOMRIGHT", -28, 8)
+  scroll:SetScript("OnMouseWheel", function(_, delta)
+    OnMouseWheel(scroll, delta)
+  end)
+
+  local content = CreateFrame("Frame", nil, scroll)
+  content:SetSize(400, 400)
+  scroll:SetScrollChild(content)
+
+  local y = 0
+  local ctx = {
+    key = key,
+    page = page,
+    scroll = scroll,
+    content = content,
+    LocalY = function() return y end,
+    Advance = function() y = y - ROW end,
+    Finish = function()
+      content:SetHeight((-y) + 16)
+    end,
+  }
+  pages[key].page = page
+  pages[key].ctx = ctx
+  return ctx
+end
+
 local checkSerial = 0
 
-local function AddCheck(text, section, key)
+local function AddCheck(ctx, text, section, key)
   checkSerial = checkSerial + 1
-  local check = CreateFrame("CheckButton", "RakaModSettingsCheck" .. checkSerial, content, "UICheckButtonTemplate")
+  local check = CreateFrame("CheckButton", "RakaModSettingsCheck" .. checkSerial, ctx.content, "UICheckButtonTemplate")
   check:SetSize(24, 24)
-  check:SetPoint("TOPLEFT", content, "TOPLEFT", 4, LocalY() - 2)
+  check:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 4, ctx.LocalY() - 2)
   local label = check.Text
   if not label then
     label = check:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
@@ -156,20 +313,20 @@ local function AddCheck(text, section, key)
     saved[key] = self:GetChecked() and true or false
     RakaMod.Core:RefreshModules()
   end)
-  PassWheel(check)
+  PassWheel(ctx.scroll, check)
   checks[#checks + 1] = { widget = check, section = section, key = key }
-  Advance()
+  ctx.Advance()
   return check
 end
 
-local function AddSlider(text, section, key, minValue, maxValue)
-  local label = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  label:SetPoint("TOPLEFT", content, "TOPLEFT", 32, LocalY() - 6)
+local function AddSlider(ctx, text, section, key, minValue, maxValue)
+  local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 32, ctx.LocalY() - 6)
   label:SetText(text)
 
-  local slider = CreateFrame("Slider", nil, content)
+  local slider = CreateFrame("Slider", nil, ctx.content)
   slider:SetOrientation("HORIZONTAL")
-  slider:SetPoint("TOPLEFT", content, "TOPLEFT", 188, LocalY() - 6)
+  slider:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 188, ctx.LocalY() - 6)
   slider:SetSize(150, 16)
   slider:SetMinMaxValues(minValue, maxValue)
   slider:SetValueStep(1)
@@ -187,7 +344,7 @@ local function AddSlider(text, section, key, minValue, maxValue)
     thumb:SetSize(16, 16)
   end
 
-  local valueText = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  local valueText = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   valueText:SetPoint("LEFT", slider, "RIGHT", 8, 0)
 
   slider:SetScript("OnValueChanged", function(self, value)
@@ -216,7 +373,7 @@ local function AddSlider(text, section, key, minValue, maxValue)
       RakaMod.ZoneText:Apply()
     end
   end)
-  PassWheel(slider)
+  PassWheel(ctx.scroll, slider)
 
   sliders[#sliders + 1] = {
     widget = slider,
@@ -225,18 +382,18 @@ local function AddSlider(text, section, key, minValue, maxValue)
     key = key,
     minValue = minValue,
   }
-  Advance()
+  ctx.Advance()
   return slider
 end
 
-local function AddColorButton(text, getTarget, onChange)
-  local label = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  label:SetPoint("TOPLEFT", content, "TOPLEFT", 32, LocalY() - 6)
+local function AddColorButton(ctx, text, getTarget, onChange)
+  local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 32, ctx.LocalY() - 6)
   label:SetText(text)
 
-  local swatch = CreateFrame("Button", nil, content)
+  local swatch = CreateFrame("Button", nil, ctx.content)
   swatch:SetSize(20, 20)
-  swatch:SetPoint("TOPLEFT", content, "TOPLEFT", 188, LocalY() - 4)
+  swatch:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 188, ctx.LocalY() - 4)
   local edge = swatch:CreateTexture(nil, "BACKGROUND")
   edge:SetColorTexture(0, 0, 0, 1)
   edge:SetPoint("TOPLEFT", -1, 1)
@@ -248,9 +405,12 @@ local function AddColorButton(text, getTarget, onChange)
 
   local function paint()
     local target = getTarget()
-    local r = target and target.r or 1
-    local g = target and target.g or 1
-    local b = target and target.b or 1
+    local r, g, b = 1, 1, 1
+    if target then
+      if type(target.r) == "number" then r = target.r end
+      if type(target.g) == "number" then g = target.g end
+      if type(target.b) == "number" then b = target.b end
+    end
     color:SetColorTexture(r, g, b, 1)
   end
 
@@ -264,14 +424,14 @@ local function AddColorButton(text, getTarget, onChange)
       onChange()
     end)
   end)
-  PassWheel(swatch)
+  PassWheel(ctx.scroll, swatch)
   swatches[#swatches + 1] = { paint = paint }
-  Advance()
+  ctx.Advance()
   return swatch
 end
 
-local function AddSwatch(text, which)
-  return AddColorButton(text, function()
+local function AddSwatch(ctx, text, which)
+  return AddColorButton(ctx, text, function()
     local gradient = RakaMod.db and RakaMod.db.gradient
     return gradient and gradient[which]
   end, function()
@@ -281,8 +441,8 @@ local function AddSwatch(text, which)
   end)
 end
 
-local function AddZoneSwatch(text)
-  return AddColorButton(text, function()
+local function AddZoneSwatch(ctx, text)
+  return AddColorButton(ctx, text, function()
     return RakaMod.db and RakaMod.db.zoneText
   end, function()
     RakaMod.Core:RefreshModules()
@@ -292,81 +452,113 @@ local function AddZoneSwatch(text)
   end)
 end
 
-local function AddNote(text)
-  local note = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  note:SetPoint("TOPLEFT", content, "TOPLEFT", 8, LocalY() - 8)
+local function AddNote(ctx, text)
+  local note = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  note:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 8)
   note:SetWidth(400)
   note:SetJustifyH("LEFT")
   note:SetWordWrap(false)
   note:SetText(text)
   note:SetTextColor(1, 0.82, 0.2)
-  Advance()
+  ctx.Advance()
   return note
 end
 
-local overlayNote = AddNote("")
-overlayNote:Hide()
+local function AddDescription(ctx, text)
+  local header = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  header:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 4)
+  header:SetText("Description")
+  header:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+  ctx.Advance()
 
-AddCheck("Overlay enabled", "overlay", "enabled")
-AddCheck("Collections", "overlay", "collections")
-AddCheck("Played", "overlay", "played")
-AddCheck("Professions", "overlay", "professions")
+  local body = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  body:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 4)
+  body:SetWidth(380)
+  body:SetJustifyH("LEFT")
+  body:SetWordWrap(true)
+  body:SetText(text)
+  body:SetTextColor(1, 1, 1)
+  ctx.Advance()
+  ctx.Advance() -- second row so wrapped descriptions do not overlap controls
+  return body
+end
 
-local revealNote = AddNote("EllesmereUI Unit Frames is not installed.")
+local function AddOutlineButton(ctx)
+  local outlineLabel = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  outlineLabel:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 32, ctx.LocalY() - 6)
+  outlineLabel:SetText("Outline")
 
-AddCheck("Reveal enabled", "reveal", "enabled")
-AddCheck("Casting", "reveal", "casting")
-AddCheck("Health", "reveal", "health")
-AddSlider("Health percent", "reveal", "healthPercent", 1, 100)
-AddCheck("Mouseover", "reveal", "mouseover")
-AddCheck("Combat", "reveal", "combat")
-AddCheck("Pet", "reveal", "pet")
+  outlineButton = CreateFrame("Button", nil, ctx.content)
+  outlineButton:SetSize(156, 22)
+  outlineButton:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 188, ctx.LocalY() - 3)
+  local outlineBg = outlineButton:CreateTexture(nil, "BACKGROUND")
+  outlineBg:SetAllPoints()
+  outlineBg:SetColorTexture(0.15, 0.15, 0.15, 1)
+  local outlineText = outlineButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  outlineText:SetPoint("CENTER")
+  outlineButton:SetFontString(outlineText)
+  outlineButton:SetText("OUTLINE")
+  outlineButton:SetScript("OnClick", function(self)
+    local zoneText = RakaMod.db and RakaMod.db.zoneText
+    if not zoneText then
+      return
+    end
+    local nextValue = NextOutline(zoneText.outline)
+    zoneText.outline = nextValue
+    self:SetText(nextValue)
+    RakaMod.Core:RefreshModules()
+    if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
+      RakaMod.ZoneText:Apply()
+    end
+  end)
+  PassWheel(ctx.scroll, outlineButton)
+  ctx.Advance()
+  return outlineButton
+end
 
-AddCheck("Zone text enabled", "zoneText", "enabled")
-AddSlider("Size", "zoneText", "size", 8, 64)
+local overlay = CreatePage("overlay")
+AddDescription(overlay, "Escape overlay buttons (collections / played / professions).")
+AddCheck(overlay, "Enabled", "overlay", "enabled")
+AddCheck(overlay, "Collections", "overlay", "collections")
+AddCheck(overlay, "Played", "overlay", "played")
+AddCheck(overlay, "Professions", "overlay", "professions")
+overlay.Finish()
 
-local outlineLabel = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-outlineLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 32, LocalY() - 6)
-outlineLabel:SetText("Outline")
+local reveal = CreatePage("reveal")
+AddDescription(reveal, "Show the player frame when casting, low health, mouseover, or combat.")
+AddCheck(reveal, "Enabled", "reveal", "enabled")
+AddCheck(reveal, "Casting", "reveal", "casting")
+AddCheck(reveal, "Health", "reveal", "health")
+AddSlider(reveal, "Health percent", "reveal", "healthPercent", 1, 100)
+AddCheck(reveal, "Mouseover", "reveal", "mouseover")
+AddCheck(reveal, "Combat", "reveal", "combat")
+AddCheck(reveal, "Pet", "reveal", "pet")
+revealNote = AddNote(reveal, "EllesmereUI Unit Frames is not installed.")
+reveal.Finish()
 
-local outlineButton = CreateFrame("Button", nil, content)
-outlineButton:SetSize(156, 22)
-outlineButton:SetPoint("TOPLEFT", content, "TOPLEFT", 188, LocalY() - 3)
-local outlineBg = outlineButton:CreateTexture(nil, "BACKGROUND")
-outlineBg:SetAllPoints()
-outlineBg:SetColorTexture(0.15, 0.15, 0.15, 1)
-local outlineText = outlineButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-outlineText:SetPoint("CENTER")
-outlineButton:SetFontString(outlineText)
-outlineButton:SetText("OUTLINE")
-outlineButton:SetScript("OnClick", function(self)
-  local zoneText = RakaMod.db and RakaMod.db.zoneText
-  if not zoneText then
-    return
-  end
-  local nextValue = NextOutline(zoneText.outline)
-  zoneText.outline = nextValue
-  self:SetText(nextValue)
-  RakaMod.Core:RefreshModules()
-  if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
-    RakaMod.ZoneText:Apply()
-  end
-end)
-PassWheel(outlineButton)
-Advance()
+local zoneText = CreatePage("zoneText")
+AddDescription(zoneText, "Custom zone change text appearance.")
+AddCheck(zoneText, "Enabled", "zoneText", "enabled")
+AddSlider(zoneText, "Size", "zoneText", "size", 8, 64)
+AddOutlineButton(zoneText)
+AddZoneSwatch(zoneText, "Color")
+zoneText.Finish()
 
-AddZoneSwatch("Color")
+local afk = CreatePage("afk")
+AddDescription(afk, "Full AFK screen behavior.")
+AddCheck(afk, "Enabled", "afk", "enabled")
+AddCheck(afk, "Camera pan", "afk", "cameraPan")
+afk.Finish()
 
-AddCheck("AFK enabled", "afk", "enabled")
-AddCheck("Camera pan", "afk", "cameraPan")
+local gradient = CreatePage("gradient")
+AddDescription(gradient, "Two-color health bar gradient via Ellesmere modules.")
+AddCheck(gradient, "Enabled", "gradient", "enabled")
+AddSwatch(gradient, "Left", "left")
+AddSwatch(gradient, "Right", "right")
+gradientNote = AddNote(gradient, "No Ellesmere health-bar module is installed.")
+gradient.Finish()
 
-local gradientNote = AddNote("No Ellesmere health-bar module is installed.")
-
-AddCheck("Gradient enabled", "gradient", "enabled")
-AddSwatch("Left", "left")
-AddSwatch("Right", "right")
-
-content:SetHeight((VIEW_TOP - y) + 16)
+Settings:SelectPage("overlay")
 
 local function SyncFromDB()
   local db = RakaMod.db
@@ -390,7 +582,7 @@ local function SyncFromDB()
     entry.widget:SetValue(value)
     entry.valueText:SetText(tostring(math.floor(value + 0.5)))
   end
-  if db.zoneText then
+  if outlineButton and db.zoneText then
     outlineButton:SetText(db.zoneText.outline or "NONE")
   end
   for i = 1, #swatches do
@@ -400,7 +592,6 @@ local function SyncFromDB()
 end
 
 function Settings:RefreshNotes()
-  overlayNote:Hide()
   if RakaMod.Core:AddonLoaded("EllesmereUIUnitFrames") then
     revealNote:Hide()
   else
@@ -416,6 +607,27 @@ function Settings:RefreshNotes()
   end
 end
 
+local function UpdateScrollChildWidth(key)
+  local entry = pages[key]
+  local ctx = entry and entry.ctx
+  if not ctx or not ctx.scroll or not ctx.content then
+    return
+  end
+  local width = ctx.scroll:GetWidth()
+  if not width or width <= 1 then
+    local hostWidth = contentHost:GetWidth()
+    if hostWidth and hostWidth > 36 then
+      width = hostWidth - 36
+    end
+  end
+  if width and width > 1 then
+    ctx.content:SetWidth(width)
+  end
+  if ctx.scroll.UpdateScrollChildRect then
+    ctx.scroll:UpdateScrollChildRect()
+  end
+end
+
 function Settings:Show()
   if not skinned and EllesmereUI and EllesmereUI.RegisterSkin then
     skinned = true
@@ -424,14 +636,11 @@ function Settings:Show()
       if S.CloseButton and frame.Close then S.CloseButton(frame.Close) end
     end)
   end
-  local width = scroll:GetWidth()
-  if width and width > 1 then
-    content:SetWidth(width)
-  end
-  if scroll.UpdateScrollChildRect then
-    scroll:UpdateScrollChildRect()
-  end
   SyncFromDB()
+  self:SelectPage(selectedKey or "overlay")
   frame:Show()
   self:RefreshNotes()
+  for i = 1, #NAV do
+    UpdateScrollChildWidth(NAV[i].key)
+  end
 end
