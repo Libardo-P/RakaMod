@@ -61,6 +61,147 @@ local function Paint(fs, size, r, g, b, a)
   fs:SetShadowColor(0, 0, 0, 1)
 end
 
+-- Changelog uses Blizzard GameFontNormal (chat/UI default size), not RakaMod display sizes.
+local function PaintChangelog(fs, r, g, b, a)
+  if GameFontNormal and fs.SetFontObject then
+    pcall(fs.SetFontObject, fs, GameFontNormal)
+  else
+    local path, size
+    if GameFontNormal and GameFontNormal.GetFont then
+      path, size = GameFontNormal:GetFont()
+    end
+    if path and size then
+      pcall(fs.SetFont, fs, path, size, "")
+    else
+      Paint(fs, 12, r, g, b, a)
+      return
+    end
+  end
+  fs:SetTextColor(r, g, b, a or 1)
+end
+
+local function ScreenSize()
+  local w = (UIParent and UIParent.GetWidth and UIParent:GetWidth()) or 0
+  local h = (UIParent and UIParent.GetHeight and UIParent:GetHeight()) or 0
+  if (not w or w <= 0) and type(GetScreenWidth) == "function" then
+    w = GetScreenWidth() or 0
+  end
+  if (not h or h <= 0) and type(GetScreenHeight) == "function" then
+    h = GetScreenHeight() or 0
+  end
+  if (not w or w <= 0) and frame then
+    w = frame:GetWidth() or 1920
+  end
+  if (not h or h <= 0) and frame then
+    h = frame:GetHeight() or 1080
+  end
+  return w, h
+end
+
+local function ApplyLayout()
+  if not frame or not logo then
+    return
+  end
+  local w, h = ScreenSize()
+  local s = RakaMod.Logic.AfkLayoutScale(w, h)
+  local pad = math.floor(28 * s + 0.5)
+  local logoSize = math.floor(72 * s + 0.5)
+  local logoTop = math.floor(52 * s + 0.5)
+  local gapLogo = -math.floor(12 * s + 0.5)
+  local gapTimer = -math.floor(14 * s + 0.5)
+  local gapName = -math.floor(4 * s + 0.5)
+  local classPx = math.floor(16 * s + 0.5)
+  local changelogW = math.min(math.floor(w * 0.28 + 0.5), math.floor(380 * s + 0.5))
+  if changelogW < 220 then
+    changelogW = 220
+  end
+  local modelW = math.floor(math.min(w * 0.30, 420 * s) + 0.5)
+  local modelH = math.floor(math.min(h * 0.58, 520 * s) + 0.5)
+  local chatW = math.floor(math.min(w * 0.28, 340 * s) + 0.5)
+  local chatH = math.floor(120 * s + 0.5)
+  local timerSize = math.max(18, math.floor(26 * s + 0.5))
+  local nameSize = math.max(16, math.floor(20 * s + 0.5))
+  local titleSize = math.max(12, math.floor(13 * s + 0.5))
+  local levelSize = math.max(12, math.floor(13 * s + 0.5))
+  local footerSize = math.max(10, math.floor(11 * s + 0.5))
+  local footerPad = math.floor(16 * s + 0.5)
+
+  logo:SetSize(logoSize, logoSize)
+  logo:ClearAllPoints()
+  logo:SetPoint("TOP", frame, "TOP", 0, -logoTop)
+
+  timerText:ClearAllPoints()
+  timerText:SetPoint("TOP", logo, "BOTTOM", 0, gapLogo)
+  Paint(timerText, timerSize, TIMER_CYAN.r, TIMER_CYAN.g, TIMER_CYAN.b)
+
+  nameText:ClearAllPoints()
+  nameText:SetPoint("TOP", timerText, "BOTTOM", 0, gapTimer)
+  -- color reapplied on Enter; keep size here
+  do
+    local path = RakaMod.Media and RakaMod.Media.FontPath
+    if path then
+      pcall(nameText.SetFont, nameText, path, nameSize, "OUTLINE")
+    end
+  end
+
+  titleText:ClearAllPoints()
+  titleText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
+  Paint(titleText, titleSize, 0.85, 0.85, 0.85)
+
+  classIcon:SetSize(classPx, classPx)
+  classIcon:ClearAllPoints()
+  if titleText:IsShown() then
+    classIcon:SetPoint("TOP", titleText, "BOTTOM", 0, -math.floor(12 * s + 0.5))
+  else
+    classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, -math.floor(12 * s + 0.5))
+  end
+  levelText:ClearAllPoints()
+  levelText:SetPoint("RIGHT", classIcon, "LEFT", -math.floor(4 * s + 0.5), 0)
+  Paint(levelText, levelSize, 1, 1, 1)
+  classText:ClearAllPoints()
+  classText:SetPoint("LEFT", classIcon, "RIGHT", math.floor(4 * s + 0.5), 0)
+  do
+    local path = RakaMod.Media and RakaMod.Media.FontPath
+    if path then
+      pcall(classText.SetFont, classText, path, levelSize, "OUTLINE")
+    end
+  end
+
+  changelogHeader:ClearAllPoints()
+  changelogHeader:SetPoint("TOPLEFT", frame, "TOPLEFT", pad, -logoTop)
+  changelogHeader:SetWidth(changelogW)
+  PaintChangelog(changelogHeader, 1, 1, 1, 0.9)
+
+  changelogBody:ClearAllPoints()
+  changelogBody:SetPoint("TOPLEFT", changelogHeader, "BOTTOMLEFT", 0, -math.floor(6 * s + 0.5))
+  changelogBody:SetWidth(changelogW)
+  PaintChangelog(changelogBody, 1, 1, 1, 0.85)
+
+  model:SetSize(modelW, modelH)
+  model:ClearAllPoints()
+  model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -pad, pad)
+  pcall(model.SetCamDistanceScale, model, 3.6)
+
+  footerText:ClearAllPoints()
+  footerText:SetPoint("BOTTOM", frame, "BOTTOM", 0, footerPad)
+  Paint(footerText, footerSize, 1, 1, 1, 0.45)
+
+  chat:SetSize(chatW, chatH)
+  chat:ClearAllPoints()
+  chat:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", pad, pad)
+  do
+    local path, size
+    if GameFontNormal and GameFontNormal.GetFont then
+      path, size = GameFontNormal:GetFont()
+    end
+    if path and size then
+      pcall(chat.SetFont, chat, path, size, "")
+    elseif RakaMod.Media and RakaMod.Media.FontPath then
+      pcall(chat.SetFont, chat, RakaMod.Media.FontPath, 12, "OUTLINE")
+    end
+  end
+end
+
 local function ClearChat()
   for i = #chatLines, 1, -1 do
     chatLines[i] = nil
@@ -256,22 +397,28 @@ function AFK:Enter()
     pcall(frame.SetPropagateKeyboardInput, frame, false)
   end
 
+  ApplyLayout()
+
   local localized, classFile = ClassInfo()
   local cr, cg, cb = ClassColor(classFile)
   nameText:SetText(PlayerName())
   nameText:SetTextColor(cr, cg, cb, 1)
+
+  local sw, sh = ScreenSize()
+  local s = RakaMod.Logic.AfkLayoutScale(sw, sh)
+  local gapClass = -math.floor(12 * s + 0.5)
 
   local title = PlayerTitle()
   if title then
     titleText:SetText(title)
     titleText:Show()
     classIcon:ClearAllPoints()
-    classIcon:SetPoint("TOP", titleText, "BOTTOM", 0, -18)
+    classIcon:SetPoint("TOP", titleText, "BOTTOM", 0, gapClass)
   else
     titleText:SetText("")
     titleText:Hide()
     classIcon:ClearAllPoints()
-    classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, -18)
+    classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, gapClass)
   end
 
   levelText:SetText("Lv " .. tostring(UnitLevel("player") or "?"))
@@ -286,6 +433,9 @@ function AFK:Enter()
 
   timerText:SetText(RakaMod.Logic.FormatClock(0))
   FillChangelog()
+  -- Re-apply changelog fonts after SetText (some clients reset font object).
+  PaintChangelog(changelogHeader, 1, 1, 1, 0.9)
+  PaintChangelog(changelogBody, 1, 1, 1, 0.85)
   PoseModel()
   ArmInputWatch()
 
@@ -460,8 +610,7 @@ frame:SetScript("OnUpdate", function()
 end)
 
 logo = frame:CreateTexture(nil, "ARTWORK")
-logo:SetSize(112, 112)
-logo:SetPoint("TOP", frame, "TOP", 0, -96)
+logo:SetPoint("TOP", frame, "TOP", 0, -52)
 do
   local path = RakaMod.Media and RakaMod.Media.IconPath
   if path then
@@ -470,79 +619,54 @@ do
 end
 
 timerText = frame:CreateFontString(nil, "OVERLAY")
-timerText:SetPoint("TOP", logo, "BOTTOM", 0, -18)
 timerText:SetJustifyH("CENTER")
-Paint(timerText, 36, TIMER_CYAN.r, TIMER_CYAN.g, TIMER_CYAN.b)
 
 nameText = frame:CreateFontString(nil, "OVERLAY")
-nameText:SetPoint("TOP", timerText, "BOTTOM", 0, -22)
 nameText:SetJustifyH("CENTER")
-Paint(nameText, 28, 1, 1, 1)
 
 titleText = frame:CreateFontString(nil, "OVERLAY")
-titleText:SetPoint("TOP", nameText, "BOTTOM", 0, -6)
 titleText:SetJustifyH("CENTER")
-Paint(titleText, 16, 0.85, 0.85, 0.85)
 titleText:Hide()
 
 classIcon = frame:CreateTexture(nil, "ARTWORK")
-classIcon:SetSize(22, 22)
-classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, -18)
 classIcon:Hide()
 
 levelText = frame:CreateFontString(nil, "OVERLAY")
-levelText:SetPoint("RIGHT", classIcon, "LEFT", -6, 0)
 levelText:SetJustifyH("RIGHT")
-Paint(levelText, 18, 1, 1, 1)
 
 classText = frame:CreateFontString(nil, "OVERLAY")
-classText:SetPoint("LEFT", classIcon, "RIGHT", 6, 0)
 classText:SetJustifyH("LEFT")
-Paint(classText, 18, 1, 1, 1)
 
 changelogHeader = frame:CreateFontString(nil, "OVERLAY")
-changelogHeader:SetPoint("TOPLEFT", frame, "TOPLEFT", 48, -100)
 changelogHeader:SetJustifyH("LEFT")
-changelogHeader:SetWidth(460)
-Paint(changelogHeader, 20, 1, 1, 1, 0.9)
 
 changelogBody = frame:CreateFontString(nil, "OVERLAY")
-changelogBody:SetPoint("TOPLEFT", changelogHeader, "BOTTOMLEFT", 0, -14)
 changelogBody:SetJustifyH("LEFT")
 changelogBody:SetJustifyV("TOP")
-changelogBody:SetWidth(460)
 changelogBody:SetWordWrap(true)
-Paint(changelogBody, 13, 1, 1, 1, 0.82)
 
 model = CreateFrame("PlayerModel", nil, frame)
-model:SetSize(560, 680)
-model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 36)
 model:SetFrameLevel(frame:GetFrameLevel() + 1)
 model:Hide()
 
 footerText = frame:CreateFontString(nil, "OVERLAY")
-footerText:SetPoint("BOTTOM", frame, "BOTTOM", 0, 22)
 footerText:SetJustifyH("CENTER")
-Paint(footerText, 12, 1, 1, 1, 0.45)
 footerText:SetText("Press any key or move the mouse to dismiss  ·  RakaMod")
 
 chat = CreateFrame("ScrollingMessageFrame", nil, frame)
-chat:SetSize(420, 160)
-chat:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 48, 48)
 chat:SetFrameLevel(frame:GetFrameLevel() + 2)
 chat:SetJustifyH("LEFT")
 chat:SetFading(false)
 chat:SetMaxLines(CHAT_LIMIT)
 chat:EnableMouse(true)
 chat:EnableMouseWheel(true)
-do
-  local path = RakaMod.Media and RakaMod.Media.FontPath
-  if path then
-    pcall(chat.SetFont, chat, path, 13, "OUTLINE")
-  end
-end
 pcall(chat.SetShadowOffset, chat, 1, -1)
 pcall(chat.SetShadowColor, chat, 0, 0, 0, 1)
+
+ApplyLayout()
+frame:SetScript("OnSizeChanged", function()
+  ApplyLayout()
+end)
 chat:SetScript("OnMouseWheel", function(self, delta)
   if delta > 0 then
     self:ScrollUp()

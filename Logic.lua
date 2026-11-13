@@ -149,6 +149,22 @@ function Logic.AfkSuppressed(now, suppressUntil)
   return type(suppressUntil) == "number" and now < suppressUntil
 end
 
+-- UI scale for AFK overlay vs 1920x1080 baseline. Clamped so 1080p stays compact
+-- and ultrawide/4K do not explode fixed-pixel widgets.
+function Logic.AfkLayoutScale(width, height)
+  if type(width) ~= "number" or type(height) ~= "number" or width <= 0 or height <= 0 then
+    return 1
+  end
+  local scale = math.min(width / 1920, height / 1080)
+  if scale < 0.7 then
+    return 0.7
+  end
+  if scale > 1.15 then
+    return 1.15
+  end
+  return scale
+end
+
 -- True when a WhatsNew entry should show for this client (Forever vs Retail flags).
 function Logic.EllesmereEntryVisible(entry, isForever)
   if type(entry) ~= "table" then
