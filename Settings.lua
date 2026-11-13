@@ -30,7 +30,9 @@ local navPageKeys = {}
 local NAV = {
   { header = "Core" },
   { key = "general", label = "General" },
-  { key = "features", label = "Features" },
+  { header = "Features" },
+  { key = "overlay", label = "Game Menu" },
+  { key = "afk", label = "AFK" },
   { header = "Appearance" },
   { key = "reveal", label = "Player Frame" },
   { key = "zoneText", label = "Zone Text" },
@@ -1082,17 +1084,19 @@ local function AddSectionHeader(ctx, text)
   return header
 end
 
-local features = CreatePage("features")
-AddDescription(features, "Optional RakaMod behaviors for the Escape menu and AFK screen.")
-AddSectionHeader(features, "Game Menu")
-AddCheck(features, "Enabled", "overlay", "enabled")
-AddCheck(features, "Collections", "overlay", "collections")
-AddCheck(features, "Played", "overlay", "played")
-AddCheck(features, "Professions", "overlay", "professions")
-AddSectionHeader(features, "AFK")
-AddCheck(features, "Enabled", "afk", "enabled")
-AddCheck(features, "Camera pan", "afk", "cameraPan")
-features.Finish()
+local overlay = CreatePage("overlay")
+AddDescription(overlay, "Escape menu overlay buttons (collections / played / professions).")
+AddCheck(overlay, "Enabled", "overlay", "enabled")
+AddCheck(overlay, "Collections", "overlay", "collections")
+AddCheck(overlay, "Played", "overlay", "played")
+AddCheck(overlay, "Professions", "overlay", "professions")
+overlay.Finish()
+
+local afk = CreatePage("afk")
+AddDescription(afk, "Full AFK screen behavior.")
+AddCheck(afk, "Enabled", "afk", "enabled")
+AddCheck(afk, "Camera pan", "afk", "cameraPan")
+afk.Finish()
 
 local function MakeSwatch(parent, scroll, size)
   local swatch = CreateFrame("Button", nil, parent)
