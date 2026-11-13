@@ -406,47 +406,75 @@ local function ApplyFromHexField()
   SetPickerRGB(r / 255, g / 255, b / 255)
 end
 
-local function SetupColorSelectTextures(dest)
-  -- Standard Blizzard color-picker art (works on Forever + retail).
+-- ColorSelect setters take Texture widgets (or a texture's global name), not file paths.
+-- Passing a path silently fails and leaves no wheel/value regions to show.
+local THUMB_PATH = "Interface\\Buttons\\UI-ColorPicker-Buttons"
+local THUMB_FALLBACK = "Interface\\Buttons\\WHITE8x8"
+
+local function WheelArtPath()
+  if RakaMod.Media and type(RakaMod.Media.ColorWheelPath) == "string" then
+    return RakaMod.Media.ColorWheelPath
+  end
+  return "Interface\\AddOns\\RakaMod\\Media\\colorwheel.tga"
+end
+
+local function ApplyTexture(tex, path)
+  if not tex or not tex.SetTexture or type(path) ~= "string" then
+    return false
+  end
+  return pcall(tex.SetTexture, tex, path)
+end
+
+local function SetupColorSelectWheel(dest)
+  local wheel = dest:CreateTexture(nil, "ARTWORK")
+  wheel:SetSize(128, 128)
+  wheel:SetPoint("TOPLEFT", 24, -42)
+  -- Ship wheel art in Media so Forever still shows a circle when Blizzard's
+  -- UI-ColorPicker-Wheel path is missing.
+  if not ApplyTexture(wheel, WheelArtPath()) then
+    ApplyTexture(wheel, "Interface\\Buttons\\UI-ColorPicker-Wheel")
+  end
+  wheel:Show()
   if dest.SetColorWheelTexture then
-    pcall(dest.SetColorWheelTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Wheel")
+    dest:SetColorWheelTexture(wheel)
   end
+
+  local wheelThumb = dest:CreateTexture(nil, "OVERLAY")
+  wheelThumb:SetSize(10, 10)
+  if ApplyTexture(wheelThumb, THUMB_PATH) and wheelThumb.SetTexCoord then
+    wheelThumb:SetTexCoord(0, 0.15625, 0, 0.625)
+  else
+    ApplyTexture(wheelThumb, THUMB_FALLBACK)
+  end
+  wheelThumb:Show()
   if dest.SetColorWheelThumbTexture then
-    pcall(dest.SetColorWheelThumbTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
+    dest:SetColorWheelThumbTexture(wheelThumb)
   end
+
+  local value = dest:CreateTexture(nil, "ARTWORK")
+  value:SetSize(32, 128)
+  value:SetPoint("LEFT", wheel, "RIGHT", 10, 0)
+  -- Blank canvas; ColorSelect paints the brightness gradient.
+  value:SetColorTexture(1, 1, 1, 1)
+  value:Show()
   if dest.SetColorValueTexture then
-    pcall(dest.SetColorValueTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
+    dest:SetColorValueTexture(value)
   end
+
+  local valueThumb = dest:CreateTexture(nil, "OVERLAY")
+  valueThumb:SetSize(48, 14)
+  if ApplyTexture(valueThumb, THUMB_PATH) and valueThumb.SetTexCoord then
+    valueThumb:SetTexCoord(0.25, 1, 0, 0.875)
+  else
+    ApplyTexture(valueThumb, THUMB_FALLBACK)
+  end
+  valueThumb:Show()
   if dest.SetColorValueThumbTexture then
-    pcall(dest.SetColorValueThumbTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
+    dest:SetColorValueThumbTexture(valueThumb)
   end
-  -- Prefer live textures from ColorPickerFrame when available.
-  if ColorPickerFrame then
-    if dest.SetColorWheelTexture and ColorPickerFrame.GetColorWheelTexture then
-      local ok, tex = pcall(ColorPickerFrame.GetColorWheelTexture, ColorPickerFrame)
-      if ok and tex then
-        pcall(dest.SetColorWheelTexture, dest, tex)
-      end
-    end
-    if dest.SetColorWheelThumbTexture and ColorPickerFrame.GetColorWheelThumbTexture then
-      local ok, tex = pcall(ColorPickerFrame.GetColorWheelThumbTexture, ColorPickerFrame)
-      if ok and tex then
-        pcall(dest.SetColorWheelThumbTexture, dest, tex)
-      end
-    end
-    if dest.SetColorValueTexture and ColorPickerFrame.GetColorValueTexture then
-      local ok, tex = pcall(ColorPickerFrame.GetColorValueTexture, ColorPickerFrame)
-      if ok and tex then
-        pcall(dest.SetColorValueTexture, dest, tex)
-      end
-    end
-    if dest.SetColorValueThumbTexture and ColorPickerFrame.GetColorValueThumbTexture then
-      local ok, tex = pcall(ColorPickerFrame.GetColorValueThumbTexture, ColorPickerFrame)
-      if ok and tex then
-        pcall(dest.SetColorValueThumbTexture, dest, tex)
-      end
-    end
-  end
+
+  dest.rakaWheel = wheel
+  dest.rakaValue = value
 end
 
 local function EnsureRakaPicker()
@@ -490,7 +518,7 @@ local function EnsureRakaPicker()
   title:SetText("Color Picker")
   title:SetTextColor(ORANGE.r, ORANGE.g, ORANGE.b)
 
-  SetupColorSelectTextures(f)
+  SetupColorSelectWheel(f)
 
   -- Right column
   local colX = -18
@@ -636,7 +664,12 @@ local function EnsureRakaPicker()
   end)
 
   f:SetScript("OnShow", function()
-    SetupColorSelectTextures(f)
+    if f.rakaWheel then
+      f.rakaWheel:Show()
+    end
+    if f.rakaValue then
+      f.rakaValue:Show()
+    end
     UpdatePasteButton()
     local hasDefault = pickerSession and type(pickerSession.getDefault) == "function"
     defaultBtn:SetEnabled(hasDefault and true or false)

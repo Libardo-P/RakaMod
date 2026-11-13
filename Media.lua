@@ -2,6 +2,7 @@ RakaMod = RakaMod or {}
 RakaMod.Media = {
   FontPath = "Interface\\AddOns\\RakaMod\\Media\\RakaMod.ttf",
   StatusbarPath = "Interface\\AddOns\\RakaMod\\Media\\statusbar.tga",
+  ColorWheelPath = "Interface\\AddOns\\RakaMod\\Media\\colorwheel.tga",
   FontName = "RakaMod",
   StatusbarName = "RakaMod Statusbar",
 }
