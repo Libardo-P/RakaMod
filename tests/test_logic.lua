@@ -12,17 +12,26 @@ eq(Logic.IsForever(16001), true, "forever")
 eq(Logic.IsForever(120105), false, "retail")
 
 local defaults = {
+  general = { showMinimapIcon = true, minimapIconAngle = 210 },
   overlay = { enabled = true, collections = true, played = true, professions = true },
   gradient = Logic.BuildGradientDefaults(),
   played = {},
 }
-local merged = Logic.MergeDefaults({ overlay = { enabled = false }, gradient = "bad", played = { a = { totalSeconds = 10 } } }, defaults)
+local merged = Logic.MergeDefaults({
+  general = { showMinimapIcon = false },
+  overlay = { enabled = false },
+  gradient = "bad",
+  played = { a = { totalSeconds = 10 } },
+}, defaults)
+eq(merged.general.showMinimapIcon, false, "keep general bool")
+eq(merged.general.minimapIconAngle, 210, "fill general angle")
 eq(merged.overlay.enabled, false, "keep saved bool")
 eq(merged.overlay.collections, true, "fill missing key")
 eq(merged.gradient.enabled, false, "reset bad section")
 eq(type(merged.gradient.classes.MAGE), "table", "gradient classes seeded")
 eq(merged.played.a.totalSeconds, 10, "keep played records")
 eq(defaults.overlay.enabled, true, "defaults untouched")
+eq(defaults.general.showMinimapIcon, true, "general defaults untouched")
 
 local magePair = Logic.ClassPairFromRgb(0.25, 0.78, 0.92)
 eq(magePair.left.r < magePair.right.r, true, "class pair darkens left")

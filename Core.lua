@@ -4,6 +4,7 @@ local Logic = RakaMod.Logic or dofile("Logic.lua")
 RakaMod.Logic = Logic
 
 local DEFAULTS = {
+  general = { showMinimapIcon = true, minimapIconAngle = 210 },
   overlay = { enabled = true, collections = true, played = true, professions = true },
   reveal = { enabled = true, casting = true, health = true, healthPercent = 90, mouseover = true, combat = true, pet = false },
   zoneText = { enabled = true, size = 32, r = 1, g = 1, b = 1, outline = "OUTLINE" },
@@ -84,6 +85,9 @@ end
 function Core:RefreshModules()
   for _, def in ipairs(modules) do
     self:ApplyModule(def)
+  end
+  if RakaMod.MinimapIcon and RakaMod.MinimapIcon.Apply then
+    RakaMod.MinimapIcon:Apply()
   end
 end
 

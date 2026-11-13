@@ -18,11 +18,12 @@ local outlineButton
 local applying = false
 local skinned = false
 local pages = {}
-local selectedKey = "overlay"
+local selectedKey = "general"
 local revealNote
 local gradientNote
 
 local NAV = {
+  { key = "general", label = "General" },
   { key = "overlay", label = "Overlay" },
   { key = "reveal", label = "Player Frame" },
   { key = "zoneText", label = "Zone Text" },
@@ -1003,6 +1004,11 @@ local function AddOutlineButton(ctx)
   return outlineButton
 end
 
+local general = CreatePage("general")
+AddDescription(general, "Addon-wide options.")
+AddCheck(general, "Show minimap icon", "general", "showMinimapIcon")
+general.Finish()
+
 local overlay = CreatePage("overlay")
 AddDescription(overlay, "Escape overlay buttons (collections / played / professions).")
 AddCheck(overlay, "Enabled", "overlay", "enabled")
@@ -1278,9 +1284,9 @@ end
 
 gradient.Finish()
 
-Settings:SelectPage("overlay")
+Settings:SelectPage("general")
 
-local function SyncFromDB()
+function Settings:SyncFromDB()
   local db = RakaMod.db
   if type(db) ~= "table" then
     return
@@ -1356,11 +1362,45 @@ function Settings:Show()
       if S.CloseButton and frame.Close then S.CloseButton(frame.Close) end
     end)
   end
-  SyncFromDB()
-  self:SelectPage(selectedKey or "overlay")
+  self:SyncFromDB()
+  self:SelectPage(selectedKey or "general")
   frame:Show()
   self:RefreshNotes()
   for i = 1, #NAV do
     UpdateScrollChildWidth(NAV[i].key)
   end
 end
+
+local function RegisterBlizzardCategory()
+  local panel = CreateFrame("Frame")
+  panel.name = "RakaMod"
+
+  local btn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+  btn:SetSize(200, 30)
+  btn:SetPoint("CENTER", panel, "CENTER", 0, 0)
+  btn:SetText("Open RakaMod")
+  btn:SetScript("OnClick", function()
+    if SettingsPanel and SettingsPanel.IsShown and SettingsPanel:IsShown() and HideUIPanel then
+      HideUIPanel(SettingsPanel)
+    end
+    local open = function()
+      RakaMod.OpenSettings()
+    end
+    if C_Timer and C_Timer.After then
+      C_Timer.After(0, open)
+    else
+      open()
+    end
+  end)
+
+  if Settings and Settings.RegisterCanvasLayoutCategory then
+    local category = Settings.RegisterCanvasLayoutCategory(panel, "RakaMod")
+    if Settings.RegisterAddOnCategory then
+      Settings.RegisterAddOnCategory(category)
+    end
+  elseif InterfaceOptions_AddCategory then
+    InterfaceOptions_AddCategory(panel)
+  end
+end
+
+RegisterBlizzardCategory()
