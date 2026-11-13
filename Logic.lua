@@ -49,6 +49,20 @@ function Logic.HealthBelow(current, maxHealth, percent, secret)
   return (current / maxHealth) * 100 < percent
 end
 
+-- True when current + absorbs exceeds max (effective health above 100%).
+function Logic.HealthAboveFull(current, maxHealth, absorbs, secret)
+  if secret then
+    return false
+  end
+  if type(current) ~= "number" or type(maxHealth) ~= "number" or maxHealth <= 0 then
+    return false
+  end
+  if type(absorbs) ~= "number" or absorbs < 0 then
+    absorbs = 0
+  end
+  return (current + absorbs) > maxHealth
+end
+
 function Logic.IsHealthBarKey(key)
   if type(key) ~= "string" then
     return false

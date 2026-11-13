@@ -967,7 +967,8 @@ local function AddDescription(ctx, text)
   body:SetText(text)
   body:SetTextColor(1, 1, 1)
   ctx.Advance()
-  ctx.Advance() -- second row so wrapped descriptions do not overlap controls
+  ctx.Advance() -- extra rows so wrapped descriptions do not overlap controls
+  ctx.Advance()
   return body
 end
 
@@ -1018,11 +1019,13 @@ AddCheck(overlay, "Professions", "overlay", "professions")
 overlay.Finish()
 
 local reveal = CreatePage("reveal")
-AddDescription(reveal, "Show the player frame when casting, low health, mouseover, or combat.")
+AddDescription(
+  reveal,
+  "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself."
+)
 AddCheck(reveal, "Enabled", "reveal", "enabled")
 AddCheck(reveal, "Casting", "reveal", "casting")
-AddCheck(reveal, "Health", "reveal", "health")
-AddSlider(reveal, "Health percent", "reveal", "healthPercent", 1, 100)
+AddCheck(reveal, "Health above 100%", "reveal", "health")
 AddCheck(reveal, "Mouseover", "reveal", "mouseover")
 AddCheck(reveal, "Combat", "reveal", "combat")
 AddCheck(reveal, "Pet", "reveal", "pet")

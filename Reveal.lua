@@ -6,6 +6,7 @@ RakaMod.Reveal = Reveal
 local EVENTS = {
   "UNIT_HEALTH",
   "UNIT_MAXHEALTH",
+  "UNIT_ABSORB_AMOUNT_CHANGED",
   "UNIT_SPELLCAST_START",
   "UNIT_SPELLCAST_STOP",
   "UNIT_SPELLCAST_CHANNEL_START",
@@ -19,6 +20,7 @@ local EVENTS = {
 local UNIT_EVENT = {
   UNIT_HEALTH = true,
   UNIT_MAXHEALTH = true,
+  UNIT_ABSORB_AMOUNT_CHANGED = true,
   UNIT_SPELLCAST_START = true,
   UNIT_SPELLCAST_STOP = true,
   UNIT_SPELLCAST_CHANNEL_START = true,
@@ -72,11 +74,11 @@ local function Protected(frame)
   return ok and value and true or false
 end
 
-local function HealthDown(percent)
+local function HealthAboveFull()
   if type(UnitHealth) ~= "function" or type(UnitHealthMax) ~= "function" then
     return false
   end
-  if not RakaMod.Logic or type(RakaMod.Logic.HealthBelow) ~= "function" then
+  if not RakaMod.Logic or type(RakaMod.Logic.HealthAboveFull) ~= "function" then
     return false
   end
   local okCurrent, current = pcall(UnitHealth, "player")
@@ -84,9 +86,18 @@ local function HealthDown(percent)
   if not okCurrent or not okMax then
     return false
   end
+  local absorbs = 0
+  if type(UnitGetTotalAbsorbs) == "function" then
+    local okAbsorb, value = pcall(UnitGetTotalAbsorbs, "player")
+    if okAbsorb and type(value) == "number" then
+      absorbs = value
+    elseif okAbsorb and IsSecret(value) then
+      return false
+    end
+  end
   local secret = IsSecret(current) or IsSecret(maxHealth)
-  local okBelow, below = pcall(RakaMod.Logic.HealthBelow, current, maxHealth, percent, secret)
-  return okBelow and below or false
+  local okAbove, above = pcall(RakaMod.Logic.HealthAboveFull, current, maxHealth, absorbs, secret)
+  return okAbove and above or false
 end
 
 local function InfoActive(fn)
@@ -125,7 +136,7 @@ end
 
 local function Triggers(cfg)
   local casting = cfg.casting == true and CastingNow()
-  local health = cfg.health == true and type(cfg.healthPercent) == "number" and HealthDown(cfg.healthPercent)
+  local health = cfg.health == true and HealthAboveFull()
   local mouseover = cfg.mouseover == true and hovering
   local combat = cfg.combat == true and CombatNow()
   return {
@@ -466,7 +477,7 @@ local function UnregisterAll()
     return
   end
   for i = 1, #EVENTS do
-    events:UnregisterEvent(EVENTS[i])
+    pcall(events.UnregisterEvent, events, EVENTS[i])
   end
 end
 
@@ -479,7 +490,7 @@ end
 function Reveal:Enable()
   enabled = true
   for i = 1, #EVENTS do
-    events:RegisterEvent(EVENTS[i])
+    pcall(events.RegisterEvent, events, EVENTS[i])
   end
   TryHookPlayer()
   Reveal:Update()

@@ -54,6 +54,12 @@ eq(Logic.HealthBelow(50, 100, 90, false), true, "hurt")
 eq(Logic.HealthBelow(90, 100, 90, false), false, "exact threshold")
 eq(Logic.HealthBelow(10, 100, 90, true), false, "secret health")
 
+eq(Logic.HealthAboveFull(100, 100, 0, false), false, "full no absorb")
+eq(Logic.HealthAboveFull(100, 100, 10, false), true, "absorb over 100")
+eq(Logic.HealthAboveFull(110, 100, 0, false), true, "current above max")
+eq(Logic.HealthAboveFull(90, 100, 5, false), false, "injured with small absorb")
+eq(Logic.HealthAboveFull(100, 100, 10, true), false, "secret above full")
+
 eq(Logic.IsHealthBarKey("Health"), true, "health key")
 eq(Logic.IsHealthBarKey("_health"), true, "raid health key")
 eq(Logic.IsHealthBarKey("healthBar"), true, "healthBar key")
