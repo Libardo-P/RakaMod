@@ -179,38 +179,56 @@ function Logic.EllesmereEntryVisible(entry, isForever)
   return true
 end
 
--- Format EllesmereUI._WHATSNEW_PATCHES[1] for the AFK left panel.
--- Returns header, body (WoW |c color codes). Nil header when unavailable.
-function Logic.FormatEllesmereChangelog(patches, isForever, maxFeatures, maxFixes)
-  maxFeatures = maxFeatures or 8
-  maxFixes = maxFixes or 8
+-- Left-column tags for a WhatsNew entry (Ellesmere-style: client tag + module).
+function Logic.EllesmereEntryTags(entry)
+  if type(entry) ~= "table" then
+    return "", ""
+  end
+  local module = ""
+  if type(entry.module) == "string" and entry.module ~= "" then
+    module = string.upper(entry.module)
+  end
+  if entry.forever == true then
+    return "WOW FOREVER", module
+  end
+  if entry.retail == true then
+    return "RETAIL", module
+  end
+  if type(entry.patch) == "string" and entry.patch ~= "" then
+    return entry.patch, module
+  end
+  return module, ""
+end
+
+-- Structured view of newest patch for the AFK WhatsNew panel. Nil when unavailable.
+function Logic.BuildEllesmereChangelogView(patches, isForever, maxFeatures, maxFixes)
+  maxFeatures = maxFeatures or 6
+  maxFixes = maxFixes or 6
   if type(patches) ~= "table" or type(patches[1]) ~= "table" then
-    return nil, nil
+    return nil
   end
   local patch = patches[1]
   local version = tostring(patch.version or "")
   if version == "" then
-    return nil, nil
+    return nil
   end
 
-  local featureLines = {}
+  local features = {}
   if type(patch.features) == "table" then
     for i = 1, #patch.features do
       local entry = patch.features[i]
       if Logic.EllesmereEntryVisible(entry, isForever) then
         local title = type(entry.title) == "string" and entry.title or ""
         local desc = type(entry.desc) == "string" and entry.desc or ""
-        local line
-        if title ~= "" and desc ~= "" then
-          line = "• " .. title .. " — " .. desc
-        elseif title ~= "" then
-          line = "• " .. title
-        elseif desc ~= "" then
-          line = "• " .. desc
-        end
-        if line then
-          featureLines[#featureLines + 1] = line
-          if #featureLines >= maxFeatures then
+        if title ~= "" or desc ~= "" then
+          local primary, secondary = Logic.EllesmereEntryTags(entry)
+          features[#features + 1] = {
+            primary = primary,
+            secondary = secondary,
+            title = title,
+            desc = desc,
+          }
+          if #features >= maxFeatures then
             break
           end
         end
@@ -218,15 +236,20 @@ function Logic.FormatEllesmereChangelog(patches, isForever, maxFeatures, maxFixe
     end
   end
 
-  local fixLines = {}
+  local fixes = {}
   if type(patch.fixes) == "table" then
     for i = 1, #patch.fixes do
       local entry = patch.fixes[i]
       if Logic.EllesmereEntryVisible(entry, isForever) then
         local text = type(entry.text) == "string" and entry.text or ""
         if text ~= "" then
-          fixLines[#fixLines + 1] = "• " .. text
-          if #fixLines >= maxFixes then
+          local primary, secondary = Logic.EllesmereEntryTags(entry)
+          fixes[#fixes + 1] = {
+            primary = primary,
+            secondary = secondary,
+            text = text,
+          }
+          if #fixes >= maxFixes then
             break
           end
         end
@@ -234,28 +257,47 @@ function Logic.FormatEllesmereChangelog(patches, isForever, maxFeatures, maxFixe
     end
   end
 
-  if #featureLines == 0 and #fixLines == 0 then
-    return "Latest changelog for " .. version, "No entries for this client."
-  end
+  return {
+    version = version,
+    date = type(patch.date) == "string" and patch.date or nil,
+    features = features,
+    fixes = fixes,
+  }
+end
 
+-- Legacy plain-text formatter (tests / fallbacks).
+function Logic.FormatEllesmereChangelog(patches, isForever, maxFeatures, maxFixes)
+  local view = Logic.BuildEllesmereChangelogView(patches, isForever, maxFeatures, maxFixes)
+  if not view then
+    return nil, nil
+  end
+  if #view.features == 0 and #view.fixes == 0 then
+    return "Latest changelog for " .. view.version, "No entries for this client."
+  end
   local parts = {}
-  if #featureLines > 0 then
+  if #view.features > 0 then
     parts[#parts + 1] = "|cff3dff7aNEW FEATURES|r"
-    for i = 1, #featureLines do
-      parts[#parts + 1] = featureLines[i]
+    for i = 1, #view.features do
+      local f = view.features[i]
+      if f.title ~= "" and f.desc ~= "" then
+        parts[#parts + 1] = "• " .. f.title .. " — " .. f.desc
+      elseif f.title ~= "" then
+        parts[#parts + 1] = "• " .. f.title
+      else
+        parts[#parts + 1] = "• " .. f.desc
+      end
     end
   end
-  if #fixLines > 0 then
+  if #view.fixes > 0 then
     if #parts > 0 then
       parts[#parts + 1] = ""
     end
     parts[#parts + 1] = "|cffff66aaBUG FIXES|r"
-    for i = 1, #fixLines do
-      parts[#parts + 1] = fixLines[i]
+    for i = 1, #view.fixes do
+      parts[#parts + 1] = "• " .. view.fixes[i].text
     end
   end
-
-  return "Latest changelog for " .. version, table.concat(parts, "\n")
+  return "Latest changelog for " .. view.version, table.concat(parts, "\n")
 end
 
 Logic.CLASS_FILES = {

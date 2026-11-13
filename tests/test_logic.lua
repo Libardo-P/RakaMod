@@ -135,6 +135,17 @@ assert(type(bF) == "string" and not bF:find("Premade portal", 1, true), "retail 
 assert(type(bF) == "string" and bF:find("NEW FEATURES", 1, true), "features category")
 assert(type(bF) == "string" and bF:find("BUG FIXES", 1, true), "fixes category")
 
+local viewF = Logic.BuildEllesmereChangelogView(sample, true, 8, 8)
+eq(viewF.version, "9.8.4", "view version")
+eq(#viewF.features, 2, "forever features count")
+eq(viewF.features[1].primary, "WOW FOREVER", "forever tag")
+eq(viewF.features[1].title, "Divine Spirit", "feature title")
+eq(#viewF.fixes, 2, "forever fixes count")
+
+local p, s = Logic.EllesmereEntryTags({ forever = true, module = "Bags" })
+eq(p, "WOW FOREVER", "tag primary")
+eq(s, "BAGS", "tag secondary")
+
 local hR, bR = Logic.FormatEllesmereChangelog(sample, false, 8, 8)
 assert(type(bR) == "string" and bR:find("Group Notes", 1, true), "retail feature kept")
 assert(type(bR) == "string" and not bR:find("Divine Spirit", 1, true), "forever feature dropped on retail")
