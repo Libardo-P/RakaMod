@@ -24,6 +24,12 @@ local BAR_COUNT = 13
 local PANEL_WIDTH = 300
 local BAR_WIDTH = 260
 local PAD_X = 20
+local SECTION_GAP = 24
+local HEADER_STEP = 22
+local ROW_STEP = 20
+local BAR_STEP = 20
+local HEADER_BLUE = { r = 0.20, g = 0.55, b = 1.00 }
+local ROW_TEXT = { r = 0.90, g = 0.92, b = 0.95 }
 
 local dim
 local panel
@@ -55,43 +61,32 @@ local function HideWidgets(list)
   end
 end
 
-local function ShowPlain(row, value)
+local function ShowRow(row, label, value)
   row.icon:Hide()
-  row.text:ClearAllPoints()
-  row.text:SetPoint("LEFT", row, "LEFT", 0, 0)
-  row.text:SetWidth(BAR_WIDTH)
-  row.text:SetText(value)
-  row:Show()
-end
-
-local function ShowIcon(row, texture, value)
-  local applied = false
-  if texture ~= nil and (type(texture) == "string" or type(texture) == "number") then
-    applied = pcall(row.icon.SetTexture, row.icon, texture)
-  end
-  if applied then
-    row.icon:Show()
-    row.text:ClearAllPoints()
-    row.text:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-    row.text:SetWidth(BAR_WIDTH - 22)
-  else
-    row.icon:Hide()
-    row.text:ClearAllPoints()
-    row.text:SetPoint("LEFT", row, "LEFT", 0, 0)
-    row.text:SetWidth(BAR_WIDTH)
-  end
-  row.text:SetText(value)
+  row.label:SetText(label or "")
+  row.value:SetText(value or "")
   row:Show()
 end
 
 local function CreateHeader(parent, text)
-  local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  header:SetJustifyH("LEFT")
-  header:SetWordWrap(false)
-  header:SetWidth(BAR_WIDTH)
-  header:SetText(text)
-  header:SetShadowOffset(1, -1)
-  header:SetShadowColor(0, 0, 0, 1)
+  local header = CreateFrame("Frame", nil, parent)
+  header:SetSize(BAR_WIDTH, 18)
+  local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  title:SetPoint("TOPLEFT", 0, 0)
+  title:SetJustifyH("LEFT")
+  title:SetWordWrap(false)
+  title:SetWidth(BAR_WIDTH)
+  title:SetText(string.upper(text))
+  title:SetTextColor(HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b)
+  title:SetShadowOffset(1, -1)
+  title:SetShadowColor(0, 0, 0, 1)
+  local rule = header:CreateTexture(nil, "ARTWORK")
+  rule:SetColorTexture(HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b, 1)
+  rule:SetPoint("BOTTOMLEFT", 0, 0)
+  rule:SetPoint("BOTTOMRIGHT", 0, 0)
+  rule:SetHeight(1)
+  header.title = title
+  header.rule = rule
   header:Hide()
   return header
 end
@@ -103,42 +98,54 @@ local function CreateRow(parent)
   icon:SetSize(16, 16)
   icon:SetPoint("LEFT", 0, 0)
   icon:Hide()
-  local text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  text:SetJustifyH("LEFT")
-  text:SetWordWrap(false)
-  text:SetWidth(BAR_WIDTH)
-  text:SetShadowOffset(1, -1)
-  text:SetShadowColor(0, 0, 0, 1)
+  local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("LEFT", 0, 0)
+  label:SetJustifyH("LEFT")
+  label:SetWordWrap(false)
+  label:SetWidth(BAR_WIDTH * 0.55)
+  label:SetTextColor(ROW_TEXT.r, ROW_TEXT.g, ROW_TEXT.b)
+  label:SetShadowOffset(1, -1)
+  label:SetShadowColor(0, 0, 0, 1)
+  local value = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  value:SetPoint("RIGHT", 0, 0)
+  value:SetJustifyH("RIGHT")
+  value:SetWordWrap(false)
+  value:SetWidth(BAR_WIDTH * 0.42)
+  value:SetTextColor(ROW_TEXT.r, ROW_TEXT.g, ROW_TEXT.b)
+  value:SetShadowOffset(1, -1)
+  value:SetShadowColor(0, 0, 0, 1)
   row.icon = icon
-  row.text = text
+  row.label = label
+  row.value = value
   row:Hide()
   return row
 end
 
 local function CreateBar(parent)
   local row = CreateFrame("Frame", nil, parent)
-  row:SetSize(BAR_WIDTH, 16)
-  local track = row:CreateTexture(nil, "BACKGROUND")
-  track:SetColorTexture(1, 1, 1, 0.12)
-  track:SetPoint("LEFT", 0, 0)
-  track:SetSize(BAR_WIDTH, 10)
-  local fill = row:CreateTexture(nil, "ARTWORK")
-  local path = RakaMod.Media and RakaMod.Media.StatusbarPath
-  if path then
-    fill:SetTexture(path)
-  end
-  fill:SetPoint("LEFT", 0, 0)
-  fill:SetHeight(10)
-  fill:SetWidth(BAR_WIDTH)
-  local text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  text:SetPoint("LEFT", row, "LEFT", 4, 0)
-  text:SetJustifyH("LEFT")
-  text:SetWordWrap(false)
-  text:SetWidth(BAR_WIDTH - 8)
-  text:SetShadowOffset(1, -1)
-  text:SetShadowColor(0, 0, 0, 1)
+  row:SetSize(BAR_WIDTH, 18)
+  local fill = row:CreateTexture(nil, "BACKGROUND")
+  fill:SetAllPoints()
+  fill:SetColorTexture(1, 1, 1, 0.18)
+  local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("LEFT", 6, 0)
+  label:SetJustifyH("LEFT")
+  label:SetWordWrap(false)
+  label:SetWidth(BAR_WIDTH * 0.55)
+  label:SetTextColor(ROW_TEXT.r, ROW_TEXT.g, ROW_TEXT.b)
+  label:SetShadowOffset(1, -1)
+  label:SetShadowColor(0, 0, 0, 1)
+  local value = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  value:SetPoint("RIGHT", -6, 0)
+  value:SetJustifyH("RIGHT")
+  value:SetWordWrap(false)
+  value:SetWidth(BAR_WIDTH * 0.40)
+  value:SetTextColor(ROW_TEXT.r, ROW_TEXT.g, ROW_TEXT.b)
+  value:SetShadowOffset(1, -1)
+  value:SetShadowColor(0, 0, 0, 1)
   row.fill = fill
-  row.text = text
+  row.label = label
+  row.value = value
   row:Hide()
   return row
 end
@@ -170,13 +177,13 @@ local function CreateFrames()
   panel:EnableMouse(false)
   panel:Hide()
 
+  professions = CreateBlock(panel, "Professions")
   collections = CreateBlock(panel, "Collections")
   playedBlock = CreateBlock(panel, "Played")
   playedBlock.bars = {}
   for i = 1, BAR_COUNT do
     playedBlock.bars[i] = CreateBar(panel)
   end
-  professions = CreateBlock(panel, "Professions")
 end
 
 local function MountLine()
@@ -197,7 +204,7 @@ local function MountLine()
       collected = collected + 1
     end
   end
-  return string.format("Mounts %d/%d", collected, #ids)
+  return { label = "Mounts", value = string.format("%d/%d", collected, #ids) }
 end
 
 local function ToyLine()
@@ -209,7 +216,7 @@ local function ToyLine()
   if not learnedOk or not totalOk or type(learned) ~= "number" or type(total) ~= "number" then
     return nil
   end
-  return string.format("Toys %d/%d", learned, total)
+  return { label = "Toys", value = string.format("%d/%d", learned, total) }
 end
 
 local function PetLine()
@@ -220,7 +227,7 @@ local function PetLine()
   if not ok or type(numPets) ~= "number" or type(numOwned) ~= "number" then
     return nil
   end
-  return string.format("Pets %d/%d", numOwned, numPets)
+  return { label = "Pets", value = string.format("%d/%d", numOwned, numPets) }
 end
 
 local function PointLine()
@@ -231,7 +238,7 @@ local function PointLine()
   if not ok or type(points) ~= "number" then
     return nil
   end
-  return string.format("Achievement Points %d", points)
+  return { label = "Achievement Points", value = tostring(points) }
 end
 
 local function FillCollections()
@@ -243,9 +250,10 @@ local function FillCollections()
   local lines = { MountLine(), ToyLine(), PetLine(), PointLine() }
   local count = 0
   for i = 1, #lines do
-    if lines[i] and count < #collections.rows then
+    local line = lines[i]
+    if line and count < #collections.rows then
       count = count + 1
-      ShowPlain(collections.rows[count], lines[i])
+      ShowRow(collections.rows[count], line.label, line.value)
     end
   end
   if count > 0 then
@@ -262,6 +270,17 @@ local function ClassLabel(classFile)
     return classFile
   end
   return pretty
+end
+
+local function PlayerClassFile()
+  if type(UnitClass) ~= "function" then
+    return nil
+  end
+  local ok, _, classFile = pcall(UnitClass, "player")
+  if ok and type(classFile) == "string" then
+    return classFile
+  end
+  return nil
 end
 
 local function OrderedClasses(byClass)
@@ -303,7 +322,7 @@ local function FillPlayed()
   if type(RakaMod.sessionStart) == "number" and type(GetTime) == "function" then
     elapsed = GetTime() - RakaMod.sessionStart
   end
-  ShowPlain(playedBlock.rows[1], "Session " .. logic.FormatDuration(elapsed))
+  ShowRow(playedBlock.rows[1], "Session", logic.FormatDuration(elapsed))
 
   local playedDB = RakaMod.db and RakaMod.db.played
   local seconds
@@ -314,12 +333,13 @@ local function FillPlayed()
       seconds = record.totalSeconds
     end
   end
-  ShowPlain(playedBlock.rows[2], "Character " .. logic.FormatDuration(seconds))
+  ShowRow(playedBlock.rows[2], "This Character", logic.FormatDuration(seconds))
 
   local summary = logic.PlayedSummary(playedDB)
-  ShowPlain(playedBlock.rows[3], "Account " .. logic.FormatDuration(summary.account))
+  ShowRow(playedBlock.rows[3], "Account", logic.FormatDuration(summary.account))
   playedBlock.header:Show()
 
+  local playerClass = PlayerClassFile()
   local classes = OrderedClasses(summary.byClass)
   local limit = #classes
   if limit > #playedBlock.bars then
@@ -329,34 +349,17 @@ local function FillPlayed()
     local classFile = classes[i]
     local classSeconds = summary.byClass[classFile]
     local bar = playedBlock.bars[i]
-    local fraction = logic.ClassFraction(classSeconds, summary.account)
-    bar.fill:SetWidth(260 * fraction)
     local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
-    if type(color) == "table" and type(color.r) == "number" and type(color.g) == "number" and type(color.b) == "number" then
-      bar.fill:SetVertexColor(color.r, color.g, color.b)
-    else
-      bar.fill:SetVertexColor(1, 1, 1)
+    local r, g, b = 0.55, 0.55, 0.55
+    if type(color) == "table" and type(color.r) == "number" then
+      r, g, b = color.r, color.g, color.b
     end
-    bar.text:SetText(ClassLabel(classFile) .. " " .. logic.FormatDuration(classSeconds))
+    local alpha = (playerClass == classFile) and 0.45 or 0.22
+    bar.fill:SetColorTexture(r, g, b, alpha)
+    bar.label:SetText(ClassLabel(classFile))
+    bar.value:SetText(logic.FormatDuration(classSeconds))
     bar:Show()
   end
-end
-
-local function ProfessionIcon(name)
-  if not (RakaMod.Core and RakaMod.Core.AddonLoaded and RakaMod.Core:AddonLoaded("EllesmereUIDataBars")) then
-    return nil
-  end
-  local globalIcons = _G.EllesmereUIDataBars_ProfessionIcons
-  if type(globalIcons) == "table" and globalIcons[name] ~= nil then
-    return globalIcons[name]
-  end
-  if type(EllesmereUIDataBars) == "table" and type(EllesmereUIDataBars.ProfessionIcons) == "table" then
-    local icon = EllesmereUIDataBars.ProfessionIcons[name]
-    if icon ~= nil then
-      return icon
-    end
-  end
-  return nil
 end
 
 local function ProfessionLines()
@@ -372,16 +375,11 @@ local function ProfessionLines()
   for i = 1, #slots do
     local index = slots[i]
     if index ~= nil and #lines < ROW_COUNT then
-      local infoOk, name, icon, skillLevel, maxSkillLevel = pcall(GetProfessionInfo, index)
+      local infoOk, name, _, skillLevel, maxSkillLevel = pcall(GetProfessionInfo, index)
       if infoOk and type(name) == "string" and name ~= "" then
-        local override = ProfessionIcon(name)
-        local texture = override
-        if type(texture) ~= "string" and type(texture) ~= "number" then
-          texture = icon
-        end
         lines[#lines + 1] = {
-          text = string.format("%s %s/%s", name, tostring(skillLevel), tostring(maxSkillLevel)),
-          texture = texture,
+          label = name,
+          value = string.format("%s/%s", tostring(skillLevel), tostring(maxSkillLevel)),
         }
       end
     end
@@ -401,7 +399,7 @@ local function FillProfessions()
     return
   end
   for i = 1, #lines do
-    ShowIcon(professions.rows[i], lines[i].texture, lines[i].text)
+    ShowRow(professions.rows[i], lines[i].label, lines[i].value)
   end
   professions.header:Show()
 end
@@ -421,27 +419,28 @@ local function Layout()
       return
     end
     if visible > 0 then
-      y = y + 12
+      y = y + SECTION_GAP
     end
     visible = visible + 1
-    place(block.header, 20)
+    place(block.header, HEADER_STEP)
+    y = y + 4
     for i = 1, #block.rows do
       if block.rows[i]:IsShown() then
-        place(block.rows[i], 18)
+        place(block.rows[i], ROW_STEP)
       end
     end
     if includeBars then
       for i = 1, #block.bars do
         if block.bars[i]:IsShown() then
-          place(block.bars[i], 16)
+          place(block.bars[i], BAR_STEP)
         end
       end
     end
   end
 
+  placeBlock(professions, false)
   placeBlock(collections, false)
   placeBlock(playedBlock, true)
-  placeBlock(professions, false)
   if visible == 0 then
     panel:SetHeight(1)
   else
@@ -529,9 +528,9 @@ function Overlay:Refresh()
   if not panel or not RakaMod.Logic then
     return
   end
+  FillProfessions()
   FillCollections()
   FillPlayed()
-  FillProfessions()
   Layout()
   PlacePanel()
 end

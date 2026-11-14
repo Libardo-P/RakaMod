@@ -40,7 +40,10 @@ local pageBody
 
 local PAGE_META = {
   general = { title = "General", description = "Addon-wide options." },
-  overlay = { title = "Game Menu", description = "Escape menu overlay buttons (collections / played / professions)." },
+  overlay = {
+    title = "Game Menu",
+    description = "Left Escape overlay: professions, collections, and played time beside the game menu.",
+  },
   afk = {
     title = "AFK Mode",
     description = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
@@ -1334,7 +1337,7 @@ local function AddGradientSubTabs(ctx, activeKey)
 end
 
 local overlay = CreatePage("overlay")
-AddDescription(overlay, "Escape menu overlay buttons (collections / played / professions).")
+AddDescription(overlay, "Left Escape overlay: professions, collections, and played time beside the game menu.")
 AddCheck(overlay, "Enabled", "overlay", "enabled")
 AddCheck(overlay, "Collections", "overlay", "collections")
 AddCheck(overlay, "Played", "overlay", "played")
