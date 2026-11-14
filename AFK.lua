@@ -463,7 +463,7 @@ local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
 
-  local _, classFile = PlayerClass()
+  local _, classFile = ClassInfo()
   local cr, cg, cb = ClassColor(classFile)
   local hasTag = (primary and primary ~= "") or (secondary and secondary ~= "")
   local tagH = 0
