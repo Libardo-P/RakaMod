@@ -191,7 +191,7 @@ local function AddonVersion()
   if type(ver) == "string" and ver ~= "" then
     return "v" .. ver
   end
-  return "v0.1.0"
+  return "v0.2.0"
 end
 
 local versionText = sidebar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")

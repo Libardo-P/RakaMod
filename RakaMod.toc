@@ -1,7 +1,7 @@
 ## Interface: 120105, 16001
 ## Title: RakaMod
 ## Author: Raka
-## Version: 0.1.0
+## Version: 0.2.0
 ## IconTexture: Interface\AddOns\RakaMod\Media\icon.tga
 ## SavedVariables: RakaModDB
 ## Dependencies: EllesmereUI
