@@ -149,6 +149,19 @@ function Logic.AfkSuppressed(now, suppressUntil)
   return type(suppressUntil) == "number" and now < suppressUntil
 end
 
+-- AFK shade alpha from a 0–100 backgroundFade setting.
+function Logic.AfkShadeAlpha(fade)
+  if type(fade) ~= "number" then
+    fade = 72
+  end
+  if fade < 0 then
+    fade = 0
+  elseif fade > 100 then
+    fade = 100
+  end
+  return fade / 100
+end
+
 -- UI scale for AFK overlay vs 1920x1080 baseline. Clamped so 1080p stays compact
 -- and ultrawide/4K do not explode fixed-pixel widgets.
 function Logic.AfkLayoutScale(width, height)

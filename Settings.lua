@@ -909,6 +909,9 @@ local function AddSlider(ctx, text, section, key, minValue, maxValue)
     if section == "zoneText" and RakaMod.ZoneText and RakaMod.ZoneText.Apply then
       RakaMod.ZoneText:Apply()
     end
+    if section == "afk" and RakaMod.AFK and RakaMod.AFK.ApplyOptions then
+      RakaMod.AFK:ApplyOptions()
+    end
   end)
   PassWheel(ctx.scroll, slider)
 
@@ -1092,10 +1095,79 @@ AddCheck(overlay, "Played", "overlay", "played")
 AddCheck(overlay, "Professions", "overlay", "professions")
 overlay.Finish()
 
+local function AddPageHeading(ctx, title, description)
+  local header = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  header:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 2)
+  header:SetText(title)
+  header:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+  ctx.Advance(32)
+
+  local body = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  body:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 2)
+  body:SetWidth(600)
+  body:SetJustifyH("LEFT")
+  body:SetWordWrap(true)
+  body:SetText(description)
+  body:SetTextColor(1, 1, 1)
+  ctx.Advance()
+  ctx.Advance()
+  ctx.Advance(8)
+  return header, body
+end
+
+local function AddInlineCheck(ctx, text, section, key, x)
+  checkSerial = checkSerial + 1
+  local check = CreateFrame("CheckButton", "RakaModSettingsCheck" .. checkSerial, ctx.content, "UICheckButtonTemplate")
+  check:SetSize(24, 24)
+  check:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, ctx.LocalY() - 2)
+  local label = check.Text
+  if not label then
+    label = check:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+  end
+  label:SetText(text)
+  check:SetScript("OnClick", function(self)
+    local saved = RakaMod.db and RakaMod.db[section]
+    if not saved then
+      return
+    end
+    saved[key] = self:GetChecked() and true or false
+    RakaMod.Core:RefreshModules()
+    if section == "afk" and RakaMod.AFK and RakaMod.AFK.ApplyOptions then
+      RakaMod.AFK:ApplyOptions()
+    end
+  end)
+  PassWheel(ctx.scroll, check)
+  checks[#checks + 1] = { widget = check, section = section, key = key }
+  local labelW = label:GetStringWidth() or 80
+  return x + 28 + labelW + 18
+end
+
+local function AddCheckRow(ctx, items)
+  local x = 4
+  for i = 1, #items do
+    local item = items[i]
+    x = AddInlineCheck(ctx, item[1], item[2], item[3], x)
+  end
+  ctx.Advance()
+  ctx.Advance(4)
+end
+
 local afk = CreatePage("afk")
-AddDescription(afk, "Toxi-style AFK overlay: logo, timer, character info, dancing model, Ellesmere changelog. Dismiss with any key or mouse.")
-AddCheck(afk, "Enabled", "afk", "enabled")
-AddCheck(afk, "Camera pan", "afk", "cameraPan")
+afk.content:SetWidth(640)
+AddPageHeading(
+  afk,
+  "AFK Mode",
+  "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click."
+)
+AddCheckRow(afk, {
+  { "Enabled", "afk", "enabled" },
+  { "Play Emotes", "afk", "playEmotes" },
+  { "Turn Camera", "afk", "cameraPan" },
+  { "Show Changelog", "afk", "showChangelog" },
+})
+-- Show Tips omitted: no tips panel yet. Spec Icon Size omitted: AFK shows class icon, not a resizable spec icon.
+AddSlider(afk, "Background fade", "afk", "backgroundFade", 0, 100)
 afk.Finish()
 
 local function MakeSwatch(parent, scroll, size)

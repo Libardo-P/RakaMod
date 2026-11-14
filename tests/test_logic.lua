@@ -97,6 +97,12 @@ eq(Logic.AfkSuppressed(70, 70), false, "suppress expired")
 eq(Logic.AfkLayoutScale(1920, 1080), 1, "1080p baseline")
 eq(Logic.AfkLayoutScale(1280, 720), 0.7, "720p clamps to floor")
 eq(Logic.AfkLayoutScale(3840, 2160), 1.15, "4k clamps to ceiling")
+eq(Logic.AfkShadeAlpha(72), 0.72, "afk shade default")
+eq(Logic.AfkShadeAlpha(0), 0, "afk shade min")
+eq(Logic.AfkShadeAlpha(100), 1, "afk shade max")
+eq(Logic.AfkShadeAlpha(nil), 0.72, "afk shade nil")
+eq(Logic.AfkShadeAlpha(150), 1, "afk shade clamp high")
+
 eq(Logic.AfkLayoutScale(0, 1080), 1, "bad width defaults")
 assert(math.abs(Logic.AfkLayoutScale(1600, 900) - (1600 / 1920)) < 1e-9, "900p proportional")
 

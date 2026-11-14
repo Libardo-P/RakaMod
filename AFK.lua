@@ -26,6 +26,7 @@ local modelTimer
 local chatLines = {}
 
 local frame
+local shade
 local model
 local logo
 local nameText
@@ -593,6 +594,10 @@ local function FillChangelog()
   changelogPanel:Show()
 end
 
+local function AfkDb()
+  return RakaMod.db and RakaMod.db.afk
+end
+
 local function PoseModel()
   CancelHandle(modelTimer)
   modelTimer = nil
@@ -606,10 +611,48 @@ local function PoseModel()
 
   model:Show()
   PoseModelCamera()
-  pcall(model.SetAnimation, model, DANCE_ANIM)
-  model:SetScript("OnAnimFinished", function(self)
-    pcall(self.SetAnimation, self, DANCE_ANIM)
-  end)
+  local db = AfkDb()
+  if db and db.playEmotes == true then
+    pcall(model.SetAnimation, model, DANCE_ANIM)
+    model:SetScript("OnAnimFinished", function(self)
+      pcall(self.SetAnimation, self, DANCE_ANIM)
+    end)
+  else
+    pcall(model.SetAnimation, model, 0)
+  end
+end
+
+local function ApplyShade()
+  if not shade then
+    return
+  end
+  local db = AfkDb()
+  local fade = db and db.backgroundFade
+  shade:SetColorTexture(0, 0, 0, RakaMod.Logic.AfkShadeAlpha(fade))
+end
+
+local function ApplyChangelogVisibility()
+  if not changelogPanel then
+    return
+  end
+  local db = AfkDb()
+  if db and db.showChangelog == true then
+    FillChangelog()
+    changelogPanel:Show()
+  else
+    HideChangelogPool()
+    changelogPanel:Hide()
+  end
+end
+
+-- Live visuals from DB (also used on Enter).
+function AFK:ApplyOptions()
+  ApplyShade()
+  if not active then
+    return
+  end
+  ApplyChangelogVisibility()
+  PoseModel()
 end
 
 local function CastIsTheBlock()
@@ -694,7 +737,8 @@ function AFK:Enter()
   end
 
   timerText:SetText(RakaMod.Logic.FormatClock(0))
-  FillChangelog()
+  ApplyShade()
+  ApplyChangelogVisibility()
   PoseModel()
 
   CancelHandle(ticker)
@@ -707,7 +751,7 @@ function AFK:Enter()
 
   RegisterChat()
 
-  local afkDb = RakaMod.db and RakaMod.db.afk
+  local afkDb = AfkDb()
   if afkDb and afkDb.cameraPan == true then
     cameraOn = pcall(MoveViewLeftStart, 0.03)
   else
@@ -830,9 +874,9 @@ frame:EnableMouse(true)
 frame:EnableKeyboard(true)
 frame:Hide()
 
-local shade = frame:CreateTexture(nil, "BACKGROUND")
+shade = frame:CreateTexture(nil, "BACKGROUND")
 shade:SetAllPoints()
-shade:SetColorTexture(0, 0, 0, 0.72)
+ApplyShade()
 
 frame:SetScript("OnKeyDown", function(self, key)
   if self.SetPropagateKeyboardInput then

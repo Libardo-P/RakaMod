@@ -8,7 +8,13 @@ local DEFAULTS = {
   overlay = { enabled = true, collections = true, played = true, professions = true },
   reveal = { enabled = true, casting = true, health = true, mouseover = true, combat = true, pet = false },
   zoneText = { enabled = true, size = 32, r = 1, g = 1, b = 1, outline = "OUTLINE" },
-  afk = { enabled = true, cameraPan = true },
+  afk = {
+    enabled = true,
+    playEmotes = true,
+    cameraPan = true,
+    showChangelog = true,
+    backgroundFade = 72,
+  },
   gradient = (function()
     local colors = {}
     for i = 1, #Logic.CLASS_FILES do
