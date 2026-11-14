@@ -587,14 +587,14 @@ local function SetupColorSelectWheel(dest)
   -- Always use shipped Media art here: GetTexture() can still report a missing
   -- UI-ColorPicker-Wheel path as "set", so Blizzard-first fallback is unreliable.
   local underlay = dest:CreateTexture(nil, "BORDER")
-  underlay:SetSize(128, 128)
-  underlay:SetPoint("TOPLEFT", 24, -42)
+  underlay:SetSize(112, 112)
+  underlay:SetPoint("TOPLEFT", 18, -36)
   TrySetTexture(underlay, WheelArtPath())
   underlay:Show()
 
   local wheel = dest:CreateTexture(nil, "ARTWORK")
-  wheel:SetSize(128, 128)
-  wheel:SetPoint("TOPLEFT", 24, -42)
+  wheel:SetSize(112, 112)
+  wheel:SetPoint("TOPLEFT", 18, -36)
   -- Intentionally no SetTexture: ColorSelect draws the live hue wheel here.
   wheel:Show()
   if dest.SetColorWheelTexture then
@@ -612,8 +612,8 @@ local function SetupColorSelectWheel(dest)
   end
 
   local value = dest:CreateTexture(nil, "ARTWORK")
-  value:SetSize(32, 128)
-  value:SetPoint("LEFT", wheel, "RIGHT", 10, 0)
+  value:SetSize(28, 112)
+  value:SetPoint("LEFT", wheel, "RIGHT", 8, 0)
   -- Intentionally no SetColorTexture: ColorSelect draws the value gradient.
   value:Show()
   if dest.SetColorValueTexture then
@@ -621,7 +621,7 @@ local function SetupColorSelectWheel(dest)
   end
 
   local valueThumb = dest:CreateTexture(nil, "OVERLAY")
-  valueThumb:SetSize(48, 14)
+  valueThumb:SetSize(42, 12)
   ApplyThumb(valueThumb, function(tex)
     tex:SetTexCoord(0.25, 1, 0, 0.875)
   end)
@@ -640,13 +640,11 @@ local function EnsureRakaPicker()
     return rakaPicker
   end
 
-  -- Exact Toxi-style layout from the print:
-  -- Title
-  -- Wheel + value (left) | swatches, Copy/Paste, Class, Default, Hex (right)
+  
   -- R G B horizontal under wheel
   -- Okay | Cancel
   local f = CreateFrame("ColorSelect", "RakaModColorPicker", UIParent, template)
-  f:SetSize(360, 340)
+  f:SetSize(340, 280)
   f:SetPoint("CENTER")
   f:SetFrameStrata("FULLSCREEN_DIALOG")
   f:SetToplevel(true)
@@ -679,31 +677,31 @@ local function EnsureRakaPicker()
   SetupColorSelectWheel(f)
 
   -- Right column
-  local colX = -18
+  local colX = -16
   local newSwatch = f:CreateTexture(nil, "ARTWORK")
-  newSwatch:SetSize(72, 18)
-  newSwatch:SetPoint("TOPRIGHT", colX, -42)
+  newSwatch:SetSize(64, 16)
+  newSwatch:SetPoint("TOPRIGHT", colX, -36)
   newSwatch:SetColorTexture(1, 1, 1, 1)
   local oldSwatch = f:CreateTexture(nil, "ARTWORK")
-  oldSwatch:SetSize(72, 18)
+  oldSwatch:SetSize(64, 16)
   oldSwatch:SetPoint("TOPRIGHT", newSwatch, "BOTTOMRIGHT", 0, -2)
   oldSwatch:SetColorTexture(1, 1, 1, 1)
   pickerFields.newSwatch = newSwatch
   pickerFields.oldSwatch = oldSwatch
 
-  -- Column width 146 under the swatches (Copy|Paste, Class, Default, Hex)
-  local copy = MakePickerButton(f, "Copy", 70, 24)
-  copy:SetPoint("TOPRIGHT", f, "TOPRIGHT", -94, -92)
-  local paste = MakePickerButton(f, "Paste", 70, 24)
-  paste:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -92)
+  -- Column width 128 under the swatches (Copy|Paste, Class, Default, Hex)
+  local copy = MakePickerButton(f, "Copy", 61, 22)
+  copy:SetPoint("TOPRIGHT", f, "TOPRIGHT", -83, -80)
+  local paste = MakePickerButton(f, "Paste", 61, 22)
+  paste:SetPoint("TOPRIGHT", f, "TOPRIGHT", -16, -80)
 
-  local classBtn = MakePickerButton(f, "Class", 146, 24)
-  classBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -122)
-  local defaultBtn = MakePickerButton(f, "Default", 146, 24)
-  defaultBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -152)
+  local classBtn = MakePickerButton(f, "Class", 128, 22)
+  classBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -16, -108)
+  local defaultBtn = MakePickerButton(f, "Default", 128, 22)
+  defaultBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -16, -136)
 
-  local hex = MakeRgbBox(f, 146, 6, false)
-  hex:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -184)
+  local hex = MakeRgbBox(f, 128, 6, false)
+  hex:SetPoint("TOPRIGHT", f, "TOPRIGHT", -16, -166)
   local hexHash = hex:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   hexHash:SetPoint("LEFT", 6, 0)
   hexHash:SetText("#")
@@ -713,7 +711,7 @@ local function EnsureRakaPicker()
 
   -- RGB under wheel, one horizontal row
   local rLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  rLabel:SetPoint("BOTTOMLEFT", 28, 56)
+  rLabel:SetPoint("BOTTOMLEFT", 24, 50)
   rLabel:SetText("R")
   rLabel:SetTextColor(1, 1, 1)
   local rBox = MakeRgbBox(f, 40, 3, true)
@@ -733,10 +731,10 @@ local function EnsureRakaPicker()
   local bBox = MakeRgbBox(f, 40, 3, true)
   bBox:SetPoint("LEFT", bLabel, "RIGHT", 4, 0)
 
-  local okay = MakePickerButton(f, "Okay", 150, 28)
-  okay:SetPoint("BOTTOMLEFT", 24, 16)
-  local cancel = MakePickerButton(f, "Cancel", 150, 28)
-  cancel:SetPoint("BOTTOMRIGHT", -24, 16)
+  local okay = MakePickerButton(f, "Okay", 136, 26)
+  okay:SetPoint("BOTTOMLEFT", 18, 14)
+  local cancel = MakePickerButton(f, "Cancel", 136, 26)
+  cancel:SetPoint("BOTTOMRIGHT", -18, 14)
 
   pickerButtons.copy = copy
   pickerButtons.paste = paste
@@ -1488,9 +1486,9 @@ end
 AddSectionHeader(gradient, "NPC Colors")
 do
   local npcRows = {
-    { key = "friendly", label = "Friendly", color = { r = 0.35, g = 0.85, b = 0.35 } },
-    { key = "enemy", label = "Enemy", color = { r = 0.95, g = 0.30, b = 0.30 } },
-    { key = "neutral", label = "Neutral", color = { r = 0.95, g = 0.82, b = 0.40 } },
+    { key = "friendly", label = "Friendly", color = { r = 0.52, g = 0.85, b = 0.17 } },
+    { key = "enemy", label = "Enemy", color = { r = 0.85, g = 0.25, b = 0.25 } },
+    { key = "neutral", label = "Neutral", color = { r = 0.87, g = 0.76, b = 0.29 } },
   }
   local startY = gradient.LocalY()
   for i = 1, #npcRows do

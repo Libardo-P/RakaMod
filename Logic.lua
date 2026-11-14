@@ -370,6 +370,35 @@ local function pair(left, right)
   return { left = left, right = right }
 end
 
+local function hexRgb(hex)
+  hex = tostring(hex or ""):gsub("^#", "")
+  local r = tonumber(hex:sub(1, 2), 16) or 0
+  local g = tonumber(hex:sub(3, 4), 16) or 0
+  local b = tonumber(hex:sub(5, 6), 16) or 0
+  return rgb(r / 255, g / 255, b / 255)
+end
+
+local function hexPair(leftHex, rightHex)
+  return pair(hexRgb(leftHex), hexRgb(rightHex))
+end
+
+-- Fixed left > right class gradient defaults (Toxi palette).
+Logic.CLASS_GRADIENT_DEFAULTS = {
+  DEATHKNIGHT = hexPair("911622", "ff2855"),
+  WARRIOR = hexPair("946837", "dfaa73"),
+  PALADIN = hexPair("d960a4", "ff95d8"),
+  MAGE = hexPair("0080d7", "00d8ff"),
+  PRIEST = hexPair("b9bddb", "f2f4ff"),
+  ROGUE = hexPair("e7b200", "f5ee5a"),
+  SHAMAN = hexPair("0030b0", "0070ec"),
+  WARLOCK = hexPair("562fbd", "9946ff"),
+  DEMONHUNTER = hexPair("8200a9", "e500d1"),
+  MONK = hexPair("009463", "00ff8c"),
+  DRUID = hexPair("e76200", "ffa900"),
+  EVOKER = hexPair("33706f", "32fedc"),
+  HUNTER = hexPair("00910d", "82eb3b"),
+}
+
 function Logic.ClassPairFromRgb(r, g, b)
   r, g, b = clamp01(r), clamp01(g), clamp01(b)
   return pair(
@@ -382,19 +411,27 @@ function Logic.BuildGradientDefaults(classColors)
   local classes = {}
   for i = 1, #Logic.CLASS_FILES do
     local file = Logic.CLASS_FILES[i]
-    local c = (type(classColors) == "table" and classColors[file]) or Logic.CLASS_FALLBACK_COLORS[file]
-    if type(c) ~= "table" then
-      c = { r = 0.5, g = 0.5, b = 0.5 }
+    local fixed = Logic.CLASS_GRADIENT_DEFAULTS[file]
+    if type(fixed) == "table" and type(fixed.left) == "table" and type(fixed.right) == "table" then
+      classes[file] = pair(
+        rgb(fixed.left.r, fixed.left.g, fixed.left.b),
+        rgb(fixed.right.r, fixed.right.g, fixed.right.b)
+      )
+    else
+      local c = (type(classColors) == "table" and classColors[file]) or Logic.CLASS_FALLBACK_COLORS[file]
+      if type(c) ~= "table" then
+        c = { r = 0.5, g = 0.5, b = 0.5 }
+      end
+      classes[file] = Logic.ClassPairFromRgb(c.r, c.g, c.b)
     end
-    classes[file] = Logic.ClassPairFromRgb(c.r, c.g, c.b)
   end
   return {
     enabled = false,
     classes = classes,
     npc = {
-      friendly = pair(rgb(0.20, 0.45, 0.20), rgb(0.35, 0.85, 0.35)),
-      enemy = pair(rgb(0.55, 0.12, 0.12), rgb(0.95, 0.30, 0.30)),
-      neutral = pair(rgb(0.55, 0.45, 0.20), rgb(0.95, 0.82, 0.40)),
+      friendly = hexPair("2F9607", "84D92B"),
+      enemy = hexPair("C82122", "D9413F"),
+      neutral = hexPair("D09046", "DEC249"),
     },
     states = {
       dead = pair(rgb(0.35, 0.35, 0.35), rgb(0.55, 0.55, 0.55)),

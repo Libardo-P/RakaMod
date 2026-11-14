@@ -15,17 +15,7 @@ local DEFAULTS = {
     showChangelog = true,
     backgroundFade = 72,
   },
-  gradient = (function()
-    local colors = {}
-    for i = 1, #Logic.CLASS_FILES do
-      local file = Logic.CLASS_FILES[i]
-      local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[file]
-      if type(c) == "table" and type(c.r) == "number" then
-        colors[file] = { r = c.r, g = c.g, b = c.b }
-      end
-    end
-    return Logic.BuildGradientDefaults(colors)
-  end)(),
+  gradient = Logic.BuildGradientDefaults(),
   played = {},
 }
 
