@@ -27,6 +27,7 @@ At the top of the Gradient Mode content area (below the page header, above the s
 | **Health** | Current page: Enabled, module note, Class / NPC / State colors |
 | **Bars** | Power Colors + Castbar Colors |
 | **Resources** | Class Resources (combo points, holy power, chi, shards, orbs, runes) |
+| **Nameplates** | Enabled, fade direction, Threat Colors, Classification Colors |
 
 Sub-tab chrome: compact buttons; selected state uses existing accent. Switching tabs shows/hides content frames (no second sidebar page). Enabled + module note stay on **Health** only.
 

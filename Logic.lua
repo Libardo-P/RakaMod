@@ -466,6 +466,26 @@ function Logic.BuildGradientDefaults(classColors)
       unholyRunes = hexPair("04733A", "09D858"),
       deathRunes = hexPair("5A2A8F", "A35BFF"),
     },
+    nameplatesEnabled = false,
+    nameplateFadeDirection = "RIGHT",
+    nameplateThreat = {
+      good = hexPair("1F9E1F", "4BE04B"),
+      goodTransition = hexPair("D9A300", "FFE14D"),
+      offTank = hexPair("8F1F8F", "D65CD6"),
+      offTankBad = hexPair("421F8F", "7F4DE0"),
+      bad = hexPair("B31D1D", "FF4545"),
+      badTransition = hexPair("CC5C00", "FFA04D"),
+      offTankGood = hexPair("1F3F8F", "4D7FE0"),
+      solo = hexPair("1F9E6B", "4BE0A6"),
+    },
+    nameplateClassification = {
+      worldBoss = hexPair("A37A00", "E6C400"),
+      rare = hexPair("2E7D00", "5CD11A"),
+      eliteMini = hexPair("55248F", "8F5CD6"),
+      rareElite = hexPair("008A6E", "00D6B0"),
+      eliteBoss = hexPair("A1237A", "E65CBF"),
+      caster = hexPair("005C8F", "1A9AE0"),
+    },
   }
 end
 

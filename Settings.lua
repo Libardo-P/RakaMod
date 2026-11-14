@@ -26,6 +26,7 @@ local checks = {}
 local sliders = {}
 local swatches = {}
 local outlineButton
+local nameplateFadeButton
 local applying = false
 local skinned = false
 local pages = {}
@@ -60,6 +61,10 @@ local PAGE_META = {
   gradientResources = {
     title = "Gradient Mode",
     description = "Class resource gradient shifts. Colors are saved now; painting comes later.",
+  },
+  gradientNameplates = {
+    title = "Gradient Mode",
+    description = "Nameplate threat and classification gradients. Colors are saved now; painting comes later.",
   },
 }
 
@@ -251,7 +256,10 @@ function Settings:SelectPage(key)
   end
   selectedKey = key
   UpdatePageHeader(key)
-  local gradientFamily = key == "gradient" or key == "gradientBars" or key == "gradientResources"
+  local gradientFamily = key == "gradient"
+    or key == "gradientBars"
+    or key == "gradientResources"
+    or key == "gradientNameplates"
   for pageKey, entry in pairs(pages) do
     local selected = pageKey == key
     if entry.page then
@@ -1261,11 +1269,13 @@ local PAIR_ROW = 26
 local CLASS_COL2_X = 310
 
 local function AddSectionHeader(ctx, text)
+  ctx.Advance(18)
   local header = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   header:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 4)
   header:SetText(text)
   header:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
   ctx.Advance()
+  ctx.Advance(4)
   return header
 end
 
@@ -1290,9 +1300,10 @@ end
 local function AddGradientSubTabs(ctx, activeKey)
   local y = ctx.LocalY()
   local tabs = {
-    { key = "gradient", label = "Health", width = 72 },
-    { key = "gradientBars", label = "Bars", width = 72 },
-    { key = "gradientResources", label = "Resources", width = 96 },
+    { key = "gradient", label = "Health", width = 68 },
+    { key = "gradientBars", label = "Bars", width = 60 },
+    { key = "gradientResources", label = "Resources", width = 88 },
+    { key = "gradientNameplates", label = "Nameplates", width = 96 },
   }
   local x = 8
   for i = 1, #tabs do
@@ -1626,6 +1637,80 @@ local function AddGradientPairSection(ctx, sectionKey, title, blurb, rows)
   end
 end
 
+local function AddGradientPairGrid(ctx, sectionKey, rows)
+  local startY = ctx.LocalY()
+  local rowCount = math.ceil(#rows / 2)
+  for i = 1, #rows do
+    local row = rows[i]
+    local col = (i % 2 == 1) and 0 or 1
+    local rowIndex = math.floor((i - 1) / 2)
+    local x = col == 0 and 8 or CLASS_COL2_X
+    local y = startY - rowIndex * PAIR_ROW
+    AddPairRow(ctx, x, y, row.label, row.color, function()
+      local g = RakaMod.db and RakaMod.db.gradient
+      local section = g and g[sectionKey]
+      return section and section[row.key]
+    end, function()
+      local d = GradientDefaults()
+      local section = d and d[sectionKey]
+      return section and section[row.key]
+    end)
+  end
+  for _ = 1, rowCount do
+    ctx.Advance(PAIR_ROW)
+  end
+end
+
+local FADE_DIRECTIONS = { "LEFT", "RIGHT" }
+
+local function NextFadeDirection(current)
+  local index = 0
+  for i = 1, #FADE_DIRECTIONS do
+    if FADE_DIRECTIONS[i] == current then
+      index = i
+      break
+    end
+  end
+  return FADE_DIRECTIONS[(index % #FADE_DIRECTIONS) + 1]
+end
+
+local function AddNameplateFadeDirection(ctx)
+  local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 6)
+  label:SetText("Fade Direction")
+  label:SetTextColor(0.90, 0.92, 0.95)
+
+  nameplateFadeButton = CreateFrame("Button", nil, ctx.content, template)
+  nameplateFadeButton:SetSize(156, 22)
+  nameplateFadeButton:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", CONTROL_X, ctx.LocalY() - 3)
+  if nameplateFadeButton.SetBackdrop then
+    nameplateFadeButton:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8x8",
+      edgeFile = "Interface\\Buttons\\WHITE8x8",
+      edgeSize = 1,
+      insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    nameplateFadeButton:SetBackdropColor(0.06, 0.07, 0.10, 1)
+    nameplateFadeButton:SetBackdropBorderColor(0.16, 0.22, 0.32, 1)
+  end
+  local text = nameplateFadeButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  text:SetPoint("CENTER")
+  nameplateFadeButton:SetFontString(text)
+  nameplateFadeButton:SetText("RIGHT")
+  nameplateFadeButton:SetScript("OnClick", function(self)
+    local g = RakaMod.db and RakaMod.db.gradient
+    if not g then
+      return
+    end
+    local nextValue = NextFadeDirection(g.nameplateFadeDirection)
+    g.nameplateFadeDirection = nextValue
+    self:SetText(nextValue)
+  end)
+  PassWheel(ctx.scroll, nameplateFadeButton)
+  ctx.Advance()
+  return nameplateFadeButton
+end
+
 local gradientBars = CreatePage("gradientBars")
 AddGradientSubTabs(gradientBars, "gradientBars")
 AddGradientPairSection(gradientBars, "power", "Power Colors", "Gradient shifts for power types.", {
@@ -1684,6 +1769,38 @@ do
 end
 gradientResources.Finish()
 
+local gradientNameplates = CreatePage("gradientNameplates")
+AddGradientSubTabs(gradientNameplates, "gradientNameplates")
+AddDescription(
+  gradientNameplates,
+  "Class, NPC, and State colors are shared with unit frames. Threat and classification colors below are nameplate-specific."
+)
+AddCheck(gradientNameplates, "Enabled", "gradient", "nameplatesEnabled")
+AddNameplateFadeDirection(gradientNameplates)
+AddSectionHeader(gradientNameplates, "Threat Colors")
+AddDescription(gradientNameplates, "Used when nameplate threat coloring is enabled.")
+AddGradientPairGrid(gradientNameplates, "nameplateThreat", {
+  { key = "good", label = "Good", color = { r = 0.12, g = 0.62, b = 0.12 } },
+  { key = "bad", label = "Bad", color = { r = 1.00, g = 0.27, b = 0.27 } },
+  { key = "goodTransition", label = "Good Transition", color = { r = 1.00, g = 0.88, b = 0.30 } },
+  { key = "badTransition", label = "Bad Transition", color = { r = 1.00, g = 0.63, b = 0.30 } },
+  { key = "offTank", label = "Off Tank", color = { r = 0.84, g = 0.36, b = 0.84 } },
+  { key = "offTankGood", label = "Off Tank Good", color = { r = 0.30, g = 0.50, b = 0.88 } },
+  { key = "offTankBad", label = "Off Tank Bad", color = { r = 0.50, g = 0.30, b = 0.88 } },
+  { key = "solo", label = "Solo", color = { r = 0.29, g = 0.88, b = 0.65 } },
+})
+AddSectionHeader(gradientNameplates, "Classification Colors")
+AddDescription(gradientNameplates, "Used when nameplate classification coloring is enabled.")
+AddGradientPairGrid(gradientNameplates, "nameplateClassification", {
+  { key = "worldBoss", label = "World Boss", color = { r = 0.90, g = 0.77, b = 0.00 } },
+  { key = "rareElite", label = "Rare Elite", color = { r = 0.00, g = 0.84, b = 0.69 } },
+  { key = "rare", label = "Rare", color = { r = 0.36, g = 0.82, b = 0.10 } },
+  { key = "eliteBoss", label = "Elite Boss", color = { r = 0.90, g = 0.36, b = 0.75 } },
+  { key = "eliteMini", label = "Elite Mini", color = { r = 0.56, g = 0.36, b = 0.84 } },
+  { key = "caster", label = "Caster", color = { r = 0.10, g = 0.60, b = 0.88 } },
+})
+gradientNameplates.Finish()
+
 Settings:SelectPage("general")
 
 function Settings:SyncFromDB()
@@ -1710,6 +1827,9 @@ function Settings:SyncFromDB()
   end
   if outlineButton and db.zoneText then
     outlineButton:SetText(db.zoneText.outline or "NONE")
+  end
+  if nameplateFadeButton and db.gradient then
+    nameplateFadeButton:SetText(db.gradient.nameplateFadeDirection or "RIGHT")
   end
   for i = 1, #swatches do
     swatches[i].paint()
@@ -1771,6 +1891,7 @@ function Settings:Show()
   end
   UpdateScrollChildWidth("gradientBars")
   UpdateScrollChildWidth("gradientResources")
+  UpdateScrollChildWidth("gradientNameplates")
 end
 
 local function RegisterBlizzardCategory()
