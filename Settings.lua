@@ -49,7 +49,14 @@ local PAGE_META = {
     description = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
   },
   zoneText = { title = "Zone Text", description = "Custom zone change text appearance." },
-  gradient = { title = "Gradient", description = "Health bar gradients shift by class, NPC reaction, and unit state." },
+  gradient = {
+    title = "Gradient Mode",
+    description = "Health bar gradients shift by class, NPC reaction, and unit state.",
+  },
+  gradientBars = {
+    title = "Gradient Mode",
+    description = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
+  },
 }
 
 -- Category headers are non-clickable labels; items open existing pages.
@@ -62,7 +69,7 @@ local NAV = {
   { header = "APPEARANCE" },
   { key = "reveal", label = "Player Frame" },
   { key = "zoneText", label = "Zone Text" },
-  { key = "gradient", label = "Gradient" },
+  { key = "gradient", label = "Gradient Mode" },
 }
 
 local template = BackdropTemplateMixin and "BackdropTemplate" or nil
@@ -240,6 +247,7 @@ function Settings:SelectPage(key)
   end
   selectedKey = key
   UpdatePageHeader(key)
+  local gradientFamily = key == "gradient" or key == "gradientBars"
   for pageKey, entry in pairs(pages) do
     local selected = pageKey == key
     if entry.page then
@@ -250,7 +258,11 @@ function Settings:SelectPage(key)
       end
     end
     if entry.button then
-      PaintNav(entry.button, selected)
+      local navOn = selected
+      if entry.button == (pages.gradient and pages.gradient.button) then
+        navOn = gradientFamily
+      end
+      PaintNav(entry.button, navOn)
     end
   end
 end
@@ -640,7 +652,7 @@ local function EnsureRakaPicker()
     return rakaPicker
   end
 
-  
+
   -- R G B horizontal under wheel
   -- Okay | Cancel
   local f = CreateFrame("ColorSelect", "RakaModColorPicker", UIParent, template)
@@ -916,6 +928,7 @@ local function CreatePage(key)
       content:SetHeight((-y) + 16)
     end,
   }
+  pages[key] = pages[key] or {}
   pages[key].page = page
   pages[key].ctx = ctx
   return ctx
@@ -1252,6 +1265,58 @@ local function AddSectionHeader(ctx, text)
   return header
 end
 
+local function PaintGradientSubTab(button, selected)
+  button.selected = selected and true or false
+  if button.SetBackdropColor then
+    if button.selected then
+      button:SetBackdropColor(ACCENT.r * 0.22, ACCENT.g * 0.22, ACCENT.b * 0.35, 0.95)
+      button:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.45)
+    else
+      button:SetBackdropColor(0.10, 0.10, 0.12, 1)
+      button:SetBackdropBorderColor(0, 0, 0, 1)
+    end
+  end
+  if button.selected then
+    button.label:SetTextColor(1, 1, 1)
+  else
+    button.label:SetTextColor(0.70, 0.74, 0.80)
+  end
+end
+
+local function AddGradientSubTabs(ctx, activeKey)
+  local y = ctx.LocalY()
+  local tabs = {
+    { key = "gradient", label = "Health" },
+    { key = "gradientBars", label = "Bars" },
+  }
+  local x = 8
+  for i = 1, #tabs do
+    local tab = tabs[i]
+    local button = CreateFrame("Button", nil, ctx.content, template)
+    button:SetSize(88, 24)
+    button:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, y)
+    if button.SetBackdrop then
+      button:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
+      })
+    end
+    local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    label:SetPoint("CENTER")
+    label:SetText(tab.label)
+    button.label = label
+    PaintGradientSubTab(button, tab.key == activeKey)
+    button:SetScript("OnClick", function()
+      Settings:SelectPage(tab.key)
+    end)
+    PassWheel(ctx.scroll, button)
+    x = x + 96
+  end
+  ctx.Advance(32)
+end
+
 local overlay = CreatePage("overlay")
 AddDescription(overlay, "Escape menu overlay buttons (collections / played / professions).")
 AddCheck(overlay, "Enabled", "overlay", "enabled")
@@ -1455,6 +1520,7 @@ local function ClassDisplayName(classFile)
 end
 
 local gradient = CreatePage("gradient")
+AddGradientSubTabs(gradient, "gradient")
 AddDescription(gradient, "Health bar gradients shift by class, NPC reaction, and unit state.")
 AddCheck(gradient, "Enabled", "gradient", "enabled")
 gradientNote = AddNote(gradient, "No Ellesmere health-bar module is installed.")
@@ -1531,6 +1597,45 @@ do
 end
 
 gradient.Finish()
+
+local function AddGradientPairSection(ctx, sectionKey, title, blurb, rows)
+  AddSectionHeader(ctx, title)
+  if blurb then
+    AddDescription(ctx, blurb)
+  end
+  local startY = ctx.LocalY()
+  for i = 1, #rows do
+    local row = rows[i]
+    AddPairRow(ctx, 8, startY - (i - 1) * PAIR_ROW, row.label, row.color, function()
+      local g = RakaMod.db and RakaMod.db.gradient
+      local section = g and g[sectionKey]
+      return section and section[row.key]
+    end, function()
+      local d = GradientDefaults()
+      local section = d and d[sectionKey]
+      return section and section[row.key]
+    end)
+  end
+  for _ = 1, #rows do
+    ctx.Advance(PAIR_ROW)
+  end
+end
+
+local gradientBars = CreatePage("gradientBars")
+AddGradientSubTabs(gradientBars, "gradientBars")
+AddGradientPairSection(gradientBars, "power", "Power Colors", "Gradient shifts for power types.", {
+  { key = "altPower", label = "Alt Power", color = { r = 0.24, g = 0.48, b = 0.91 } },
+  { key = "focus", label = "Focus", color = { r = 0.85, g = 0.44, b = 0.20 } },
+  { key = "rage", label = "Rage", color = { r = 0.91, g = 0.18, b = 0.18 } },
+  { key = "energy", label = "Energy", color = { r = 1.00, g = 0.87, b = 0.43 } },
+  { key = "mana", label = "Mana", color = { r = 0.29, g = 0.56, b = 0.91 } },
+  { key = "runicPower", label = "Runic Power", color = { r = 0.22, g = 0.64, b = 0.98 } },
+})
+AddGradientPairSection(gradientBars, "castbar", "Castbar Colors", "Gradient shifts for cast bars.", {
+  { key = "regular", label = "Regular", color = { r = 1.00, g = 0.70, b = 0.00 } },
+  { key = "nonInterruptible", label = "Non-interruptible", color = { r = 0.56, g = 0.55, b = 0.55 } },
+})
+gradientBars.Finish()
 
 Settings:SelectPage("general")
 
@@ -1617,6 +1722,7 @@ function Settings:Show()
   for i = 1, #navPageKeys do
     UpdateScrollChildWidth(navPageKeys[i])
   end
+  UpdateScrollChildWidth("gradientBars")
 end
 
 local function RegisterBlizzardCategory()

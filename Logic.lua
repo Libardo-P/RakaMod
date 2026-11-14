@@ -439,6 +439,18 @@ function Logic.BuildGradientDefaults(classColors)
       tapped = pair(rgb(0.40, 0.40, 0.40), rgb(0.65, 0.65, 0.65)),
       disconnected = pair(rgb(0.30, 0.20, 0.20), rgb(0.55, 0.35, 0.35)),
     },
+    power = {
+      altPower = hexPair("1E4BB8", "3D7AE8"),
+      focus = hexPair("B84A18", "D97134"),
+      rage = hexPair("A81816", "E82F2D"),
+      energy = hexPair("C45E12", "FFDF6E"),
+      mana = hexPair("1A3F9E", "4A90E8"),
+      runicPower = hexPair("0E7DB8", "37A3FB"),
+    },
+    castbar = {
+      regular = hexPair("E8A000", "FFB200"),
+      nonInterruptible = hexPair("72716F", "8E8D8B"),
+    },
   }
 end
 

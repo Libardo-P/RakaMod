@@ -18,9 +18,9 @@ Add a **Bars** sub-tab on the existing Gradient settings page for Power and Cast
 
 ## Settings UX
 
-Keep one sidebar item: **Gradient**.
+Keep one sidebar item: **Gradient Mode** (rename from `Gradient`).
 
-At the top of the Gradient content area (below the page header, above the scroll body):
+At the top of the Gradient Mode content area (below the page header, above the scroll body):
 
 | Sub-tab | Content |
 |---------|---------|
@@ -95,7 +95,7 @@ Reuse `AddPairRow` / color picker. On change: write db → refresh row preview. 
 
 ## Success criteria
 
-- Gradient sidebar still one item; Health and Bars sub-tabs switch content cleanly  
+- Sidebar label is **Gradient Mode**; Health and Bars sub-tabs switch content cleanly  
 - Bars shows editable Power + Castbar pairs with Toxi-sampled defaults  
 - SavedVariables merge fills missing `power` / `castbar` without wiping health tables  
 - Health gradients and paint path behave as today  
