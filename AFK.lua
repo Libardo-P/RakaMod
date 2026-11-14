@@ -10,7 +10,6 @@ local CHAT_EVENTS = {
 }
 local CHAT_LIMIT = 500
 local DANCE_ANIM = 69
-local INPUT_GRACE = 0.6
 local TIMER_CYAN = { r = 0.0, g = 0.95, b = 1.0 }
 
 local active = false
@@ -25,9 +24,6 @@ local enabled = false
 local ticker
 local modelTimer
 local chatLines = {}
-local lastCursorX
-local lastCursorY
-local inputArmed = false
 
 local frame
 local model
@@ -598,19 +594,6 @@ local function CastIsTheBlock()
   return UnitCastingInfo("player") or UnitChannelInfo("player")
 end
 
-local function ArmInputWatch()
-  inputArmed = false
-  lastCursorX, lastCursorY = nil, nil
-  C_Timer.After(INPUT_GRACE, function()
-    if not active then
-      return
-    end
-    inputArmed = true
-    local x, y = GetCursorPosition()
-    lastCursorX, lastCursorY = x, y
-  end)
-end
-
 local function ShowParent()
   local inCombat = type(InCombatLockdown) == "function" and InCombatLockdown() and true or false
   local ok = pcall(UIParent.Show, UIParent)
@@ -679,7 +662,6 @@ function AFK:Enter()
   timerText:SetText(RakaMod.Logic.FormatClock(0))
   FillChangelog()
   PoseModel()
-  ArmInputWatch()
 
   CancelHandle(ticker)
   ticker = C_Timer.NewTicker(0.25, function()
@@ -709,8 +691,6 @@ function AFK:Leave(fromKey)
   ticker = nil
   CancelHandle(modelTimer)
   modelTimer = nil
-  inputArmed = false
-  lastCursorX, lastCursorY = nil, nil
 
   if model then
     model:SetScript("OnAnimFinished", nil)
@@ -837,20 +817,6 @@ frame:SetScript("OnMouseDown", function()
   end
 end)
 
-frame:SetScript("OnUpdate", function()
-  if not active or not inputArmed then
-    return
-  end
-  local x, y = GetCursorPosition()
-  if lastCursorX and lastCursorY then
-    if math.abs(x - lastCursorX) > 4 or math.abs(y - lastCursorY) > 4 then
-      AFK:Leave(true)
-      return
-    end
-  end
-  lastCursorX, lastCursorY = x, y
-end)
-
 logo = frame:CreateTexture(nil, "ARTWORK")
 logo:SetPoint("TOP", frame, "TOP", 0, -52)
 do
@@ -895,7 +861,7 @@ model:Hide()
 footerText = frame:CreateFontString(nil, "OVERLAY")
 footerText:SetJustifyH("CENTER")
 EnsureFont(footerText, SMALL_UI_SIZE, "")
-footerText:SetText("Press any key or move the mouse to dismiss  ·  RakaMod")
+footerText:SetText("Press any key or click to dismiss  ·  RakaMod")
 
 chat = CreateFrame("ScrollingMessageFrame", nil, frame)
 chat:SetFrameLevel(frame:GetFrameLevel() + 2)
