@@ -451,6 +451,21 @@ function Logic.BuildGradientDefaults(classColors)
       regular = hexPair("E8A000", "FFB200"),
       nonInterruptible = hexPair("72716F", "8E8D8B"),
     },
+    classResources = {
+      comboPoint1 = hexPair("863737", "BF4F4F"),
+      comboPoint2 = hexPair("8B6437", "C78F4F"),
+      comboPoint3 = hexPair("919137", "CFCF4F"),
+      comboPoint4 = hexPair("648B37", "8FC74F"),
+      comboPoint5 = hexPair("4D8837", "6EC24F"),
+      holyPower = hexPair("D4A017", "FFE36B"),
+      chi = hexPair("00A37A", "2DFFB3"),
+      soulShards = hexPair("6A1FB8", "B061FF"),
+      shadowOrbs = hexPair("5B0AB8", "A050FF"),
+      bloodRunes = hexPair("8A0A26", "E51A46"),
+      frostRunes = hexPair("005F99", "00ACFF"),
+      unholyRunes = hexPair("04733A", "09D858"),
+      deathRunes = hexPair("5A2A8F", "A35BFF"),
+    },
   }
 end
 

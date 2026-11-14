@@ -57,6 +57,10 @@ local PAGE_META = {
     title = "Gradient Mode",
     description = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
   },
+  gradientResources = {
+    title = "Gradient Mode",
+    description = "Class resource gradient shifts. Colors are saved now; painting comes later.",
+  },
 }
 
 -- Category headers are non-clickable labels; items open existing pages.
@@ -247,7 +251,7 @@ function Settings:SelectPage(key)
   end
   selectedKey = key
   UpdatePageHeader(key)
-  local gradientFamily = key == "gradient" or key == "gradientBars"
+  local gradientFamily = key == "gradient" or key == "gradientBars" or key == "gradientResources"
   for pageKey, entry in pairs(pages) do
     local selected = pageKey == key
     if entry.page then
@@ -1286,14 +1290,15 @@ end
 local function AddGradientSubTabs(ctx, activeKey)
   local y = ctx.LocalY()
   local tabs = {
-    { key = "gradient", label = "Health" },
-    { key = "gradientBars", label = "Bars" },
+    { key = "gradient", label = "Health", width = 72 },
+    { key = "gradientBars", label = "Bars", width = 72 },
+    { key = "gradientResources", label = "Resources", width = 96 },
   }
   local x = 8
   for i = 1, #tabs do
     local tab = tabs[i]
     local button = CreateFrame("Button", nil, ctx.content, template)
-    button:SetSize(88, 24)
+    button:SetSize(tab.width, 24)
     button:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, y)
     if button.SetBackdrop then
       button:SetBackdrop({
@@ -1312,7 +1317,7 @@ local function AddGradientSubTabs(ctx, activeKey)
       Settings:SelectPage(tab.key)
     end)
     PassWheel(ctx.scroll, button)
-    x = x + 96
+    x = x + tab.width + 8
   end
   ctx.Advance(32)
 end
@@ -1419,7 +1424,7 @@ end
 local function AddPairRow(ctx, x, y, labelText, labelColor, getPair, getDefaultPair)
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, y - 4)
-  label:SetWidth(100)
+  label:SetWidth(118)
   label:SetJustifyH("LEFT")
   label:SetText(labelText)
   if labelColor then
@@ -1427,7 +1432,7 @@ local function AddPairRow(ctx, x, y, labelText, labelColor, getPair, getDefaultP
   end
 
   local leftSwatch = MakeSwatch(ctx.content, ctx.scroll, 18)
-  leftSwatch:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x + 104, y - 3)
+  leftSwatch:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x + 122, y - 3)
   local arrow = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   arrow:SetPoint("LEFT", leftSwatch, "RIGHT", 4, 0)
   arrow:SetText(">")
@@ -1637,6 +1642,48 @@ AddGradientPairSection(gradientBars, "castbar", "Castbar Colors", "Gradient shif
 })
 gradientBars.Finish()
 
+local gradientResources = CreatePage("gradientResources")
+AddGradientSubTabs(gradientResources, "gradientResources")
+AddSectionHeader(gradientResources, "Class Resources")
+AddDescription(gradientResources, "Gradient shifts for class resource bars.")
+do
+  local resourceRows = {
+    { key = "comboPoint1", label = "Combo Point 1", color = { r = 0.75, g = 0.31, b = 0.31 } },
+    { key = "comboPoint2", label = "Combo Point 2", color = { r = 0.78, g = 0.56, b = 0.31 } },
+    { key = "comboPoint3", label = "Combo Point 3", color = { r = 0.81, g = 0.81, b = 0.31 } },
+    { key = "comboPoint4", label = "Combo Point 4", color = { r = 0.56, g = 0.78, b = 0.31 } },
+    { key = "comboPoint5", label = "Combo Point 5", color = { r = 0.43, g = 0.76, b = 0.31 } },
+    { key = "holyPower", label = "Holy Power", color = { r = 1.00, g = 0.89, b = 0.42 } },
+    { key = "chi", label = "Chi", color = { r = 0.18, g = 1.00, b = 0.70 } },
+    { key = "soulShards", label = "Soul Shards", color = { r = 0.69, g = 0.38, b = 1.00 } },
+    { key = "shadowOrbs", label = "Shadow Orbs", color = { r = 0.63, g = 0.31, b = 1.00 } },
+    { key = "bloodRunes", label = "Blood Runes", color = { r = 0.90, g = 0.10, b = 0.27 } },
+    { key = "frostRunes", label = "Frost Runes", color = { r = 0.00, g = 0.67, b = 1.00 } },
+    { key = "unholyRunes", label = "Unholy Runes", color = { r = 0.04, g = 0.85, b = 0.35 } },
+    { key = "deathRunes", label = "Death Runes", color = { r = 0.64, g = 0.36, b = 1.00 } },
+  }
+  local startY = gradientResources.LocalY()
+  local rows = math.ceil(#resourceRows / 2)
+  for i = 1, #resourceRows do
+    local row = resourceRows[i]
+    local col = (i % 2 == 1) and 0 or 1
+    local rowIndex = math.floor((i - 1) / 2)
+    local x = col == 0 and 8 or CLASS_COL2_X
+    local y = startY - rowIndex * PAIR_ROW
+    AddPairRow(gradientResources, x, y, row.label, row.color, function()
+      local g = RakaMod.db and RakaMod.db.gradient
+      return g and g.classResources and g.classResources[row.key]
+    end, function()
+      local d = GradientDefaults()
+      return d and d.classResources and d.classResources[row.key]
+    end)
+  end
+  for _ = 1, rows do
+    gradientResources.Advance(PAIR_ROW)
+  end
+end
+gradientResources.Finish()
+
 Settings:SelectPage("general")
 
 function Settings:SyncFromDB()
@@ -1723,6 +1770,7 @@ function Settings:Show()
     UpdateScrollChildWidth(navPageKeys[i])
   end
   UpdateScrollChildWidth("gradientBars")
+  UpdateScrollChildWidth("gradientResources")
 end
 
 local function RegisterBlizzardCategory()

@@ -11,7 +11,7 @@ Add a **Bars** sub-tab on the existing Gradient settings page for Power and Cast
 ## Non-goals
 
 - Painting Ellesmere power bars or cast bars (follow-up)
-- Bars **Class Colors** section (deferred until a full screenshot of that block is provided)
+- Painting class resource bars (follow-up; settings only in this pass)
 - Separate sidebar nav item for Bars
 - Separate Enabled flag for Bars (shares `gradient.enabled`)
 - Copying ToxiUI assets, strings, or code
@@ -25,9 +25,10 @@ At the top of the Gradient Mode content area (below the page header, above the s
 | Sub-tab | Content |
 |---------|---------|
 | **Health** | Current page: Enabled, module note, Class / NPC / State colors |
-| **Bars** | Power Colors + Castbar Colors (this work) |
+| **Bars** | Power Colors + Castbar Colors |
+| **Resources** | Class Resources (combo points, holy power, chi, shards, orbs, runes) |
 
-Sub-tab chrome: two compact buttons or text tabs; selected state uses existing accent. Switching tabs shows/hides two content frames inside the same Gradient page (no second sidebar page). Enabled + module note stay on **Health** only.
+Sub-tab chrome: compact buttons; selected state uses existing accent. Switching tabs shows/hides content frames (no second sidebar page). Enabled + module note stay on **Health** only.
 
 ## Data model
 
@@ -50,6 +51,12 @@ gradient = {
   castbar = {
     regular = { left = ..., right = ... },
     nonInterruptible = { left = ..., right = ... },
+  },
+  classResources = {
+    comboPoint1 = ..., comboPoint2 = ..., comboPoint3 = ...,
+    comboPoint4 = ..., comboPoint5 = ...,
+    holyPower = ..., chi = ..., soulShards = ..., shadowOrbs = ...,
+    bloodRunes = ..., frostRunes = ..., unholyRunes = ..., deathRunes = ...,
   },
 }
 ```
