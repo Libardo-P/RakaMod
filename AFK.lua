@@ -43,12 +43,11 @@ local events
 local Consider
 
 -- Ellesmere WhatsNew palette (compact AFK clone).
-local CL_ORANGE = { r = 0.863, g = 0.655, b = 0.498 }
-local CL_GREEN = { r = 0.25, g = 0.72, b = 0.42 }
 local CL_SECTION = { r = 0.62, g = 0.62, b = 0.62 }
 local CL_TITLE = { r = 0.92, g = 0.92, b = 0.92 }
 local CL_DESC = { r = 0.50, g = 0.50, b = 0.50 }
 local CL_MUTED = { r = 0.55, g = 0.55, b = 0.55 }
+local CL_BLURB = { r = 0.58, g = 0.58, b = 0.58 }
 
 local function CancelHandle(handle)
   if handle and handle.Cancel then
@@ -361,13 +360,9 @@ local function AcquireChangelogPiece(kind)
     piece.version:SetJustifyH("LEFT")
     piece.date = piece:CreateFontString(nil, "OVERLAY")
     piece.date:SetJustifyH("LEFT")
-    piece.badge = CreateFrame("Frame", nil, piece)
-    piece.badgeBg = piece.badge:CreateTexture(nil, "BACKGROUND")
-    piece.badgeBg:SetAllPoints()
-    piece.badgeBg:SetColorTexture(CL_GREEN.r, CL_GREEN.g, CL_GREEN.b, 0.85)
-    piece.badgeText = piece.badge:CreateFontString(nil, "OVERLAY")
-    piece.badgeText:SetJustifyH("CENTER")
-    piece.badgeText:SetPoint("CENTER", piece.badge, "CENTER", 0, 0)
+    piece.blurb = piece:CreateFontString(nil, "OVERLAY")
+    piece.blurb:SetJustifyH("LEFT")
+    piece.blurb:SetWordWrap(true)
   elseif kind == "section" then
     piece.icon = piece:CreateFontString(nil, "OVERLAY")
     piece.icon:SetJustifyH("LEFT")
@@ -402,32 +397,41 @@ local function PlaceChangelogHeader(y, view, width)
   local piece = AcquireChangelogPiece("header")
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
-  piece:SetSize(width, 16)
+
   ChangelogFont(piece.version, 11, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
   piece.version:ClearAllPoints()
-  piece.version:SetPoint("LEFT", piece, "LEFT", 0, 0)
+  piece.version:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, 0)
   piece.version:SetText(view.version or "")
 
-  local x = (piece.version:GetStringWidth() or 40) + 8
   if view.date and view.date ~= "" then
     ChangelogFont(piece.date, 8, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
     piece.date:ClearAllPoints()
-    piece.date:SetPoint("LEFT", piece, "LEFT", x, 0)
+    piece.date:SetPoint("LEFT", piece.version, "RIGHT", 8, 0)
     piece.date:SetText(view.date)
     piece.date:Show()
-    x = x + (piece.date:GetStringWidth() or 0) + 8
   else
     piece.date:Hide()
   end
 
-  ChangelogFont(piece.badgeText, 7, 1, 1, 1, 1)
-  piece.badgeText:SetText("LATEST")
-  local bw = math.max(36, (piece.badgeText:GetStringWidth() or 28) + 10)
-  piece.badge:ClearAllPoints()
-  piece.badge:SetPoint("LEFT", piece, "LEFT", x, 0)
-  piece.badge:SetSize(bw, 12)
-  piece.badge:Show()
-  return y + 18
+  -- Prefer blurb fontstring; older pooled headers may still have a LATEST badge.
+  if piece.badge then
+    piece.badge:Hide()
+  end
+  if not piece.blurb then
+    piece.blurb = piece:CreateFontString(nil, "OVERLAY")
+    piece.blurb:SetJustifyH("LEFT")
+    piece.blurb:SetWordWrap(true)
+  end
+  ChangelogFont(piece.blurb, 7, CL_BLURB.r, CL_BLURB.g, CL_BLURB.b, 1)
+  piece.blurb:ClearAllPoints()
+  piece.blurb:SetPoint("TOPLEFT", piece.version, "BOTTOMLEFT", 0, -3)
+  piece.blurb:SetWidth(width)
+  piece.blurb:SetText("Latest patch notes for EllesmereUI")
+  piece.blurb:Show()
+
+  local h = 12 + 3 + math.max(10, math.ceil(piece.blurb:GetStringHeight() or 10)) + 4
+  piece:SetSize(width, h)
+  return y + h + 4
 end
 
 local function PlaceChangelogSection(y, width, iconText, label)
@@ -459,40 +463,61 @@ local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
 
-  ChangelogFont(piece.primary, 7, CL_ORANGE.r, CL_ORANGE.g, CL_ORANGE.b, 1)
-  piece.primary:ClearAllPoints()
-  piece.primary:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, -2)
-  piece.primary:SetWidth(tagW)
-  piece.primary:SetText(primary or "")
-
-  local tagH = 10
-  if secondary and secondary ~= "" then
-    ChangelogFont(piece.secondary, 6, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
-    piece.secondary:ClearAllPoints()
-    piece.secondary:SetPoint("TOPLEFT", piece.primary, "BOTTOMLEFT", 0, -1)
-    piece.secondary:SetWidth(tagW)
-    piece.secondary:SetText(secondary)
-    piece.secondary:Show()
-    tagH = 18
+  local _, classFile = PlayerClass()
+  local cr, cg, cb = ClassColor(classFile)
+  local hasTag = (primary and primary ~= "") or (secondary and secondary ~= "")
+  local tagH = 0
+  if hasTag then
+    ChangelogFont(piece.primary, 7, cr, cg, cb, 1)
+    piece.primary:ClearAllPoints()
+    piece.primary:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, -2)
+    piece.primary:SetWidth(tagW)
+    piece.primary:SetText(primary or "")
+    piece.primary:Show()
+    tagH = 10
+    if secondary and secondary ~= "" then
+      ChangelogFont(piece.secondary, 6, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
+      piece.secondary:ClearAllPoints()
+      piece.secondary:SetPoint("TOPLEFT", piece.primary, "BOTTOMLEFT", 0, -1)
+      piece.secondary:SetWidth(tagW)
+      piece.secondary:SetText(secondary)
+      piece.secondary:Show()
+      tagH = 18
+    else
+      piece.secondary:Hide()
+    end
   else
+    piece.primary:Hide()
     piece.secondary:Hide()
   end
 
-  ChangelogFont(piece.title, 8, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
-  piece.title:ClearAllPoints()
-  piece.title:SetPoint("TOPLEFT", piece, "TOPLEFT", tagW + 8, -2)
-  piece.title:SetWidth(rightW)
-  piece.title:SetText(title or "")
+  local hasTitle = title and title ~= ""
+  local bodyH = 0
+  if hasTitle then
+    ChangelogFont(piece.title, 8, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
+    piece.title:ClearAllPoints()
+    piece.title:SetPoint("TOPLEFT", piece, "TOPLEFT", tagW + 8, -2)
+    piece.title:SetWidth(rightW)
+    piece.title:SetText(title)
+    piece.title:Show()
+    bodyH = 10
+  else
+    piece.title:Hide()
+  end
 
-  local bodyH = 10
   if desc and desc ~= "" then
     ChangelogFont(piece.desc, 7, CL_DESC.r, CL_DESC.g, CL_DESC.b, 1)
     piece.desc:ClearAllPoints()
-    piece.desc:SetPoint("TOPLEFT", piece.title, "BOTTOMLEFT", 0, -2)
+    if hasTitle then
+      piece.desc:SetPoint("TOPLEFT", piece.title, "BOTTOMLEFT", 0, -2)
+    else
+      piece.desc:SetPoint("TOPLEFT", piece, "TOPLEFT", tagW + 8, -2)
+    end
     piece.desc:SetWidth(rightW)
     piece.desc:SetText(desc)
     piece.desc:Show()
-    bodyH = 10 + math.max(10, math.ceil(piece.desc:GetStringHeight() or 10))
+    local descH = math.max(10, math.ceil(piece.desc:GetStringHeight() or 10))
+    bodyH = hasTitle and (bodyH + 2 + descH) or descH
   else
     piece.desc:Hide()
   end
@@ -541,9 +566,18 @@ local function FillChangelog()
     end
     if #view.fixes > 0 then
       y = PlaceChangelogSection(y, width, "#", "BUGFIXES")
+      local lastTagKey
       for i = 1, #view.fixes do
         local fx = view.fixes[i]
-        y = PlaceChangelogRow(y, width, fx.primary, fx.secondary, fx.text, nil)
+        local tagKey = tostring(fx.primary or "") .. "\0" .. tostring(fx.secondary or "")
+        local primary, secondary = fx.primary, fx.secondary
+        if tagKey == lastTagKey then
+          primary, secondary = "", ""
+        else
+          lastTagKey = tagKey
+        end
+        -- Bug rows: gray body only (no bold white title).
+        y = PlaceChangelogRow(y, width, primary, secondary, nil, fx.text)
       end
     end
     if #view.features == 0 and #view.fixes == 0 then
