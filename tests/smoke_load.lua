@@ -165,6 +165,24 @@ for line in toc:lines() do
 end
 toc:close()
 
+local ldbIndex, dbIconIndex
+for i, path in ipairs(files) do
+  local handle = io.open(path, "rb")
+  if handle then
+    handle:close()
+  else
+    fail("TOC lists a missing file: " .. path)
+  end
+  if path:match("LibDataBroker%-1%.1%.lua$") then
+    ldbIndex = i
+  elseif path:match("LibDBIcon%-1%.0%.lua$") then
+    dbIconIndex = i
+  end
+end
+if not ldbIndex or not dbIconIndex or ldbIndex > dbIconIndex then
+  fail("LibDataBroker-1.1 must be vendored and loaded before LibDBIcon-1.0")
+end
+
 local addonName = "RakaMod"
 for _, path in ipairs(files) do
   if path:match("%.lua$") and not path:match("^Libs/") then
