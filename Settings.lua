@@ -3,95 +3,202 @@ RakaMod = RakaMod or {}
 local Settings = {}
 RakaMod.Settings = Settings
 
--- Ellesmere-inspired shell palette (not a clone of EUI chrome).
-local ACCENT = { r = 0.20, g = 0.55, b = 1.00 }
-local SHELL = { r = 0.04, g = 0.05, b = 0.08 }
-local SIDEBAR_BG = { r = 0.035, g = 0.045, b = 0.07 }
-local CONTENT_BG = { r = 0.05, g = 0.06, b = 0.09 }
-local MUTED = { r = 0.55, g = 0.58, b = 0.64 }
-local SIDEBAR_WIDTH = 200
-local NAV_HEIGHT = 26
+-- Palette: neutral charcoal with a blue accent.
+local ACCENT = { r = 0.25, g = 0.62, b = 1.00 }
+local ACCENT_DIM = { r = 0.11, g = 0.22, b = 0.38 }
+local ACCENT_FILL = { r = 0.14, g = 0.42, b = 0.82 } -- behind white text
+local SHELL = { r = 0.055, g = 0.055, b = 0.060 }
+local SIDEBAR_BG = { r = 0.070, g = 0.070, b = 0.075 }
+local CONTENT_BG = { r = 0.095, g = 0.095, b = 0.100 }
+local CARD_BG = { r = 0.125, g = 0.125, b = 0.135 }
+local FIELD_BG = { r = 0.072, g = 0.072, b = 0.078 }
+local MUTED = { r = 0.58, g = 0.58, b = 0.62 }
+local BORDER = { r = 0.22, g = 0.22, b = 0.24 }
+local TEXT = { r = 0.90, g = 0.90, b = 0.92 }
+
+local SIDEBAR_WIDTH = 210
+local NAV_HEIGHT = 32
 local NAV_GAP = 2
 local NAV_PAD = 12
-local NAV_ITEM_INDENT = 6
 local HEADER_HEIGHT = 18
 local HEADER_GAP = 12
-local BRAND_HEIGHT = 52
-local OUTLINES = { "NONE", "OUTLINE", "THICKOUTLINE" }
-local ROW = 30
-local CONTROL_X = 220
-local PILL_W, PILL_H = 40, 20
+local BRAND_HEIGHT = 56
+local SEARCH_HEIGHT = 28
+local FOOTER_HEIGHT = 52
+local TAB_HEIGHT = 28
+local CARD_GAP = 12
+local CARD_PAD = 14
+local CARD_TITLE_H = 40
+local PILL_W, PILL_H = 46, 22
+local PAIR_ROW = 26
+local PAIR_COL2_X = 350
+local frameWidth, frameHeight = 980, 660
 
 local checks = {}
 local sliders = {}
 local swatches = {}
-local outlineButton
-local nameplateFadeButton
+local dropdowns = {}
 local applying = false
 local skinned = false
 local pages = {}
-local selectedKey = "general"
+local navs = {}
+local pageNav = {}
+local lastTab = {}
+local resets = {}
+local selectedNav = "general"
+local selectedTab = "general"
 local revealNote
 local gradientNote
-local navPageKeys = {}
 local pageTitle
 local pageDesc
 local pageBody
-
-local PAGE_META = {
-  general = { title = "General", description = "Addon-wide options." },
-  features = {
-    title = "Features",
-    description = "Shared Escape and AFK background fade, with optional grain.",
-  },
-  overlay = {
-    title = "Game Menu",
-    description = "Left Escape overlay: professions, collections, and played time beside the game menu.",
-  },
-  afk = {
-    title = "AFK Mode",
-    description = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
-  },
-  reveal = {
-    title = "Player Frame",
-    description = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
-  },
-  zoneText = { title = "Zone Text", description = "Custom zone change text appearance." },
-  gradient = {
-    title = "Gradient Mode",
-    description = "Health bar gradients shift by class, NPC reaction, and unit state.",
-  },
-  gradientBars = {
-    title = "Gradient Mode",
-    description = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
-  },
-  gradientResources = {
-    title = "Gradient Mode",
-    description = "Class resource gradient shifts. Colors are saved now; painting comes later.",
-  },
-  gradientNameplates = {
-    title = "Gradient Mode",
-    description = "Nameplate threat and classification gradients. Colors are saved now; painting comes later.",
-  },
-}
-
--- Category headers are non-clickable labels; items open existing pages.
-local NAV = {
-  { header = "CORE" },
-  { key = "general", label = "General" },
-  { header = "FEATURES" },
-  { key = "features", label = "Features" },
-  { key = "overlay", label = "Game Menu" },
-  { key = "afk", label = "AFK" },
-  { header = "APPEARANCE" },
-  { key = "reveal", label = "Player Frame" },
-  { key = "zoneText", label = "Zone Text" },
-  { key = "gradient", label = "Gradient Mode" },
-}
+local tabRow
+local tabButtons = {}
 
 local template = BackdropTemplateMixin and "BackdropTemplate" or nil
+
+-- Description shown under the page title, keyed by tab (page) key.
+local PAGE_META = {
+  general = "Addon-wide options.",
+  generalAbout = "About this addon and how to open these settings.",
+  features = "Shared background fade for Escape and AFK. Grain is optional.",
+  overlay = "Left Escape overlay: professions, collections, and played time beside the game menu.",
+  afk = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
+  reveal = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
+  zoneText = "Custom zone change text appearance.",
+  gradient = "Health bar gradients shift by class, NPC reaction, and unit state.",
+  gradientBars = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
+  gradientResources = "Class resource gradient shifts. Colors are saved now; painting comes later.",
+  gradientNameplates = "Nameplate threat and classification gradients. Colors are saved now; painting comes later.",
+}
+
+-- Category headers are non-clickable labels; items open a page with a top tab row.
+local ICON_DIR = "Interface\\Icons\\"
+local NAV = {
+  { header = "CORE" },
+  {
+    key = "general",
+    label = "General",
+    icon = ICON_DIR .. "INV_Misc_Gear_01",
+    tabs = {
+      { key = "general", label = "General" },
+      { key = "generalAbout", label = "About" },
+    },
+  },
+  { header = "FEATURES" },
+  {
+    key = "features",
+    label = "Features",
+    icon = ICON_DIR .. "INV_Misc_Wrench_01",
+    tabs = { { key = "features", label = "Background" } },
+  },
+  {
+    key = "overlay",
+    label = "Game Menu",
+    icon = ICON_DIR .. "INV_Misc_Book_09",
+    master = { section = "overlay", key = "enabled", label = "Enabled" },
+    tabs = { { key = "overlay", label = "Panels" } },
+  },
+  {
+    key = "afk",
+    label = "AFK",
+    icon = ICON_DIR .. "INV_Misc_PocketWatch_01",
+    master = { section = "afk", key = "enabled", label = "Enabled" },
+    tabs = { { key = "afk", label = "Behavior" } },
+  },
+  { header = "APPEARANCE" },
+  {
+    key = "reveal",
+    label = "Player Frame",
+    icon = ICON_DIR .. "Spell_Holy_PowerWordShield",
+    master = { section = "reveal", key = "enabled", label = "Enabled" },
+    tabs = { { key = "reveal", label = "Triggers" } },
+  },
+  {
+    key = "zoneText",
+    label = "Zone Text",
+    icon = ICON_DIR .. "INV_Misc_Map_01",
+    master = { section = "zoneText", key = "enabled", label = "Enabled" },
+    tabs = { { key = "zoneText", label = "Style" } },
+  },
+  {
+    key = "gradient",
+    label = "Gradient Mode",
+    icon = ICON_DIR .. "INV_Misc_Gem_Sapphire_01",
+    -- Master switch shown in the page header, above every tab of this page.
+    master = { section = "gradient", key = "enabled", label = "Enabled" },
+    tabs = {
+      { key = "gradient", label = "Health" },
+      { key = "gradientBars", label = "Bars" },
+      { key = "gradientResources", label = "Resources" },
+      { key = "gradientNameplates", label = "Nameplates" },
+    },
+  },
+}
+
+local function ApplyPanel(target, color, border, borderAlpha)
+  if not target.SetBackdrop then
+    local fill = target:CreateTexture(nil, "BACKGROUND")
+    fill:SetAllPoints()
+    fill:SetColorTexture(color.r, color.g, color.b, color.a or 1)
+    return
+  end
+  target:SetBackdrop({
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+    insets = { left = 1, right = 1, top = 1, bottom = 1 },
+  })
+  target:SetBackdropColor(color.r, color.g, color.b, color.a or 1)
+  if border then
+    target:SetBackdropBorderColor(border.r, border.g, border.b, borderAlpha or 1)
+  else
+    target:SetBackdropBorderColor(0, 0, 0, 0)
+  end
+end
+
+local function MakeButton(parent, text, width, primary)
+  local button = CreateFrame("Button", nil, parent, template)
+  button:SetSize(width, 28)
+  local function paint(hover)
+    if not button.SetBackdropColor then
+      return
+    end
+    if primary then
+      local k = hover and 1.15 or 1
+      button:SetBackdropColor(math.min(1, ACCENT_FILL.r * k), math.min(1, ACCENT_FILL.g * k), math.min(1, ACCENT_FILL.b * k), 1)
+      button:SetBackdropBorderColor(ACCENT.r * 0.7, ACCENT.g * 0.7, ACCENT.b * 0.7, 1)
+    else
+      button:SetBackdropColor(hover and 0.18 or FIELD_BG.r, hover and 0.18 or FIELD_BG.g, hover and 0.19 or FIELD_BG.b, 1)
+      if hover then
+        button:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+      else
+        button:SetBackdropBorderColor(BORDER.r, BORDER.g, BORDER.b, 1)
+      end
+    end
+  end
+  ApplyPanel(button, FIELD_BG, BORDER)
+  paint(false)
+  local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  label:SetPoint("CENTER")
+  label:SetText(text)
+  if primary then
+    label:SetTextColor(1, 1, 1)
+  else
+    label:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+  end
+  button.label = label
+  button:SetScript("OnEnter", function()
+    paint(true)
+  end)
+  button:SetScript("OnLeave", function()
+    paint(false)
+  end)
+  return button
+end
+
 local frame = CreateFrame("Frame", "RakaModSettingsFrame", UIParent, template)
-frame:SetSize(920, 600)
+frame:SetSize(frameWidth, frameHeight)
 frame:SetPoint("CENTER")
 frame:SetFrameStrata("DIALOG")
 frame:SetMovable(true)
@@ -101,48 +208,20 @@ frame:RegisterForDrag("LeftButton")
 frame:Hide()
 frame:SetScript("OnDragStart", frame.StartMoving)
 frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-
-if frame.SetBackdrop then
-  frame:SetBackdrop({
-    bgFile = "Interface\\Buttons\\WHITE8x8",
-    edgeFile = "Interface\\Buttons\\WHITE8x8",
-    edgeSize = 1,
-    insets = { left = 1, right = 1, top = 1, bottom = 1 },
-  })
-  frame:SetBackdropColor(SHELL.r, SHELL.g, SHELL.b, 0.98)
-  frame:SetBackdropBorderColor(0.12, 0.18, 0.28, 1)
-else
-  local fill = frame:CreateTexture(nil, "BACKGROUND")
-  fill:SetAllPoints()
-  fill:SetColorTexture(SHELL.r, SHELL.g, SHELL.b, 0.98)
-end
+ApplyPanel(frame, { r = SHELL.r, g = SHELL.g, b = SHELL.b, a = 0.98 }, BORDER)
 
 if UISpecialFrames then
   UISpecialFrames[#UISpecialFrames + 1] = "RakaModSettingsFrame"
 end
 
-local function ApplyDarkPanel(target, r, g, b, a, borderA)
-  if not target.SetBackdrop then
-    local fill = target:CreateTexture(nil, "BACKGROUND")
-    fill:SetAllPoints()
-    fill:SetColorTexture(r, g, b, a)
-    return
-  end
-  target:SetBackdrop({
-    bgFile = "Interface\\Buttons\\WHITE8x8",
-    edgeFile = "Interface\\Buttons\\WHITE8x8",
-    edgeSize = 1,
-    insets = { left = 1, right = 1, top = 1, bottom = 1 },
-  })
-  target:SetBackdropColor(r, g, b, a)
-  target:SetBackdropBorderColor(0.10, 0.14, 0.22, borderA or 0.95)
-end
-
+---------------------------------------------------------------------------
+-- Sidebar: brand, search, icon nav
+---------------------------------------------------------------------------
 local sidebar = CreateFrame("Frame", nil, frame, template)
 sidebar:SetPoint("TOPLEFT", 0, 0)
 sidebar:SetPoint("BOTTOMLEFT", 0, 0)
 sidebar:SetWidth(SIDEBAR_WIDTH)
-ApplyDarkPanel(sidebar, SIDEBAR_BG.r, SIDEBAR_BG.g, SIDEBAR_BG.b, 1, 0)
+ApplyPanel(sidebar, SIDEBAR_BG)
 
 local brand = CreateFrame("Frame", nil, sidebar)
 brand:SetPoint("TOPLEFT", 0, 0)
@@ -152,7 +231,7 @@ brand:SetHeight(BRAND_HEIGHT)
 local titleIconPath = (RakaMod.Media and RakaMod.Media.IconPath) or "Interface\\AddOns\\RakaMod\\Media\\icon"
 local titleIcon = brand:CreateTexture(nil, "ARTWORK")
 titleIcon:SetSize(28, 28)
-titleIcon:SetPoint("LEFT", 14, 0)
+titleIcon:SetPoint("LEFT", 16, 0)
 titleIcon:SetTexture(titleIconPath)
 
 local brandTitle = brand:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -160,16 +239,211 @@ brandTitle:SetPoint("LEFT", titleIcon, "RIGHT", 10, 0)
 brandTitle:SetText("RakaMod")
 brandTitle:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
 
-local brandRule = brand:CreateTexture(nil, "ARTWORK")
-brandRule:SetColorTexture(0.12, 0.18, 0.28, 1)
-brandRule:SetPoint("BOTTOMLEFT", 12, 0)
-brandRule:SetPoint("BOTTOMRIGHT", -12, 0)
-brandRule:SetHeight(1)
+local searchTop = BRAND_HEIGHT + 8
+local searchBox = CreateFrame("EditBox", nil, sidebar, template)
+searchBox:SetHeight(SEARCH_HEIGHT)
+searchBox:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD, -searchTop)
+searchBox:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -NAV_PAD, -searchTop)
+searchBox:SetAutoFocus(false)
+searchBox:SetMaxLetters(40)
+searchBox:SetFontObject(GameFontHighlightSmall)
+searchBox:SetTextInsets(28, 8, 0, 0)
+searchBox:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+ApplyPanel(searchBox, FIELD_BG, BORDER)
 
+local searchIcon = searchBox:CreateTexture(nil, "OVERLAY")
+searchIcon:SetSize(14, 14)
+searchIcon:SetPoint("LEFT", 9, 0)
+searchIcon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+searchIcon:SetVertexColor(MUTED.r, MUTED.g, MUTED.b)
+
+local searchHint = searchBox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+searchHint:SetPoint("LEFT", 28, 0)
+searchHint:SetText("Search options...")
+searchHint:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
+
+local navItems = {}
+local noResults = sidebar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+noResults:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD + 4, -(searchTop + SEARCH_HEIGHT + 18))
+noResults:SetText("No matching options")
+noResults:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
+noResults:Hide()
+
+local function PaintNav(button, selected, hover)
+  button.selected = selected and true or false
+  if button.selected then
+    button.bg:SetColorTexture(ACCENT_DIM.r, ACCENT_DIM.g, ACCENT_DIM.b, 0.55)
+    button.bar:Show()
+    button.label:SetTextColor(1, 1, 1)
+    button.icon:SetDesaturated(false)
+    button.icon:SetAlpha(1)
+  else
+    if hover then
+      button.bg:SetColorTexture(1, 1, 1, 0.05)
+    else
+      button.bg:SetColorTexture(0, 0, 0, 0)
+    end
+    button.bar:Hide()
+    button.label:SetTextColor(hover and 0.95 or 0.70, hover and 0.95 or 0.70, hover and 0.97 or 0.74)
+    button.icon:SetDesaturated(true)
+    button.icon:SetAlpha(hover and 0.95 or 0.65)
+  end
+end
+
+local function LayoutNav()
+  local query = string.lower(searchBox:GetText() or "")
+  query = query:gsub("^%s+", ""):gsub("%s+$", "")
+  local yOff = -(searchTop + SEARCH_HEIGHT + 16)
+  local shown = 0
+  local pending
+  for i = 1, #navItems do
+    local item = navItems[i]
+    if item.header then
+      item.header:Hide()
+      pending = item
+    else
+      local nav = navs[item.key]
+      local match = query == "" or (nav.search and string.find(nav.search, query, 1, true))
+      if match then
+        if pending then
+          if shown > 0 then
+            yOff = yOff - HEADER_GAP
+          end
+          pending.header:ClearAllPoints()
+          pending.header:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD + 4, yOff)
+          pending.header:Show()
+          yOff = yOff - HEADER_HEIGHT
+          pending = nil
+        end
+        item.button:ClearAllPoints()
+        item.button:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD, yOff)
+        item.button:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -NAV_PAD, yOff)
+        item.button:Show()
+        yOff = yOff - (NAV_HEIGHT + NAV_GAP)
+        shown = shown + 1
+      else
+        item.button:Hide()
+      end
+    end
+  end
+  noResults:SetShown(shown == 0)
+  return shown
+end
+
+do
+  for i = 1, #NAV do
+    local nav = NAV[i]
+    if nav.header then
+      local header = sidebar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+      header:SetJustifyH("LEFT")
+      header:SetText(nav.header)
+      header:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
+      navItems[#navItems + 1] = { header = header }
+    elseif nav.key then
+      local button = CreateFrame("Button", nil, sidebar)
+      button:SetHeight(NAV_HEIGHT)
+
+      local bg = button:CreateTexture(nil, "BACKGROUND")
+      bg:SetAllPoints()
+      bg:SetColorTexture(0, 0, 0, 0)
+      button.bg = bg
+
+      local bar = button:CreateTexture(nil, "ARTWORK")
+      bar:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+      bar:SetPoint("TOPLEFT", 0, 0)
+      bar:SetPoint("BOTTOMLEFT", 0, 0)
+      bar:SetWidth(3)
+      bar:Hide()
+      button.bar = bar
+
+      local icon = button:CreateTexture(nil, "ARTWORK")
+      icon:SetSize(18, 18)
+      icon:SetPoint("LEFT", 12, 0)
+      icon:SetTexture(nav.icon)
+      icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+      button.icon = icon
+
+      -- Status dot for pages with a master switch (blue = on, grey = off).
+      local dot = button:CreateTexture(nil, "ARTWORK")
+      dot:SetSize(8, 8)
+      dot:SetPoint("RIGHT", -12, 0)
+      dot:SetColorTexture(MUTED.r, MUTED.g, MUTED.b, 0.5)
+      dot:SetShown(nav.master ~= nil)
+      button.dot = dot
+
+      local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+      label:SetPoint("LEFT", icon, "RIGHT", 10, 0)
+      label:SetJustifyH("LEFT")
+      label:SetText(nav.label)
+      button.label = label
+
+      button:SetScript("OnClick", function()
+        Settings:SelectPage(nav.key)
+      end)
+      button:SetScript("OnEnter", function(self)
+        PaintNav(self, self.selected, true)
+      end)
+      button:SetScript("OnLeave", function(self)
+        PaintNav(self, self.selected, false)
+      end)
+
+      local search = string.lower(nav.label)
+      for t = 1, #nav.tabs do
+        search = search .. " " .. string.lower(nav.tabs[t].label)
+        pageNav[nav.tabs[t].key] = nav.key
+      end
+      navs[nav.key] = { button = button, label = nav.label, tabs = nav.tabs, search = search, master = nav.master }
+      navItems[#navItems + 1] = { key = nav.key, button = button }
+      PaintNav(button, false, false)
+    end
+  end
+  LayoutNav()
+end
+
+local function RefreshSearchHint()
+  if (searchBox:GetText() or "") == "" and not searchBox:HasFocus() then
+    searchHint:Show()
+  else
+    searchHint:Hide()
+  end
+end
+
+searchBox:SetScript("OnTextChanged", function()
+  RefreshSearchHint()
+  LayoutNav()
+end)
+searchBox:SetScript("OnEditFocusGained", function(self)
+  searchHint:Hide()
+  self:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+end)
+searchBox:SetScript("OnEditFocusLost", function(self)
+  self:SetBackdropBorderColor(BORDER.r, BORDER.g, BORDER.b, 1)
+  RefreshSearchHint()
+end)
+searchBox:SetScript("OnEscapePressed", function(self)
+  if (self:GetText() or "") ~= "" then
+    self:SetText("")
+  end
+  self:ClearFocus()
+end)
+searchBox:SetScript("OnEnterPressed", function(self)
+  for i = 1, #navItems do
+    local item = navItems[i]
+    if item.key and item.button:IsShown() then
+      Settings:SelectPage(item.key)
+      break
+    end
+  end
+  self:ClearFocus()
+end)
+
+---------------------------------------------------------------------------
+-- Content: header, top tab row, page body, footer
+---------------------------------------------------------------------------
 local contentHost = CreateFrame("Frame", nil, frame, template)
 contentHost:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 0, 0)
 contentHost:SetPoint("BOTTOMRIGHT", 0, 0)
-ApplyDarkPanel(contentHost, CONTENT_BG.r, CONTENT_BG.g, CONTENT_BG.b, 1, 0)
+ApplyPanel(contentHost, CONTENT_BG)
 
 local close = CreateFrame("Button", nil, contentHost, "UIPanelCloseButton")
 close:SetPoint("TOPRIGHT", -2, -2)
@@ -178,10 +452,22 @@ close:SetScript("OnClick", function()
 end)
 frame.Close = close
 
+local footer = CreateFrame("Frame", nil, contentHost, template)
+footer:SetPoint("BOTTOMLEFT", 0, 0)
+footer:SetPoint("BOTTOMRIGHT", 0, 0)
+footer:SetHeight(FOOTER_HEIGHT)
+ApplyPanel(footer, SIDEBAR_BG)
+
+local footerRule = footer:CreateTexture(nil, "ARTWORK")
+footerRule:SetColorTexture(BORDER.r, BORDER.g, BORDER.b, 1)
+footerRule:SetPoint("TOPLEFT", 0, 0)
+footerRule:SetPoint("TOPRIGHT", 0, 0)
+footerRule:SetHeight(1)
+
 local pageHeader = CreateFrame("Frame", nil, contentHost)
-pageHeader:SetPoint("TOPLEFT", 20, -14)
-pageHeader:SetPoint("TOPRIGHT", -40, -14)
-pageHeader:SetHeight(52)
+pageHeader:SetPoint("TOPLEFT", 22, -18)
+pageHeader:SetPoint("TOPRIGHT", -44, -18)
+pageHeader:SetHeight(60)
 
 pageTitle = pageHeader:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 pageTitle:SetPoint("TOPLEFT", 0, 0)
@@ -190,20 +476,28 @@ pageTitle:SetTextColor(1, 1, 1)
 
 pageDesc = pageHeader:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 pageDesc:SetPoint("TOPLEFT", pageTitle, "BOTTOMLEFT", 0, -6)
-pageDesc:SetPoint("TOPRIGHT", pageHeader, "TOPRIGHT", 0, -22)
+pageDesc:SetPoint("TOPRIGHT", pageHeader, "TOPRIGHT", 0, -28)
 pageDesc:SetJustifyH("LEFT")
+pageDesc:SetJustifyV("TOP")
 pageDesc:SetWordWrap(true)
 pageDesc:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
 
-local headerRule = pageHeader:CreateTexture(nil, "ARTWORK")
-headerRule:SetColorTexture(0.12, 0.18, 0.28, 1)
-headerRule:SetPoint("BOTTOMLEFT", 0, 0)
-headerRule:SetPoint("BOTTOMRIGHT", 0, 0)
-headerRule:SetHeight(1)
+tabRow = CreateFrame("Frame", nil, contentHost)
+tabRow:SetPoint("TOPLEFT", pageHeader, "BOTTOMLEFT", 0, -14)
+tabRow:SetPoint("TOPRIGHT", pageHeader, "BOTTOMRIGHT", 0, -14)
+tabRow:SetHeight(TAB_HEIGHT)
+
+local tabRule = tabRow:CreateTexture(nil, "ARTWORK")
+tabRule:SetColorTexture(BORDER.r, BORDER.g, BORDER.b, 1)
+tabRule:SetPoint("BOTTOMLEFT", 0, 0)
+tabRule:SetPoint("BOTTOMRIGHT", 0, 0)
+tabRule:SetHeight(1)
 
 pageBody = CreateFrame("Frame", nil, contentHost)
-pageBody:SetPoint("TOPLEFT", pageHeader, "BOTTOMLEFT", 0, -8)
-pageBody:SetPoint("BOTTOMRIGHT", contentHost, "BOTTOMRIGHT", -8, 8)
+pageBody:SetPoint("TOPLEFT", tabRow, "BOTTOMLEFT", 0, -14)
+pageBody:SetPoint("BOTTOMRIGHT", footer, "TOPRIGHT", -14, 12)
+
+close:SetFrameLevel((contentHost:GetFrameLevel() or 1) + 20)
 
 local function AddonVersion()
   local ver
@@ -218,151 +512,166 @@ local function AddonVersion()
   return "v0.4.0"
 end
 
-local versionText = sidebar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-versionText:SetPoint("BOTTOMLEFT", 14, 12)
-versionText:SetText(AddonVersion())
+local versionText = footer:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+versionText:SetPoint("LEFT", 22, 0)
+versionText:SetText("RakaMod " .. AddonVersion())
 versionText:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
 
-local function PaintNav(button, selected)
+local reloadBtn = MakeButton(footer, "Apply & Reload", 130, true)
+reloadBtn:SetPoint("RIGHT", -22, 0)
+reloadBtn:SetScript("OnClick", function()
+  ReloadUI()
+end)
+
+local RESET_TEXT = "Reset Page"
+local resetBtn = MakeButton(footer, RESET_TEXT, 110, false)
+resetBtn:SetPoint("RIGHT", reloadBtn, "LEFT", -10, 0)
+local resetToken = 0
+local resetArmed = false
+
+local function DisarmReset()
+  resetToken = resetToken + 1
+  resetArmed = false
+  resetBtn.label:SetText(RESET_TEXT)
+end
+
+---------------------------------------------------------------------------
+-- Page selection
+---------------------------------------------------------------------------
+local function PaintTab(button, selected)
   button.selected = selected and true or false
-  if button.SetBackdropColor then
-    if button.selected then
-      button:SetBackdropColor(ACCENT.r * 0.22, ACCENT.g * 0.22, ACCENT.b * 0.35, 0.95)
-      button:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.35)
-    else
-      button:SetBackdropColor(0, 0, 0, 0)
-      button:SetBackdropBorderColor(0, 0, 0, 0)
-    end
-  end
-  if button.highlight then
-    if button.selected then
-      button.highlight:Show()
-    else
-      button.highlight:Hide()
-    end
-  end
-  if button.selected then
-    button.label:SetTextColor(1, 1, 1)
-  else
-    button.label:SetTextColor(0.70, 0.74, 0.80)
-  end
-end
-
-local function UpdatePageHeader(key)
-  local meta = PAGE_META[key]
-  if pageTitle then
-    pageTitle:SetText((meta and meta.title) or key or "")
-  end
-  if pageDesc then
-    pageDesc:SetText((meta and meta.description) or "")
-  end
-end
-
-function Settings:SelectPage(key)
-  if not pages[key] then
+  if not button.SetBackdropColor then
     return
   end
-  selectedKey = key
-  UpdatePageHeader(key)
-  local gradientFamily = key == "gradient"
-    or key == "gradientBars"
-    or key == "gradientResources"
-    or key == "gradientNameplates"
+  if button.selected then
+    button:SetBackdropColor(ACCENT_DIM.r, ACCENT_DIM.g, ACCENT_DIM.b, 0.7)
+    button:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+    button.label:SetTextColor(1, 1, 1)
+  else
+    button:SetBackdropColor(FIELD_BG.r, FIELD_BG.g, FIELD_BG.b, 1)
+    button:SetBackdropBorderColor(BORDER.r, BORDER.g, BORDER.b, 1)
+    button.label:SetTextColor(0.72, 0.72, 0.76)
+  end
+end
+
+local function BuildTabRow(navKey, activeTab)
+  local nav = navs[navKey]
+  if not nav then
+    return
+  end
+  local x = 0
+  for i = 1, #nav.tabs do
+    local tab = nav.tabs[i]
+    local button = tabButtons[i]
+    if not button then
+      button = CreateFrame("Button", nil, tabRow, template)
+      button:SetHeight(TAB_HEIGHT)
+      ApplyPanel(button, FIELD_BG, BORDER)
+      local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+      label:SetPoint("CENTER")
+      button.label = label
+      button:SetScript("OnEnter", function(self)
+        if not self.selected and self.SetBackdropBorderColor then
+          self:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.6)
+        end
+      end)
+      button:SetScript("OnLeave", function(self)
+        PaintTab(self, self.selected)
+      end)
+      tabButtons[i] = button
+    end
+    button.label:SetText(tab.label)
+    button:SetWidth(math.max(84, (button.label:GetStringWidth() or 40) + 32))
+    button:ClearAllPoints()
+    button:SetPoint("BOTTOMLEFT", tabRow, "BOTTOMLEFT", x, 0)
+    button:SetScript("OnClick", function()
+      Settings:SelectPage(tab.key, true)
+    end)
+    PaintTab(button, tab.key == activeTab)
+    button:Show()
+    x = x + button:GetWidth() + 6
+  end
+  for i = #nav.tabs + 1, #tabButtons do
+    tabButtons[i]:Hide()
+  end
+end
+
+-- Header master switches (one per nav page that has one, created with the controls
+-- below). Only the selected page's switch is visible; the tabs dim while it is off.
+local masters = {}
+
+local function UpdateMaster()
+  for navKey, entry in pairs(navs) do
+    local m = masters[navKey]
+    if m then
+      local visible = navKey == selectedNav
+      local on = m.pill:GetChecked()
+      m.label:SetShown(visible)
+      m.pill:SetShown(visible)
+      m.note:SetShown(visible and m.noteWanted)
+      if entry.button.dot then
+        if on then
+          entry.button.dot:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+        else
+          entry.button.dot:SetColorTexture(MUTED.r, MUTED.g, MUTED.b, 0.5)
+        end
+      end
+      for i = 1, #entry.tabs do
+        local page = pages[entry.tabs[i].key]
+        if page and page.page then
+          page.page:SetAlpha(on and 1 or 0.45)
+        end
+      end
+    end
+  end
+end
+local function UpdatePageHeader()
+  local nav = navs[selectedNav]
+  if pageTitle then
+    pageTitle:SetText((nav and nav.label) or "")
+  end
+  if pageDesc then
+    pageDesc:SetText(PAGE_META[selectedTab] or "")
+  end
+end
+
+-- exactTab: key is a tab key (a tab can share its nav's key, e.g. "general").
+function Settings:SelectPage(key, exactTab)
+  local navKey, tabKey
+  if navs[key] and not (exactTab and pageNav[key]) then
+    navKey = key
+    tabKey = lastTab[key] or navs[key].tabs[1].key
+  elseif pageNav[key] then
+    navKey = pageNav[key]
+    tabKey = key
+  else
+    return
+  end
+  if not pages[tabKey] or not pages[tabKey].page then
+    return
+  end
+  selectedNav, selectedTab = navKey, tabKey
+  lastTab[navKey] = tabKey
+  UpdatePageHeader()
   for pageKey, entry in pairs(pages) do
-    local selected = pageKey == key
     if entry.page then
-      if selected then
+      if pageKey == tabKey then
         entry.page:Show()
       else
         entry.page:Hide()
       end
     end
-    if entry.button then
-      local navOn = selected
-      if entry.button == (pages.gradient and pages.gradient.button) then
-        navOn = gradientFamily
-      end
-      PaintNav(entry.button, navOn)
-    end
   end
-end
-
-do
-  local yOff = -(BRAND_HEIGHT + NAV_PAD)
-  for i = 1, #NAV do
-    local nav = NAV[i]
-    if nav.header then
-      if i > 1 then
-        yOff = yOff - HEADER_GAP
-      end
-      local header = sidebar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-      header:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD, yOff)
-      header:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -NAV_PAD, yOff)
-      header:SetJustifyH("LEFT")
-      header:SetText(nav.header)
-      header:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
-      yOff = yOff - HEADER_HEIGHT
-    elseif nav.key then
-      local button = CreateFrame("Button", nil, sidebar, template)
-      button:SetHeight(NAV_HEIGHT)
-      button:SetPoint("TOPLEFT", sidebar, "TOPLEFT", NAV_PAD + NAV_ITEM_INDENT, yOff)
-      button:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -NAV_PAD, yOff)
-
-      if button.SetBackdrop then
-        button:SetBackdrop({
-          bgFile = "Interface\\Buttons\\WHITE8x8",
-          edgeFile = "Interface\\Buttons\\WHITE8x8",
-          edgeSize = 1,
-          insets = { left = 1, right = 1, top = 1, bottom = 1 },
-        })
-        button:SetBackdropColor(0, 0, 0, 0)
-        button:SetBackdropBorderColor(0, 0, 0, 0)
-      else
-        local fill = button:CreateTexture(nil, "BACKGROUND")
-        fill:SetAllPoints()
-        fill:SetColorTexture(0, 0, 0, 0)
-        local highlight = button:CreateTexture(nil, "BORDER")
-        highlight:SetAllPoints()
-        highlight:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 0.18)
-        highlight:Hide()
-        button.highlight = highlight
-      end
-
-      local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-      label:SetPoint("LEFT", 10, 0)
-      label:SetJustifyH("LEFT")
-      label:SetText(nav.label)
-      label:SetTextColor(0.70, 0.74, 0.80)
-      button.label = label
-
-      button:SetScript("OnClick", function()
-        Settings:SelectPage(nav.key)
-      end)
-      button:SetScript("OnEnter", function(self)
-        if self.selected then
-          return
-        end
-        if self.SetBackdropColor then
-          self:SetBackdropColor(0.08, 0.12, 0.20, 0.55)
-          self:SetBackdropBorderColor(0.16, 0.22, 0.32, 0.40)
-        elseif self.highlight then
-          self.highlight:Show()
-        end
-        self.label:SetTextColor(0.92, 0.94, 0.98)
-      end)
-      button:SetScript("OnLeave", function(self)
-        PaintNav(self, self.selected)
-      end)
-
-      pages[nav.key] = { button = button }
-      navPageKeys[#navPageKeys + 1] = nav.key
-      yOff = yOff - (NAV_HEIGHT + NAV_GAP)
-    end
+  for key2, nav in pairs(navs) do
+    PaintNav(nav.button, key2 == navKey, false)
   end
+  BuildTabRow(navKey, tabKey)
+  UpdateMaster()
+  DisarmReset()
 end
 
 local function OnMouseWheel(scroll, delta)
-  local step = delta > 0 and -ROW or ROW
+  local step = delta > 0 and -40 or 40
   local nextScroll = (scroll:GetVerticalScroll() or 0) + step
   if nextScroll < 0 then
     nextScroll = 0
@@ -391,7 +700,7 @@ local rakaPicker
 local pickerButtons = {}
 local pickerFields = {}
 local editingRgb = false
-local ORANGE = { r = 1, g = 0.82, b = 0.2 }
+local ORANGE = { r = ACCENT.r, g = ACCENT.g, b = ACCENT.b }
 
 local function PlayerClassColor()
   local classFile
@@ -909,23 +1218,44 @@ local function GradientDefaults()
   return cachedGradientDefaults
 end
 
-local function NextOutline(current)
-  local index = 0
-  for i = 1, #OUTLINES do
-    if OUTLINES[i] == current then
-      index = i
-      break
-    end
-  end
-  return OUTLINES[(index % #OUTLINES) + 1]
+local function DefaultValue(section, key)
+  local defaults = RakaMod.Core and RakaMod.Core.DEFAULTS
+  local saved = defaults and defaults[section]
+  return saved and saved[key]
 end
 
-local function CreatePage(key)
+---------------------------------------------------------------------------
+-- Page + card layout
+---------------------------------------------------------------------------
+local function IndexLabel(ctx, text)
+  local nav = navs[ctx.navKey]
+  if nav and type(text) == "string" then
+    nav.search = (nav.search or "") .. " " .. string.lower(text)
+  end
+end
+
+local function RegisterReset(ctx, fn)
+  local list = resets[ctx.navKey]
+  if not list then
+    list = {}
+    resets[ctx.navKey] = list
+  end
+  list[#list + 1] = fn
+end
+
+local function ResetKey(section, key)
+  local saved = RakaMod.db and RakaMod.db[section]
+  if saved then
+    saved[key] = DefaultValue(section, key)
+  end
+end
+
+local function CreatePage(pageKey, navKey)
   local page = CreateFrame("Frame", nil, pageBody)
   page:SetAllPoints()
   page:Hide()
 
-  local scroll = CreateFrame("ScrollFrame", "RakaModSettingsScroll_" .. key, page, "UIPanelScrollFrameTemplate")
+  local scroll = CreateFrame("ScrollFrame", "RakaModSettingsScroll_" .. pageKey, page, "UIPanelScrollFrameTemplate")
   scroll:SetPoint("TOPLEFT", 0, 0)
   scroll:SetPoint("BOTTOMRIGHT", -24, 0)
   scroll:SetScript("OnMouseWheel", function(_, delta)
@@ -933,43 +1263,138 @@ local function CreatePage(key)
   end)
 
   local content = CreateFrame("Frame", nil, scroll)
-  content:SetSize(560, 400)
+  content:SetSize(640, 400)
   scroll:SetScrollChild(content)
 
-  local y = 0
+  local colY = { 0, 0 }
   local ctx = {
-    key = key,
+    key = pageKey,
+    navKey = navKey,
     page = page,
     scroll = scroll,
     content = content,
-    LocalY = function() return y end,
-    Advance = function(step) y = y - (step or ROW) end,
-    Finish = function()
-      content:SetHeight((-y) + 16)
-    end,
   }
-  pages[key] = pages[key] or {}
-  pages[key].page = page
-  pages[key].ctx = ctx
+
+  -- col: 1 or 2 for a half-width column, nil for a full-width card.
+  function ctx.Card(title, col)
+    local top
+    if col == 1 or col == 2 then
+      top = colY[col]
+    else
+      top = math.min(colY[1], colY[2])
+    end
+
+    local box = CreateFrame("Frame", nil, content, template)
+    if col == 1 then
+      box:SetPoint("TOPLEFT", content, "TOPLEFT", 0, top)
+      box:SetPoint("TOPRIGHT", content, "TOP", -CARD_GAP / 2, top)
+    elseif col == 2 then
+      box:SetPoint("TOPLEFT", content, "TOP", CARD_GAP / 2, top)
+      box:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, top)
+    else
+      box:SetPoint("TOPLEFT", content, "TOPLEFT", 0, top)
+      box:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, top)
+    end
+    box:SetHeight(CARD_TITLE_H + 20)
+    ApplyPanel(box, CARD_BG, BORDER)
+
+    local heading = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    heading:SetPoint("TOPLEFT", CARD_PAD, -12)
+    heading:SetText(title)
+    heading:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+
+    local rule = box:CreateTexture(nil, "ARTWORK")
+    rule:SetColorTexture(BORDER.r, BORDER.g, BORDER.b, 1)
+    rule:SetPoint("TOPLEFT", CARD_PAD, -34)
+    rule:SetPoint("TOPRIGHT", -CARD_PAD, -34)
+    rule:SetHeight(1)
+
+    local y = -CARD_TITLE_H
+    local card = {
+      key = pageKey,
+      navKey = navKey,
+      scroll = scroll,
+      content = box,
+      padX = CARD_PAD,
+      hintWidth = (col and 296) or 640,
+      LocalY = function()
+        return y
+      end,
+      Advance = function(step)
+        y = y - (step or 30)
+      end,
+    }
+    function card.Done()
+      local height = (-y) + 12
+      box:SetHeight(height)
+      local nextTop = top - height - CARD_GAP
+      if col == 1 or col == 2 then
+        colY[col] = nextTop
+      else
+        colY[1] = nextTop
+        colY[2] = nextTop
+      end
+    end
+    return card
+  end
+
+  function ctx.Finish()
+    local depth = math.min(colY[1], colY[2])
+    content:SetHeight((-depth) + 8)
+  end
+
+  pages[pageKey] = pages[pageKey] or {}
+  pages[pageKey].page = page
+  pages[pageKey].ctx = ctx
   return ctx
 end
 
-local checkSerial = 0
+---------------------------------------------------------------------------
+-- Controls
+---------------------------------------------------------------------------
+local function MakeCheckbox(parent)
+  local box = CreateFrame("Button", nil, parent, template)
+  box:SetSize(18, 18)
+  box:EnableMouse(true)
+  ApplyPanel(box, FIELD_BG, BORDER)
+
+  local mark = box:CreateTexture(nil, "OVERLAY")
+  mark:SetPoint("TOPLEFT", 4, -4)
+  mark:SetPoint("BOTTOMRIGHT", -4, 4)
+  mark:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+  mark:Hide()
+
+  local checked = false
+  function box:GetChecked()
+    return checked
+  end
+  function box:SetChecked(value)
+    checked = value and true or false
+    if checked then
+      mark:Show()
+      if box.SetBackdropBorderColor then
+        box:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+      end
+    else
+      mark:Hide()
+      if box.SetBackdropBorderColor then
+        box:SetBackdropBorderColor(BORDER.r, BORDER.g, BORDER.b, 1)
+      end
+    end
+  end
+  box:SetChecked(false)
+  return box
+end
 
 local function MakePillToggle(parent)
-  local pill = CreateFrame("Button", nil, parent)
+  local pill = CreateFrame("Button", nil, parent, template)
   pill:SetSize(PILL_W, PILL_H)
   pill:EnableMouse(true)
+  ApplyPanel(pill, FIELD_BG, BORDER)
 
-  local track = pill:CreateTexture(nil, "BACKGROUND")
-  track:SetAllPoints()
-  track:SetColorTexture(0.22, 0.24, 0.28, 1)
-  pill.track = track
-
-  local knob = pill:CreateTexture(nil, "OVERLAY")
-  knob:SetSize(PILL_H - 6, PILL_H - 6)
-  knob:SetColorTexture(1, 1, 1, 1)
-  pill.knob = knob
+  local label = pill:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  label:SetPoint("CENTER")
+  pill.label = label
 
   local checked = false
   function pill:GetChecked()
@@ -978,21 +1403,23 @@ local function MakePillToggle(parent)
   function pill:SetChecked(value)
     checked = value and true or false
     if checked then
-      track:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 1)
-      knob:ClearAllPoints()
-      knob:SetPoint("RIGHT", pill, "RIGHT", -3, 0)
+      pill:SetBackdropColor(ACCENT_FILL.r, ACCENT_FILL.g, ACCENT_FILL.b, 1)
+      pill:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+      label:SetText("ON")
+      label:SetTextColor(1, 1, 1)
     else
-      track:SetColorTexture(0.22, 0.24, 0.28, 1)
-      knob:ClearAllPoints()
-      knob:SetPoint("LEFT", pill, "LEFT", 3, 0)
+      pill:SetBackdropColor(FIELD_BG.r, FIELD_BG.g, FIELD_BG.b, 1)
+      pill:SetBackdropBorderColor(BORDER.r, BORDER.g, BORDER.b, 1)
+      label:SetText("OFF")
+      label:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
     end
   end
   pill:SetChecked(false)
   return pill
 end
 
-local function BindToggle(pill, section, key, afterChange)
-  pill:SetScript("OnClick", function(self)
+local function BindToggle(control, section, key, afterChange)
+  control:SetScript("OnClick", function(self)
     local nextValue = not self:GetChecked()
     self:SetChecked(nextValue)
     local saved = RakaMod.db and RakaMod.db[section]
@@ -1007,77 +1434,104 @@ local function BindToggle(pill, section, key, afterChange)
   end)
 end
 
-local function AddCheck(ctx, text, section, key, afterChange)
-  checkSerial = checkSerial + 1
-  local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 4)
-  label:SetText(text)
-  label:SetTextColor(0.90, 0.92, 0.95)
-
-  local pill = MakePillToggle(ctx.content)
-  pill:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", CONTROL_X, ctx.LocalY() - 4)
-  BindToggle(pill, section, key, afterChange)
-  PassWheel(ctx.scroll, pill)
-  checks[#checks + 1] = { widget = pill, section = section, key = key }
-  ctx.Advance()
-  return pill
+-- style "toggle" = labeled ON/OFF button on the right; default = checkbox + label.
+local function AddCheck(ctx, text, section, key, afterChange, style)
+  IndexLabel(ctx, text)
+  local control
+  if style == "toggle" then
+    local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 6)
+    label:SetText(text)
+    label:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+    control = MakePillToggle(ctx.content)
+    control:SetPoint("TOPRIGHT", ctx.content, "TOPRIGHT", -ctx.padX, ctx.LocalY() - 3)
+    ctx.Advance(32)
+  else
+    control = MakeCheckbox(ctx.content)
+    control:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 3)
+    local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    label:SetPoint("LEFT", control, "RIGHT", 10, 0)
+    label:SetText(text)
+    label:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+    control:SetHitRectInsets(0, -((label:GetStringWidth() or 80) + 14), 0, 0)
+    ctx.Advance(28)
+  end
+  BindToggle(control, section, key, afterChange)
+  PassWheel(ctx.scroll, control)
+  checks[#checks + 1] = { widget = control, section = section, key = key }
+  RegisterReset(ctx, function()
+    ResetKey(section, key)
+  end)
+  return control
 end
 
 local function AddSlider(ctx, text, section, key, minValue, maxValue)
+  IndexLabel(ctx, text)
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 6)
+  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 5)
   label:SetText(text)
-  label:SetTextColor(0.90, 0.92, 0.95)
+  label:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+
+  -- Editable value box: click, type a number, Enter (or click away) to apply.
+  local valueText = CreateFrame("EditBox", nil, ctx.content, template)
+  valueText:SetSize(52, 22)
+  valueText:SetPoint("TOPRIGHT", ctx.content, "TOPRIGHT", -ctx.padX, ctx.LocalY() - 2)
+  valueText:SetAutoFocus(false)
+  valueText:SetMaxLetters(3)
+  valueText:SetNumeric(true)
+  valueText:SetJustifyH("CENTER")
+  valueText:SetFontObject(GameFontHighlightSmall)
+  valueText:SetTextColor(1, 1, 1)
+  valueText:SetTextInsets(4, 4, 0, 0)
+  ApplyPanel(valueText, FIELD_BG, BORDER)
 
   local slider = CreateFrame("Slider", nil, ctx.content)
   slider:SetOrientation("HORIZONTAL")
-  slider:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", CONTROL_X, ctx.LocalY() - 6)
-  slider:SetSize(180, 16)
+  slider:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 32)
+  slider:SetPoint("TOPRIGHT", ctx.content, "TOPRIGHT", -ctx.padX, ctx.LocalY() - 32)
+  slider:SetHeight(16)
   slider:SetMinMaxValues(minValue, maxValue)
   slider:SetValueStep(1)
   if slider.SetObeyStepOnDrag then
     slider:SetObeyStepOnDrag(true)
   end
+
   local track = slider:CreateTexture(nil, "BACKGROUND")
-  track:SetColorTexture(0.14, 0.18, 0.26, 1)
+  track:SetColorTexture(FIELD_BG.r, FIELD_BG.g, FIELD_BG.b, 1)
   track:SetPoint("LEFT")
   track:SetPoint("RIGHT")
-  track:SetHeight(3)
+  track:SetHeight(6)
+  local trackEdge = slider:CreateTexture(nil, "BACKGROUND", nil, -1)
+  trackEdge:SetColorTexture(BORDER.r, BORDER.g, BORDER.b, 1)
+  trackEdge:SetPoint("TOPLEFT", track, "TOPLEFT", -1, 1)
+  trackEdge:SetPoint("BOTTOMRIGHT", track, "BOTTOMRIGHT", 1, -1)
+
   local fill = slider:CreateTexture(nil, "BORDER")
-  fill:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 0.85)
+  fill:SetColorTexture(ACCENT.r, ACCENT.g, ACCENT.b, 1)
   fill:SetPoint("LEFT", track, "LEFT", 0, 0)
-  fill:SetHeight(3)
+  fill:SetHeight(6)
   fill:SetWidth(1)
-  slider.fill = fill
 
   local thumb = slider:CreateTexture(nil, "OVERLAY")
-  thumb:SetSize(12, 12)
-  thumb:SetColorTexture(0.92, 0.95, 1.0, 1)
+  thumb:SetSize(10, 16)
+  thumb:SetColorTexture(1, 1, 1, 1)
   slider:SetThumbTexture(thumb)
 
-  local valueBox = CreateFrame("Frame", nil, ctx.content, template)
-  valueBox:SetSize(42, 20)
-  valueBox:SetPoint("LEFT", slider, "RIGHT", 10, 0)
-  if valueBox.SetBackdrop then
-    valueBox:SetBackdrop({
-      bgFile = "Interface\\Buttons\\WHITE8x8",
-      edgeFile = "Interface\\Buttons\\WHITE8x8",
-      edgeSize = 1,
-      insets = { left = 1, right = 1, top = 1, bottom = 1 },
-    })
-    valueBox:SetBackdropColor(0.06, 0.07, 0.10, 1)
-    valueBox:SetBackdropBorderColor(0.16, 0.22, 0.32, 1)
-  end
-  local valueText = valueBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  valueText:SetPoint("CENTER")
-  valueText:SetTextColor(0.92, 0.94, 0.98)
-
+  local current = minValue
   local function UpdateFill(value)
+    current = value
     local span = maxValue - minValue
     local pct = span > 0 and ((value - minValue) / span) or 0
-    if pct < 0 then pct = 0 elseif pct > 1 then pct = 1 end
-    fill:SetWidth(math.max(1, (slider:GetWidth() or 180) * pct))
+    if pct < 0 then
+      pct = 0
+    elseif pct > 1 then
+      pct = 1
+    end
+    fill:SetWidth(math.max(1, (slider:GetWidth() or 200) * pct))
   end
+  slider:SetScript("OnSizeChanged", function()
+    UpdateFill(current)
+  end)
 
   slider:SetScript("OnValueChanged", function(self, value)
     local intValue = math.floor((value or 0) + 0.5)
@@ -1108,6 +1562,9 @@ local function AddSlider(ctx, text, section, key, minValue, maxValue)
     if section == "afk" and RakaMod.AFK and RakaMod.AFK.ApplyOptions then
       RakaMod.AFK:ApplyOptions()
     end
+    if section == "general" and key == "windowScale" and not self.dragging then
+      Settings:ApplyScale()
+    end
     if section == "features" and key == "backgroundFade" then
       if RakaMod.Overlay and RakaMod.Overlay.ApplyDimAlpha then
         RakaMod.Overlay:ApplyDimAlpha()
@@ -1118,6 +1575,48 @@ local function AddSlider(ctx, text, section, key, minValue, maxValue)
     end
   end)
   PassWheel(ctx.scroll, slider)
+  PassWheel(ctx.scroll, valueText)
+
+  -- Window scale resizes the slider itself, so apply it on release, not while dragging.
+  slider:SetScript("OnMouseDown", function(self)
+    self.dragging = true
+  end)
+  slider:SetScript("OnMouseUp", function(self)
+    self.dragging = false
+    if section == "general" and key == "windowScale" then
+      Settings:ApplyScale()
+    end
+  end)
+
+  local function CommitTyped()
+    local typed = tonumber(valueText:GetText())
+    if typed then
+      if typed < minValue then
+        typed = minValue
+      elseif typed > maxValue then
+        typed = maxValue
+      end
+      slider:SetValue(typed)
+    end
+    valueText:SetText(tostring(math.floor((slider:GetValue() or minValue) + 0.5)))
+  end
+  valueText:SetScript("OnEnterPressed", function(self)
+    CommitTyped()
+    self:ClearFocus()
+  end)
+  valueText:SetScript("OnEscapePressed", function(self)
+    self:SetText(tostring(math.floor((slider:GetValue() or minValue) + 0.5)))
+    self:ClearFocus()
+  end)
+  valueText:SetScript("OnEditFocusGained", function(self)
+    self:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+    self:HighlightText()
+  end)
+  valueText:SetScript("OnEditFocusLost", function(self)
+    self:SetBackdropBorderColor(BORDER.r, BORDER.g, BORDER.b, 1)
+    self:HighlightText(0, 0)
+    CommitTyped()
+  end)
 
   sliders[#sliders + 1] = {
     widget = slider,
@@ -1125,22 +1624,198 @@ local function AddSlider(ctx, text, section, key, minValue, maxValue)
     section = section,
     key = key,
     minValue = minValue,
+    updateFill = UpdateFill,
   }
-  ctx.Advance()
+  RegisterReset(ctx, function()
+    ResetKey(section, key)
+  end)
+  ctx.Advance(54)
   return slider
 end
 
-local function AddColorButton(ctx, text, getTarget, onChange, getDefault)
+-- Dropdown select ---------------------------------------------------------
+local dropdownMenu
+
+local function CloseDropdown()
+  if dropdownMenu then
+    dropdownMenu:Hide()
+    dropdownMenu.catcher:Hide()
+    dropdownMenu.owner = nil
+  end
+end
+
+local function EnsureDropdownMenu()
+  if dropdownMenu then
+    return dropdownMenu
+  end
+  local catcher = CreateFrame("Button", nil, UIParent)
+  catcher:SetAllPoints(UIParent)
+  catcher:SetFrameStrata("FULLSCREEN_DIALOG")
+  catcher:Hide()
+  catcher:SetScript("OnClick", CloseDropdown)
+
+  local menu = CreateFrame("Frame", nil, UIParent, template)
+  menu:SetFrameStrata("FULLSCREEN_DIALOG")
+  menu:SetFrameLevel(catcher:GetFrameLevel() + 10)
+  menu:EnableMouse(true)
+  ApplyPanel(menu, FIELD_BG, ACCENT)
+  menu:Hide()
+  menu.catcher = catcher
+  menu.items = {}
+  dropdownMenu = menu
+  return menu
+end
+
+local MENU_ITEM_H = 22
+
+local function MenuItem(menu, index)
+  local item = menu.items[index]
+  if item then
+    return item
+  end
+  item = CreateFrame("Button", nil, menu)
+  item:SetHeight(MENU_ITEM_H)
+  local hl = item:CreateTexture(nil, "BACKGROUND")
+  hl:SetAllPoints()
+  hl:SetColorTexture(0, 0, 0, 0)
+  item.hl = hl
+  local label = item:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  label:SetPoint("LEFT", 10, 0)
+  item.label = label
+  item:SetScript("OnEnter", function(self)
+    self.hl:SetColorTexture(ACCENT_DIM.r, ACCENT_DIM.g, ACCENT_DIM.b, 0.8)
+  end)
+  item:SetScript("OnLeave", function(self)
+    self.hl:SetColorTexture(0, 0, 0, 0)
+  end)
+  menu.items[index] = item
+  return item
+end
+
+local function OpenDropdown(owner)
+  local menu = EnsureDropdownMenu()
+  if menu.owner == owner and menu:IsShown() then
+    CloseDropdown()
+    return
+  end
+  menu.owner = owner
+  local count = #owner.options
+  for i = 1, count do
+    local option = owner.options[i]
+    local item = MenuItem(menu, i)
+    item:ClearAllPoints()
+    item:SetPoint("TOPLEFT", menu, "TOPLEFT", 2, -2 - (i - 1) * MENU_ITEM_H)
+    item:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -2, -2 - (i - 1) * MENU_ITEM_H)
+    item.label:SetText(option)
+    if option == owner.value then
+      item.label:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+    else
+      item.label:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+    end
+    item:SetScript("OnClick", function()
+      owner:SetValue(option)
+      CloseDropdown()
+      if owner.onSelect then
+        owner.onSelect(option)
+      end
+    end)
+    item:Show()
+  end
+  for i = count + 1, #menu.items do
+    menu.items[i]:Hide()
+  end
+  menu:SetSize(owner:GetWidth(), count * MENU_ITEM_H + 4)
+  menu:ClearAllPoints()
+  menu:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -2)
+  menu.catcher:Show()
+  menu:Show()
+end
+
+frame:HookScript("OnHide", CloseDropdown)
+
+local function MakeDropdown(parent, width, options, onSelect)
+  local button = CreateFrame("Button", nil, parent, template)
+  button:SetSize(width, 24)
+  ApplyPanel(button, FIELD_BG, BORDER)
+
+  local text = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  text:SetPoint("LEFT", 10, 0)
+  text:SetPoint("RIGHT", -26, 0)
+  text:SetJustifyH("LEFT")
+  text:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+
+  local arrow = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  arrow:SetPoint("RIGHT", -10, 1)
+  arrow:SetText("v")
+  arrow:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
+
+  button.options = options
+  button.onSelect = onSelect
+  function button:SetValue(value)
+    self.value = value
+    text:SetText(value or "")
+  end
+  button:SetScript("OnClick", function(self)
+    OpenDropdown(self)
+  end)
+  button:SetScript("OnEnter", function(self)
+    self:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 1)
+  end)
+  button:SetScript("OnLeave", function(self)
+    self:SetBackdropBorderColor(BORDER.r, BORDER.g, BORDER.b, 1)
+  end)
+  return button
+end
+
+local function AddDropdown(ctx, text, section, key, options, fallback, afterChange)
+  IndexLabel(ctx, text)
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 6)
+  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 8)
   label:SetText(text)
-  label:SetTextColor(0.90, 0.92, 0.95)
+  label:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+
+  local dropdown = MakeDropdown(ctx.content, 150, options, function(value)
+    local saved = RakaMod.db and RakaMod.db[section]
+    if not saved then
+      return
+    end
+    saved[key] = value
+    RakaMod.Core:RefreshModules()
+    if afterChange then
+      afterChange()
+    end
+  end)
+  dropdown:SetPoint("TOPRIGHT", ctx.content, "TOPRIGHT", -ctx.padX, ctx.LocalY() - 3)
+  dropdown:SetValue(fallback)
+  PassWheel(ctx.scroll, dropdown)
+
+  dropdowns[#dropdowns + 1] = { widget = dropdown, section = section, key = key, fallback = fallback }
+  RegisterReset(ctx, function()
+    local saved = RakaMod.db and RakaMod.db[section]
+    if saved then
+      local default = DefaultValue(section, key)
+      if default == nil then
+        default = fallback
+      end
+      saved[key] = default
+    end
+  end)
+  ctx.Advance(34)
+  return dropdown
+end
+
+local function AddColorButton(ctx, text, getTarget, onChange, getDefault)
+  IndexLabel(ctx, text)
+  local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 6)
+  label:SetText(text)
+  label:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
 
   local swatch = CreateFrame("Button", nil, ctx.content)
-  swatch:SetSize(20, 20)
-  swatch:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", CONTROL_X, ctx.LocalY() - 4)
+  swatch:SetSize(22, 22)
+  swatch:SetPoint("TOPRIGHT", ctx.content, "TOPRIGHT", -ctx.padX, ctx.LocalY() - 3)
   local edge = swatch:CreateTexture(nil, "BACKGROUND")
-  edge:SetColorTexture(0, 0, 0, 1)
+  edge:SetColorTexture(BORDER.r, BORDER.g, BORDER.b, 1)
   edge:SetPoint("TOPLEFT", -1, 1)
   edge:SetPoint("BOTTOMRIGHT", 1, -1)
   local color = swatch:CreateTexture(nil, "ARTWORK")
@@ -1171,7 +1846,14 @@ local function AddColorButton(ctx, text, getTarget, onChange, getDefault)
   end)
   PassWheel(ctx.scroll, swatch)
   swatches[#swatches + 1] = { paint = paint }
-  ctx.Advance()
+  RegisterReset(ctx, function()
+    local target = getTarget()
+    local default = getDefault and getDefault()
+    if target and default then
+      target.r, target.g, target.b = default.r, default.g, default.b
+    end
+  end)
+  ctx.Advance(32)
   return swatch
 end
 
@@ -1188,237 +1870,51 @@ local function AddZoneSwatch(ctx, text)
   end)
 end
 
+local function AddText(ctx, text, color, gapBelow)
+  local fs = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  fs:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 2)
+  fs:SetWidth(ctx.hintWidth)
+  fs:SetJustifyH("LEFT")
+  fs:SetJustifyV("TOP")
+  fs:SetWordWrap(true)
+  fs:SetText(text)
+  fs:SetTextColor(color.r, color.g, color.b)
+  local height = fs:GetStringHeight() or 14
+  if height < 14 then
+    height = 14
+  end
+  ctx.Advance(height + (gapBelow or 8))
+  return fs
+end
+
+local function AddHint(ctx, text)
+  return AddText(ctx, text, MUTED)
+end
+
 local function AddNote(ctx, text)
-  local note = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  note:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 8)
-  note:SetWidth(400)
-  note:SetJustifyH("LEFT")
-  note:SetWordWrap(false)
-  note:SetText(text)
-  note:SetTextColor(1, 0.82, 0.2)
-  ctx.Advance()
-  return note
+  return AddText(ctx, text, { r = 0.55, g = 0.75, b = 1.0 })
 end
 
-local function AddDescription(ctx, text)
-  -- Title/description live in the shell page header (PAGE_META). Keep light top padding.
-  if type(text) == "string" and text ~= "" and PAGE_META[ctx.key] and not PAGE_META[ctx.key].description then
-    PAGE_META[ctx.key].description = text
-  end
-  ctx.Advance(4)
-  return nil
-end
-
-local function AddOutlineButton(ctx)
-  local outlineLabel = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  outlineLabel:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 6)
-  outlineLabel:SetText("Outline")
-  outlineLabel:SetTextColor(0.90, 0.92, 0.95)
-
-  outlineButton = CreateFrame("Button", nil, ctx.content, template)
-  outlineButton:SetSize(156, 22)
-  outlineButton:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", CONTROL_X, ctx.LocalY() - 3)
-  if outlineButton.SetBackdrop then
-    outlineButton:SetBackdrop({
-      bgFile = "Interface\\Buttons\\WHITE8x8",
-      edgeFile = "Interface\\Buttons\\WHITE8x8",
-      edgeSize = 1,
-      insets = { left = 1, right = 1, top = 1, bottom = 1 },
-    })
-    outlineButton:SetBackdropColor(0.06, 0.07, 0.10, 1)
-    outlineButton:SetBackdropBorderColor(0.16, 0.22, 0.32, 1)
-  else
-    local outlineBg = outlineButton:CreateTexture(nil, "BACKGROUND")
-    outlineBg:SetAllPoints()
-    outlineBg:SetColorTexture(0.10, 0.12, 0.16, 1)
-  end
-  local outlineText = outlineButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  outlineText:SetPoint("CENTER")
-  outlineButton:SetFontString(outlineText)
-  outlineButton:SetText("OUTLINE")
-  outlineButton:SetScript("OnClick", function(self)
-    local zoneText = RakaMod.db and RakaMod.db.zoneText
-    if not zoneText then
-      return
-    end
-    local nextValue = NextOutline(zoneText.outline)
-    zoneText.outline = nextValue
-    self:SetText(nextValue)
-    RakaMod.Core:RefreshModules()
-    if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
-      RakaMod.ZoneText:Apply()
-    end
-  end)
-  PassWheel(ctx.scroll, outlineButton)
-  ctx.Advance()
-  return outlineButton
-end
-
-local general = CreatePage("general")
-AddDescription(general, "Addon-wide options.")
-AddCheck(general, "Show minimap icon", "general", "showMinimapIcon")
-general.Finish()
-
-local function RefreshSharedFades()
-  if RakaMod.Overlay and RakaMod.Overlay.ApplyDimAlpha then
-    RakaMod.Overlay:ApplyDimAlpha()
-  end
-  if RakaMod.AFK and RakaMod.AFK.ApplyOptions then
-    RakaMod.AFK:ApplyOptions()
-  end
-end
-
-local features = CreatePage("features")
-AddDescription(features, "Shared background fade for Escape and AFK. Grain is optional.")
-AddSlider(features, "Background fade", "features", "backgroundFade", 0, 100)
-AddCheck(features, "Grain Background", "features", "fadeGrain", RefreshSharedFades)
-features.Finish()
-
-local reveal = CreatePage("reveal")
-AddDescription(
-  reveal,
-  "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself."
-)
-AddCheck(reveal, "Enabled", "reveal", "enabled")
-AddCheck(reveal, "Casting", "reveal", "casting")
-AddCheck(reveal, "Health above 100%", "reveal", "health")
-AddCheck(reveal, "Mouseover", "reveal", "mouseover")
-AddCheck(reveal, "Combat", "reveal", "combat")
-AddCheck(reveal, "Pet", "reveal", "pet")
-revealNote = AddNote(reveal, "EllesmereUI Unit Frames is not installed.")
-reveal.Finish()
-
-local zoneText = CreatePage("zoneText")
-AddDescription(zoneText, "Custom zone change text appearance.")
-AddCheck(zoneText, "Enabled", "zoneText", "enabled")
-AddSlider(zoneText, "Size", "zoneText", "size", 8, 64)
-AddOutlineButton(zoneText)
-AddZoneSwatch(zoneText, "Color")
-zoneText.Finish()
-
-local PAIR_ROW = 26
-local CLASS_COL2_X = 310
-
-local function AddSectionHeader(ctx, text)
-  ctx.Advance(18)
-  local header = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  header:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 4)
-  header:SetText(text)
-  header:SetTextColor(ACCENT.r, ACCENT.g, ACCENT.b)
-  ctx.Advance()
-  ctx.Advance(4)
-  return header
-end
-
-local function PaintGradientSubTab(button, selected)
-  button.selected = selected and true or false
-  if button.SetBackdropColor then
-    if button.selected then
-      button:SetBackdropColor(ACCENT.r * 0.22, ACCENT.g * 0.22, ACCENT.b * 0.35, 0.95)
-      button:SetBackdropBorderColor(ACCENT.r, ACCENT.g, ACCENT.b, 0.45)
-    else
-      button:SetBackdropColor(0.10, 0.10, 0.12, 1)
-      button:SetBackdropBorderColor(0, 0, 0, 1)
-    end
-  end
-  if button.selected then
-    button.label:SetTextColor(1, 1, 1)
-  else
-    button.label:SetTextColor(0.70, 0.74, 0.80)
-  end
-end
-
-local function AddGradientSubTabs(ctx, activeKey)
-  local y = ctx.LocalY()
-  local tabs = {
-    { key = "gradient", label = "Health", width = 68 },
-    { key = "gradientBars", label = "Bars", width = 60 },
-    { key = "gradientResources", label = "Resources", width = 88 },
-    { key = "gradientNameplates", label = "Nameplates", width = 96 },
-  }
-  local x = 8
-  for i = 1, #tabs do
-    local tab = tabs[i]
-    local button = CreateFrame("Button", nil, ctx.content, template)
-    button:SetSize(tab.width, 24)
-    button:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, y)
-    if button.SetBackdrop then
-      button:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
-        insets = { left = 1, right = 1, top = 1, bottom = 1 },
-      })
-    end
-    local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    label:SetPoint("CENTER")
-    label:SetText(tab.label)
-    button.label = label
-    PaintGradientSubTab(button, tab.key == activeKey)
-    button:SetScript("OnClick", function()
-      Settings:SelectPage(tab.key)
-    end)
-    PassWheel(ctx.scroll, button)
-    x = x + tab.width + 8
-  end
-  ctx.Advance(32)
-end
-
-local overlay = CreatePage("overlay")
-AddDescription(overlay, "Left Escape overlay: professions, collections, and played time beside the game menu.")
-AddCheck(overlay, "Enabled", "overlay", "enabled")
-AddCheck(overlay, "Collections", "overlay", "collections")
-AddCheck(overlay, "Played", "overlay", "played")
-AddCheck(overlay, "Professions", "overlay", "professions")
-overlay.Finish()
-
-local function AddInlineCheck(ctx, text, section, key, x)
-  checkSerial = checkSerial + 1
+local function AddInfo(ctx, labelText, valueText)
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, ctx.LocalY() - 2)
-  label:SetText(text)
-  label:SetTextColor(0.90, 0.92, 0.95)
-  local labelW = label:GetStringWidth() or 80
-
-  local pill = MakePillToggle(ctx.content)
-  pill:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x + labelW + 8, ctx.LocalY() - 2)
-  BindToggle(pill, section, key, function()
-    if section == "afk" and RakaMod.AFK and RakaMod.AFK.ApplyOptions then
-      RakaMod.AFK:ApplyOptions()
-    end
-  end)
-  PassWheel(ctx.scroll, pill)
-  checks[#checks + 1] = { widget = pill, section = section, key = key }
-  return x + labelW + 8 + PILL_W + 16
+  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 4)
+  label:SetText(labelText)
+  label:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
+  local value = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  value:SetPoint("TOPRIGHT", ctx.content, "TOPRIGHT", -ctx.padX, ctx.LocalY() - 4)
+  value:SetText(valueText)
+  value:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+  ctx.Advance(24)
 end
 
-local function AddCheckRow(ctx, items)
-  local x = 8
-  for i = 1, #items do
-    local item = items[i]
-    x = AddInlineCheck(ctx, item[1], item[2], item[3], x)
-  end
-  ctx.Advance()
-  ctx.Advance(6)
-end
-
-local afk = CreatePage("afk")
-afk.content:SetWidth(640)
-AddDescription(afk, PAGE_META.afk.description)
-AddCheckRow(afk, {
-  { "Enabled", "afk", "enabled" },
-  { "Play Emotes", "afk", "playEmotes" },
-  { "Turn Camera", "afk", "cameraPan" },
-  { "Show Changelog", "afk", "showChangelog" },
-})
--- Show Tips omitted: no tips panel yet. Spec Icon Size omitted: AFK shows class icon, not a resizable spec icon.
-afk.Finish()
-
+---------------------------------------------------------------------------
+-- Gradient color pairs
+---------------------------------------------------------------------------
 local function MakeSwatch(parent, scroll, size)
   local swatch = CreateFrame("Button", nil, parent)
   swatch:SetSize(size, size)
   local edge = swatch:CreateTexture(nil, "BACKGROUND")
-  edge:SetColorTexture(0, 0, 0, 1)
+  edge:SetColorTexture(BORDER.r, BORDER.g, BORDER.b, 1)
   edge:SetPoint("TOPLEFT", -1, 1)
   edge:SetPoint("BOTTOMRIGHT", 1, -1)
   local color = swatch:CreateTexture(nil, "ARTWORK")
@@ -1463,6 +1959,7 @@ local function PaintPreview(preview, left, right)
 end
 
 local function AddPairRow(ctx, x, y, labelText, labelColor, getPair, getDefaultPair)
+  IndexLabel(ctx, labelText)
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", x, y - 4)
   label:SetWidth(118)
@@ -1477,6 +1974,7 @@ local function AddPairRow(ctx, x, y, labelText, labelColor, getPair, getDefaultP
   local arrow = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   arrow:SetPoint("LEFT", leftSwatch, "RIGHT", 4, 0)
   arrow:SetText(">")
+  arrow:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
   local rightSwatch = MakeSwatch(ctx.content, ctx.scroll, 18)
   rightSwatch:SetPoint("LEFT", arrow, "RIGHT", 4, 0)
 
@@ -1491,12 +1989,12 @@ local function AddPairRow(ctx, x, y, labelText, labelColor, getPair, getDefaultP
     PaintPreview(preview, pair and pair.left, pair and pair.right)
   end
 
-  leftSwatch:SetScript("OnClick", function()
+  local function pick(side)
     local pair = getPair()
-    if not pair or type(pair.left) ~= "table" then
+    if not pair or type(pair[side]) ~= "table" then
       return
     end
-    PickColor(pair.left, function()
+    PickColor(pair[side], function()
       refresh()
       if RakaMod.Gradient and RakaMod.Gradient.Apply then
         RakaMod.Gradient:Apply()
@@ -1504,30 +2002,56 @@ local function AddPairRow(ctx, x, y, labelText, labelColor, getPair, getDefaultP
     end, {
       getDefault = function()
         local defaults = getDefaultPair and getDefaultPair()
-        return defaults and defaults.left
+        return defaults and defaults[side]
       end,
     })
+  end
+  leftSwatch:SetScript("OnClick", function()
+    pick("left")
   end)
   rightSwatch:SetScript("OnClick", function()
-    local pair = getPair()
-    if not pair or type(pair.right) ~= "table" then
-      return
-    end
-    PickColor(pair.right, function()
-      refresh()
-      if RakaMod.Gradient and RakaMod.Gradient.Apply then
-        RakaMod.Gradient:Apply()
-      end
-    end, {
-      getDefault = function()
-        local defaults = getDefaultPair and getDefaultPair()
-        return defaults and defaults.right
-      end,
-    })
+    pick("right")
   end)
 
   swatches[#swatches + 1] = { paint = refresh }
+  RegisterReset(ctx, function()
+    local pair = getPair()
+    local defaults = getDefaultPair and getDefaultPair()
+    if not pair or not defaults then
+      return
+    end
+    for _, side in ipairs({ "left", "right" }) do
+      if type(pair[side]) == "table" and type(defaults[side]) == "table" then
+        pair[side].r, pair[side].g, pair[side].b = defaults[side].r, defaults[side].g, defaults[side].b
+      end
+    end
+  end)
   refresh()
+end
+
+-- rows: { key, label, color }; group is the table name under db.gradient.
+local function AddPairGroup(ctx, group, rows, columns)
+  local startY = ctx.LocalY()
+  for i = 1, #rows do
+    local row = rows[i]
+    local col, rowIndex = 0, i - 1
+    if columns == 2 then
+      col = (i % 2 == 1) and 0 or 1
+      rowIndex = math.floor((i - 1) / 2)
+    end
+    local x = col == 0 and ctx.padX or PAIR_COL2_X
+    AddPairRow(ctx, x, startY - rowIndex * PAIR_ROW, row.label, row.color, function()
+      local g = RakaMod.db and RakaMod.db.gradient
+      local section = g and g[group]
+      return section and section[row.key]
+    end, function()
+      local d = GradientDefaults()
+      local section = d and d[group]
+      return section and section[row.key]
+    end)
+  end
+  local count = columns == 2 and math.ceil(#rows / 2) or #rows
+  ctx.Advance(count * PAIR_ROW + 4)
 end
 
 local function ClassLabelColor(classFile)
@@ -1565,204 +2089,239 @@ local function ClassDisplayName(classFile)
   return CLASS_DISPLAY[classFile] or classFile
 end
 
-local gradient = CreatePage("gradient")
-AddGradientSubTabs(gradient, "gradient")
-AddDescription(gradient, "Health bar gradients shift by class, NPC reaction, and unit state.")
-AddCheck(gradient, "Enabled", "gradient", "enabled")
-gradientNote = AddNote(gradient, "No Ellesmere health-bar module is installed.")
-AddSectionHeader(gradient, "Class Colors")
-
-do
-  local files = RakaMod.Logic and RakaMod.Logic.CLASS_FILES or {}
-  local startY = gradient.LocalY()
-  local rows = math.ceil(#files / 2)
-  for i = 1, #files do
-    local file = files[i]
-    local col = (i % 2 == 1) and 0 or 1
-    local row = math.floor((i - 1) / 2)
-    local x = col == 0 and 8 or CLASS_COL2_X
-    local y = startY - row * PAIR_ROW
-    AddPairRow(gradient, x, y, ClassDisplayName(file), ClassLabelColor(file), function()
-      local g = RakaMod.db and RakaMod.db.gradient
-      return g and g.classes and g.classes[file]
-    end, function()
-      local d = GradientDefaults()
-      return d and d.classes and d.classes[file]
-    end)
+---------------------------------------------------------------------------
+-- Shared refresh helpers
+---------------------------------------------------------------------------
+local function RefreshSharedFades()
+  if RakaMod.Overlay and RakaMod.Overlay.ApplyDimAlpha then
+    RakaMod.Overlay:ApplyDimAlpha()
   end
-  for _ = 1, rows do
-    gradient.Advance(PAIR_ROW)
+  if RakaMod.AFK and RakaMod.AFK.ApplyOptions then
+    RakaMod.AFK:ApplyOptions()
   end
 end
 
-AddSectionHeader(gradient, "NPC Colors")
+local function RefreshAfk()
+  if RakaMod.AFK and RakaMod.AFK.ApplyOptions then
+    RakaMod.AFK:ApplyOptions()
+  end
+end
+
+local function RefreshGradient()
+  if RakaMod.Gradient and RakaMod.Gradient.Apply then
+    RakaMod.Gradient:Apply()
+  end
+end
+
+---------------------------------------------------------------------------
+-- Pages
+---------------------------------------------------------------------------
+-- General
 do
-  local npcRows = {
+  local page = CreatePage("general", "general")
+  local card = page.Card("Interface", 1)
+  AddCheck(card, "Show minimap icon", "general", "showMinimapIcon")
+  AddHint(card, "Toggles the RakaMod button on the minimap.")
+  card.Done()
+  local window = page.Card("Window", 2)
+  AddSlider(window, "Window scale (%)", "general", "windowScale", 70, 130)
+  AddHint(window, "Resizes this settings window. Applied when you release the slider.")
+  window.Done()
+  page.Finish()
+end
+
+do
+  local page = CreatePage("generalAbout", "general")
+  local card = page.Card("RakaMod")
+  AddInfo(card, "Version", AddonVersion())
+  AddInfo(card, "Open settings", "/rakamod   /rmod   /rm")
+  AddInfo(card, "Requires", "EllesmereUI")
+  card.Done()
+  page.Finish()
+end
+
+-- Features
+do
+  local page = CreatePage("features", "features")
+  local fade = page.Card("Background Fade", 1)
+  AddSlider(fade, "Background fade", "features", "backgroundFade", 0, 100)
+  AddHint(fade, "Dims the screen behind the Escape menu and AFK mode.")
+  fade.Done()
+  local grain = page.Card("Grain", 2)
+  AddCheck(grain, "Grain Background", "features", "fadeGrain", RefreshSharedFades, "toggle")
+  AddHint(grain, "Adds a dark film-grain texture over the fade. Off gives a clean fade.")
+  grain.Done()
+  page.Finish()
+end
+
+-- Header master switch (label + ON/OFF), shown above the tabs of one nav page.
+-- Returns a small object RefreshNotes can Show/Hide for a "missing addon" note.
+local function AddMaster(navKey, afterChange, noteText)
+  local def = navs[navKey].master
+  local label = pageHeader:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  label:SetText(def.label)
+  label:SetTextColor(TEXT.r, TEXT.g, TEXT.b)
+  local pill = MakePillToggle(pageHeader)
+  pill:SetPoint("TOPRIGHT", pageHeader, "TOPRIGHT", 0, -2)
+  label:SetPoint("RIGHT", pill, "LEFT", -10, 0)
+  local note = pageHeader:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  note:SetPoint("RIGHT", label, "LEFT", -18, 0)
+  note:SetText(noteText or "")
+  note:SetTextColor(0.55, 0.75, 1.0)
+  local m = { label = label, pill = pill, note = note, noteWanted = false }
+  masters[navKey] = m
+  BindToggle(pill, def.section, def.key, function()
+    if afterChange then
+      afterChange()
+    end
+    UpdateMaster()
+  end)
+  PassWheel(pages[navKey] and pages[navKey].ctx and pages[navKey].ctx.scroll or pageBody, pill)
+  checks[#checks + 1] = { widget = pill, section = def.section, key = def.key }
+  RegisterReset({ navKey = navKey }, function()
+    ResetKey(def.section, def.key)
+  end)
+  label:Hide()
+  pill:Hide()
+  note:Hide()
+  return {
+    Show = function()
+      m.noteWanted = true
+      UpdateMaster()
+    end,
+    Hide = function()
+      m.noteWanted = false
+      UpdateMaster()
+    end,
+  }
+end
+
+-- Game Menu
+do
+  local page = CreatePage("overlay", "overlay")
+  AddMaster("overlay")
+  local panels = page.Card("Panels", 1)
+  AddHint(panels, "Extra panels shown beside the game menu.")
+  AddCheck(panels, "Collections", "overlay", "collections")
+  AddCheck(panels, "Played", "overlay", "played")
+  AddCheck(panels, "Professions", "overlay", "professions")
+  panels.Done()
+  page.Finish()
+end
+
+-- AFK
+do
+  local page = CreatePage("afk", "afk")
+  AddMaster("afk", RefreshAfk)
+  local behavior = page.Card("Behavior", 1)
+  AddHint(behavior, "Full-screen overlay while you are away.")
+  AddCheck(behavior, "Play Emotes", "afk", "playEmotes", RefreshAfk)
+  AddCheck(behavior, "Turn Camera", "afk", "cameraPan", RefreshAfk)
+  AddCheck(behavior, "Show Changelog", "afk", "showChangelog", RefreshAfk)
+  behavior.Done()
+  -- Show Tips omitted: no tips panel yet. Spec Icon Size omitted: AFK shows class icon, not a resizable spec icon.
+  page.Finish()
+end
+
+-- Player Frame
+do
+  local page = CreatePage("reveal", "reveal")
+  revealNote = AddMaster("reveal", nil, "EllesmereUI Unit Frames is not installed.")
+  local triggers = page.Card("Show When", 1)
+  AddCheck(triggers, "Casting", "reveal", "casting")
+  AddCheck(triggers, "Health above 100%", "reveal", "health")
+  AddCheck(triggers, "Mouseover", "reveal", "mouseover")
+  AddCheck(triggers, "Combat", "reveal", "combat")
+  AddCheck(triggers, "Pet", "reveal", "pet")
+  triggers.Done()
+  page.Finish()
+end
+
+-- Zone Text
+do
+  local OUTLINES = { "NONE", "OUTLINE", "THICKOUTLINE" }
+  local page = CreatePage("zoneText", "zoneText")
+  AddMaster("zoneText")
+  local main = page.Card("Text", 1)
+  AddSlider(main, "Size", "zoneText", "size", 8, 64)
+  main.Done()
+  local look = page.Card("Appearance", 2)
+  AddDropdown(look, "Outline", "zoneText", "outline", OUTLINES, "OUTLINE", function()
+    if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
+      RakaMod.ZoneText:Apply()
+    end
+  end)
+  AddZoneSwatch(look, "Color")
+  look.Done()
+  page.Finish()
+end
+
+-- Gradient: master switch above all gradient tabs
+gradientNote = AddMaster("gradient", RefreshGradient, "No Ellesmere health-bar module is installed.")
+-- Gradient: Health
+do
+  local page = CreatePage("gradient", "gradient")
+  local classes = page.Card("Class Colors")
+  do
+    local files = RakaMod.Logic and RakaMod.Logic.CLASS_FILES or {}
+    local rows = {}
+    for i = 1, #files do
+      rows[i] = { key = files[i], label = ClassDisplayName(files[i]), color = ClassLabelColor(files[i]) }
+    end
+    AddPairGroup(classes, "classes", rows, 2)
+  end
+  classes.Done()
+
+  local npc = page.Card("NPC Colors", 1)
+  AddPairGroup(npc, "npc", {
     { key = "friendly", label = "Friendly", color = { r = 0.52, g = 0.85, b = 0.17 } },
     { key = "enemy", label = "Enemy", color = { r = 0.85, g = 0.25, b = 0.25 } },
     { key = "neutral", label = "Neutral", color = { r = 0.87, g = 0.76, b = 0.29 } },
-  }
-  local startY = gradient.LocalY()
-  for i = 1, #npcRows do
-    local row = npcRows[i]
-    AddPairRow(gradient, 8, startY - (i - 1) * PAIR_ROW, row.label, row.color, function()
-      local g = RakaMod.db and RakaMod.db.gradient
-      return g and g.npc and g.npc[row.key]
-    end, function()
-      local d = GradientDefaults()
-      return d and d.npc and d.npc[row.key]
-    end)
-  end
-  for _ = 1, #npcRows do
-    gradient.Advance(PAIR_ROW)
-  end
+  })
+  npc.Done()
+
+  local states = page.Card("State Colors", 2)
+  local stateColor = { r = 0.85, g = 0.85, b = 0.85 }
+  AddPairGroup(states, "states", {
+    { key = "dead", label = "Dead", color = stateColor },
+    { key = "offline", label = "Offline", color = stateColor },
+    { key = "tapped", label = "Tapped", color = stateColor },
+    { key = "disconnected", label = "Disconnected", color = stateColor },
+  })
+  states.Done()
+  page.Finish()
 end
 
-AddSectionHeader(gradient, "State Colors")
+-- Gradient: Bars
 do
-  local stateRows = {
-    { key = "dead", label = "Dead" },
-    { key = "offline", label = "Offline" },
-    { key = "tapped", label = "Tapped" },
-    { key = "disconnected", label = "Disconnected" },
-  }
-  local startY = gradient.LocalY()
-  for i = 1, #stateRows do
-    local row = stateRows[i]
-    AddPairRow(gradient, 8, startY - (i - 1) * PAIR_ROW, row.label, { r = 0.85, g = 0.85, b = 0.85 }, function()
-      local g = RakaMod.db and RakaMod.db.gradient
-      return g and g.states and g.states[row.key]
-    end, function()
-      local d = GradientDefaults()
-      return d and d.states and d.states[row.key]
-    end)
-  end
-  for _ = 1, #stateRows do
-    gradient.Advance(PAIR_ROW)
-  end
+  local page = CreatePage("gradientBars", "gradient")
+  local power = page.Card("Power Colors", 1)
+  AddHint(power, "Gradient shifts for power types.")
+  AddPairGroup(power, "power", {
+    { key = "altPower", label = "Alt Power", color = { r = 0.24, g = 0.48, b = 0.91 } },
+    { key = "focus", label = "Focus", color = { r = 0.85, g = 0.44, b = 0.20 } },
+    { key = "rage", label = "Rage", color = { r = 0.91, g = 0.18, b = 0.18 } },
+    { key = "energy", label = "Energy", color = { r = 1.00, g = 0.87, b = 0.43 } },
+    { key = "mana", label = "Mana", color = { r = 0.29, g = 0.56, b = 0.91 } },
+    { key = "runicPower", label = "Runic Power", color = { r = 0.22, g = 0.64, b = 0.98 } },
+  })
+  power.Done()
+  local cast = page.Card("Castbar Colors", 2)
+  AddHint(cast, "Gradient shifts for cast bars.")
+  AddPairGroup(cast, "castbar", {
+    { key = "regular", label = "Regular", color = { r = 1.00, g = 0.70, b = 0.00 } },
+    { key = "nonInterruptible", label = "Non-interruptible", color = { r = 0.56, g = 0.55, b = 0.55 } },
+  })
+  cast.Done()
+  page.Finish()
 end
 
-gradient.Finish()
-
-local function AddGradientPairSection(ctx, sectionKey, title, blurb, rows)
-  AddSectionHeader(ctx, title)
-  if blurb then
-    AddDescription(ctx, blurb)
-  end
-  local startY = ctx.LocalY()
-  for i = 1, #rows do
-    local row = rows[i]
-    AddPairRow(ctx, 8, startY - (i - 1) * PAIR_ROW, row.label, row.color, function()
-      local g = RakaMod.db and RakaMod.db.gradient
-      local section = g and g[sectionKey]
-      return section and section[row.key]
-    end, function()
-      local d = GradientDefaults()
-      local section = d and d[sectionKey]
-      return section and section[row.key]
-    end)
-  end
-  for _ = 1, #rows do
-    ctx.Advance(PAIR_ROW)
-  end
-end
-
-local function AddGradientPairGrid(ctx, sectionKey, rows)
-  local startY = ctx.LocalY()
-  local rowCount = math.ceil(#rows / 2)
-  for i = 1, #rows do
-    local row = rows[i]
-    local col = (i % 2 == 1) and 0 or 1
-    local rowIndex = math.floor((i - 1) / 2)
-    local x = col == 0 and 8 or CLASS_COL2_X
-    local y = startY - rowIndex * PAIR_ROW
-    AddPairRow(ctx, x, y, row.label, row.color, function()
-      local g = RakaMod.db and RakaMod.db.gradient
-      local section = g and g[sectionKey]
-      return section and section[row.key]
-    end, function()
-      local d = GradientDefaults()
-      local section = d and d[sectionKey]
-      return section and section[row.key]
-    end)
-  end
-  for _ = 1, rowCount do
-    ctx.Advance(PAIR_ROW)
-  end
-end
-
-local FADE_DIRECTIONS = { "LEFT", "RIGHT" }
-
-local function NextFadeDirection(current)
-  local index = 0
-  for i = 1, #FADE_DIRECTIONS do
-    if FADE_DIRECTIONS[i] == current then
-      index = i
-      break
-    end
-  end
-  return FADE_DIRECTIONS[(index % #FADE_DIRECTIONS) + 1]
-end
-
-local function AddNameplateFadeDirection(ctx)
-  local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 6)
-  label:SetText("Fade Direction")
-  label:SetTextColor(0.90, 0.92, 0.95)
-
-  nameplateFadeButton = CreateFrame("Button", nil, ctx.content, template)
-  nameplateFadeButton:SetSize(156, 22)
-  nameplateFadeButton:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", CONTROL_X, ctx.LocalY() - 3)
-  if nameplateFadeButton.SetBackdrop then
-    nameplateFadeButton:SetBackdrop({
-      bgFile = "Interface\\Buttons\\WHITE8x8",
-      edgeFile = "Interface\\Buttons\\WHITE8x8",
-      edgeSize = 1,
-      insets = { left = 1, right = 1, top = 1, bottom = 1 },
-    })
-    nameplateFadeButton:SetBackdropColor(0.06, 0.07, 0.10, 1)
-    nameplateFadeButton:SetBackdropBorderColor(0.16, 0.22, 0.32, 1)
-  end
-  local text = nameplateFadeButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  text:SetPoint("CENTER")
-  nameplateFadeButton:SetFontString(text)
-  nameplateFadeButton:SetText("RIGHT")
-  nameplateFadeButton:SetScript("OnClick", function(self)
-    local g = RakaMod.db and RakaMod.db.gradient
-    if not g then
-      return
-    end
-    local nextValue = NextFadeDirection(g.nameplateFadeDirection)
-    g.nameplateFadeDirection = nextValue
-    self:SetText(nextValue)
-  end)
-  PassWheel(ctx.scroll, nameplateFadeButton)
-  ctx.Advance()
-  return nameplateFadeButton
-end
-
-local gradientBars = CreatePage("gradientBars")
-AddGradientSubTabs(gradientBars, "gradientBars")
-AddGradientPairSection(gradientBars, "power", "Power Colors", "Gradient shifts for power types.", {
-  { key = "altPower", label = "Alt Power", color = { r = 0.24, g = 0.48, b = 0.91 } },
-  { key = "focus", label = "Focus", color = { r = 0.85, g = 0.44, b = 0.20 } },
-  { key = "rage", label = "Rage", color = { r = 0.91, g = 0.18, b = 0.18 } },
-  { key = "energy", label = "Energy", color = { r = 1.00, g = 0.87, b = 0.43 } },
-  { key = "mana", label = "Mana", color = { r = 0.29, g = 0.56, b = 0.91 } },
-  { key = "runicPower", label = "Runic Power", color = { r = 0.22, g = 0.64, b = 0.98 } },
-})
-AddGradientPairSection(gradientBars, "castbar", "Castbar Colors", "Gradient shifts for cast bars.", {
-  { key = "regular", label = "Regular", color = { r = 1.00, g = 0.70, b = 0.00 } },
-  { key = "nonInterruptible", label = "Non-interruptible", color = { r = 0.56, g = 0.55, b = 0.55 } },
-})
-gradientBars.Finish()
-
-local gradientResources = CreatePage("gradientResources")
-AddGradientSubTabs(gradientResources, "gradientResources")
-AddSectionHeader(gradientResources, "Class Resources")
-AddDescription(gradientResources, "Gradient shifts for class resource bars.")
+-- Gradient: Resources
 do
-  local resourceRows = {
+  local page = CreatePage("gradientResources", "gradient")
+  local card = page.Card("Class Resources")
+  AddHint(card, "Gradient shifts for class resource bars.")
+  AddPairGroup(card, "classResources", {
     { key = "comboPoint1", label = "Combo Point 1", color = { r = 0.75, g = 0.31, b = 0.31 } },
     { key = "comboPoint2", label = "Combo Point 2", color = { r = 0.78, g = 0.56, b = 0.31 } },
     { key = "comboPoint3", label = "Combo Point 3", color = { r = 0.81, g = 0.81, b = 0.31 } },
@@ -1776,63 +2335,50 @@ do
     { key = "frostRunes", label = "Frost Runes", color = { r = 0.00, g = 0.67, b = 1.00 } },
     { key = "unholyRunes", label = "Unholy Runes", color = { r = 0.04, g = 0.85, b = 0.35 } },
     { key = "deathRunes", label = "Death Runes", color = { r = 0.64, g = 0.36, b = 1.00 } },
-  }
-  local startY = gradientResources.LocalY()
-  local rows = math.ceil(#resourceRows / 2)
-  for i = 1, #resourceRows do
-    local row = resourceRows[i]
-    local col = (i % 2 == 1) and 0 or 1
-    local rowIndex = math.floor((i - 1) / 2)
-    local x = col == 0 and 8 or CLASS_COL2_X
-    local y = startY - rowIndex * PAIR_ROW
-    AddPairRow(gradientResources, x, y, row.label, row.color, function()
-      local g = RakaMod.db and RakaMod.db.gradient
-      return g and g.classResources and g.classResources[row.key]
-    end, function()
-      local d = GradientDefaults()
-      return d and d.classResources and d.classResources[row.key]
-    end)
-  end
-  for _ = 1, rows do
-    gradientResources.Advance(PAIR_ROW)
-  end
+  }, 2)
+  card.Done()
+  page.Finish()
 end
-gradientResources.Finish()
 
-local gradientNameplates = CreatePage("gradientNameplates")
-AddGradientSubTabs(gradientNameplates, "gradientNameplates")
-AddDescription(
-  gradientNameplates,
-  "Class, NPC, and State colors are shared with unit frames. Threat and classification colors below are nameplate-specific."
-)
-AddCheck(gradientNameplates, "Enabled", "gradient", "nameplatesEnabled")
-AddNameplateFadeDirection(gradientNameplates)
-AddSectionHeader(gradientNameplates, "Threat Colors")
-AddDescription(gradientNameplates, "Used when nameplate threat coloring is enabled.")
-AddGradientPairGrid(gradientNameplates, "nameplateThreat", {
-  { key = "good", label = "Good", color = { r = 0.12, g = 0.62, b = 0.12 } },
-  { key = "bad", label = "Bad", color = { r = 1.00, g = 0.27, b = 0.27 } },
-  { key = "goodTransition", label = "Good Transition", color = { r = 1.00, g = 0.88, b = 0.30 } },
-  { key = "badTransition", label = "Bad Transition", color = { r = 1.00, g = 0.63, b = 0.30 } },
-  { key = "offTank", label = "Off Tank", color = { r = 0.84, g = 0.36, b = 0.84 } },
-  { key = "offTankGood", label = "Off Tank Good", color = { r = 0.30, g = 0.50, b = 0.88 } },
-  { key = "offTankBad", label = "Off Tank Bad", color = { r = 0.50, g = 0.30, b = 0.88 } },
-  { key = "solo", label = "Solo", color = { r = 0.29, g = 0.88, b = 0.65 } },
-})
-AddSectionHeader(gradientNameplates, "Classification Colors")
-AddDescription(gradientNameplates, "Used when nameplate classification coloring is enabled.")
-AddGradientPairGrid(gradientNameplates, "nameplateClassification", {
-  { key = "worldBoss", label = "World Boss", color = { r = 0.90, g = 0.77, b = 0.00 } },
-  { key = "rareElite", label = "Rare Elite", color = { r = 0.00, g = 0.84, b = 0.69 } },
-  { key = "rare", label = "Rare", color = { r = 0.36, g = 0.82, b = 0.10 } },
-  { key = "eliteBoss", label = "Elite Boss", color = { r = 0.90, g = 0.36, b = 0.75 } },
-  { key = "eliteMini", label = "Elite Mini", color = { r = 0.56, g = 0.36, b = 0.84 } },
-  { key = "caster", label = "Caster", color = { r = 0.10, g = 0.60, b = 0.88 } },
-})
-gradientNameplates.Finish()
+-- Gradient: Nameplates
+do
+  local page = CreatePage("gradientNameplates", "gradient")
+  local main = page.Card("Nameplates")
+  AddCheck(main, "Enabled", "gradient", "nameplatesEnabled", nil, "toggle")
+  AddDropdown(main, "Fade Direction", "gradient", "nameplateFadeDirection", { "LEFT", "RIGHT" }, "RIGHT", RefreshGradient)
+  AddHint(main, "Class, NPC, and State colors are shared with unit frames. Threat and classification colors below are nameplate-specific.")
+  main.Done()
+  local threat = page.Card("Threat Colors")
+  AddHint(threat, "Used when nameplate threat coloring is enabled.")
+  AddPairGroup(threat, "nameplateThreat", {
+    { key = "good", label = "Good", color = { r = 0.12, g = 0.62, b = 0.12 } },
+    { key = "bad", label = "Bad", color = { r = 1.00, g = 0.27, b = 0.27 } },
+    { key = "goodTransition", label = "Good Transition", color = { r = 1.00, g = 0.88, b = 0.30 } },
+    { key = "badTransition", label = "Bad Transition", color = { r = 1.00, g = 0.63, b = 0.30 } },
+    { key = "offTank", label = "Off Tank", color = { r = 0.84, g = 0.36, b = 0.84 } },
+    { key = "offTankGood", label = "Off Tank Good", color = { r = 0.30, g = 0.50, b = 0.88 } },
+    { key = "offTankBad", label = "Off Tank Bad", color = { r = 0.50, g = 0.30, b = 0.88 } },
+    { key = "solo", label = "Solo", color = { r = 0.29, g = 0.88, b = 0.65 } },
+  }, 2)
+  threat.Done()
 
-Settings:SelectPage("general")
+  local class = page.Card("Classification Colors")
+  AddHint(class, "Used when nameplate classification coloring is enabled.")
+  AddPairGroup(class, "nameplateClassification", {
+    { key = "worldBoss", label = "World Boss", color = { r = 0.90, g = 0.77, b = 0.00 } },
+    { key = "rareElite", label = "Rare Elite", color = { r = 0.00, g = 0.84, b = 0.69 } },
+    { key = "rare", label = "Rare", color = { r = 0.36, g = 0.82, b = 0.10 } },
+    { key = "eliteBoss", label = "Elite Boss", color = { r = 0.90, g = 0.36, b = 0.75 } },
+    { key = "eliteMini", label = "Elite Mini", color = { r = 0.56, g = 0.36, b = 0.84 } },
+    { key = "caster", label = "Caster", color = { r = 0.10, g = 0.60, b = 0.88 } },
+  }, 2)
+  class.Done()
+  page.Finish()
+end
 
+---------------------------------------------------------------------------
+-- Footer actions, sync, show
+---------------------------------------------------------------------------
 function Settings:SyncFromDB()
   local db = RakaMod.db
   if type(db) ~= "table" then
@@ -1854,18 +2400,70 @@ function Settings:SyncFromDB()
     end
     entry.widget:SetValue(value)
     entry.valueText:SetText(tostring(math.floor(value + 0.5)))
+    entry.updateFill(value)
   end
-  if outlineButton and db.zoneText then
-    outlineButton:SetText(db.zoneText.outline or "NONE")
-  end
-  if nameplateFadeButton and db.gradient then
-    nameplateFadeButton:SetText(db.gradient.nameplateFadeDirection or "RIGHT")
+  for i = 1, #dropdowns do
+    local entry = dropdowns[i]
+    local section = db[entry.section]
+    local value = section and section[entry.key]
+    entry.widget:SetValue(value or entry.fallback)
   end
   for i = 1, #swatches do
     swatches[i].paint()
   end
   applying = false
+  UpdateMaster()
 end
+
+function Settings:ApplyScale()
+  local saved = RakaMod.db and RakaMod.db.general
+  local percent = saved and tonumber(saved.windowScale) or 100
+  if percent < 70 then
+    percent = 70
+  elseif percent > 130 then
+    percent = 130
+  end
+  frame:SetScale(percent / 100)
+end
+
+function Settings:ResetCurrentPage()
+  local list = resets[selectedNav]
+  if type(RakaMod.db) ~= "table" or not list then
+    return
+  end
+  for i = 1, #list do
+    list[i]()
+  end
+  RakaMod.Core:RefreshModules()
+  if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
+    RakaMod.ZoneText:Apply()
+  end
+  RefreshSharedFades()
+  RefreshGradient()
+  self:ApplyScale()
+  self:SyncFromDB()
+end
+
+resetBtn:SetScript("OnClick", function()
+  if not resetArmed then
+    resetArmed = true
+    resetToken = resetToken + 1
+    local token = resetToken
+    resetBtn.label:SetText("Click to confirm")
+    if C_Timer and C_Timer.After then
+      C_Timer.After(3, function()
+        if resetToken == token and resetArmed then
+          DisarmReset()
+        end
+      end)
+    end
+    return
+  end
+  DisarmReset()
+  Settings:ResetCurrentPage()
+end)
+
+Settings:SelectPage("general")
 
 function Settings:RefreshNotes()
   if RakaMod.Core:AddonLoaded("EllesmereUIUnitFrames") then
@@ -1893,7 +2491,7 @@ local function UpdateScrollChildWidth(key)
   if not width or width <= 1 then
     local hostWidth = pageBody and pageBody:GetWidth() or contentHost:GetWidth()
     if hostWidth and hostWidth > 36 then
-      width = hostWidth - 36
+      width = hostWidth - 24
     end
   end
   if width and width > 1 then
@@ -1913,15 +2511,13 @@ function Settings:Show()
     end)
   end
   self:SyncFromDB()
-  self:SelectPage(selectedKey or "general")
+  self:ApplyScale()
+  self:SelectPage(selectedNav or "general")
   frame:Show()
   self:RefreshNotes()
-  for i = 1, #navPageKeys do
-    UpdateScrollChildWidth(navPageKeys[i])
+  for key in pairs(pages) do
+    UpdateScrollChildWidth(key)
   end
-  UpdateScrollChildWidth("gradientBars")
-  UpdateScrollChildWidth("gradientResources")
-  UpdateScrollChildWidth("gradientNameplates")
 end
 
 local function RegisterBlizzardCategory()

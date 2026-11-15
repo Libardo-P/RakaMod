@@ -4,7 +4,7 @@ local Logic = RakaMod.Logic or dofile("Logic.lua")
 RakaMod.Logic = Logic
 
 local DEFAULTS = {
-  general = { showMinimapIcon = true, hide = false, minimapPos = 210 },
+  general = { showMinimapIcon = true, hide = false, minimapPos = 210, windowScale = 100 },
   features = { fadeGrain = true, backgroundFade = 50 },
   overlay = {
     enabled = true,
@@ -25,6 +25,7 @@ local DEFAULTS = {
 }
 
 local Core = {}
+Core.DEFAULTS = DEFAULTS
 RakaMod.Core = Core
 local modules = {}
 local loginDone = false
