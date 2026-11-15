@@ -173,6 +173,21 @@ eq(joined(info.rows), "general font", "only the general font row stays visible")
 info = search("escape overlay font")
 eq(joined(info.rows), "escape overlay font", "escape overlay font option is searchable")
 
+local function labels(list)
+  local out = {}
+  for _, v in ipairs(list) do
+    if type(v) == "string" then out[#out + 1] = v end
+  end
+  return table.concat(out, ",")
+end
+
+info = search("escape overlay")
+eq(labels(info.rows), "escape overlay font", "the Escape Overlay card holds only the overlay font")
+
+info = search("fonts")
+eq(info.selectedTab, "fonts", "Fonts nav opens the Fonts tab")
+eq(labels(info.rows), "afk font,general font,escape overlay font", "AFK and General Font first, Escape Overlay Font in its own card after them")
+
 info = search("minimap")
 eq(joined(info.navs), "general", "search matches option labels")
 eq(info.selectedTab, "general", "matching option opens its tab")
