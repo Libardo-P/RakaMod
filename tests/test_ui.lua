@@ -191,6 +191,48 @@ eq(RakaMod.db.general.accent.preset, Logic.ACCENT_DEFAULT_PRESET, "Reset Page re
 eq(RakaMod.db.general.accent.mode, "preset", "Reset Page restores the accent mode")
 near(Theme.accent.r, blue.r, "Reset Page repaints the window")
 
+-- Color picker: wheel canvases are widgets, left blank, with Media art underneath ---------------
+do
+  local changes = 0
+  local target = { r = 0.2, g = 0.3, b = 0.4 }
+  RakaMod.ColorPicker.Pick(target, function()
+    changes = changes + 1
+  end)
+  local picker = RakaMod.ColorPicker.Frame()
+  local select = picker and picker.select
+  eq(select ~= nil, true, "picker builds its ColorSelect")
+  eq(picker:IsShown(), true, "picker opens")
+  for _, name in ipairs({ "ColorWheelTexture", "ColorWheelThumbTexture", "ColorValueTexture", "ColorValueThumbTexture" }) do
+    eq(type(Stub.stored(select, name)), "table", name .. " is given a Texture widget, not a path")
+  end
+  local wheel = Stub.stored(select, "ColorWheelTexture")
+  local value = Stub.stored(select, "ColorValueTexture")
+  eq(Stub.stored(wheel, "Texture"), nil, "wheel canvas stays blank for the engine")
+  eq(Stub.stored(wheel, "ColorTexture"), nil, "wheel canvas has no solid fill")
+  eq(Stub.stored(value, "Texture"), nil, "value canvas stays blank for the engine")
+  eq(Stub.stored(value, "ColorTexture"), nil, "value canvas has no solid fill")
+  eq(select.rakaValueFallback ~= nil, true, "value bar has a fallback gradient")
+  eq(Stub.stored(Stub.stored(select, "ColorWheelThumbTexture"), "Texture"), "Interface\\Buttons\\UI-ColorPicker-Buttons", "wheel thumb art")
+
+  picker:SetColorRGB(0.5, 0.25, 0.75)
+  Stub.script(select, "OnColorSelect")(select)
+  near(target.r, 0.5, "picking writes r to the bound color")
+  near(target.g, 0.25, "picking writes g to the bound color")
+  near(target.b, 0.75, "picking writes b to the bound color")
+  eq(changes > 0, true, "picking notifies the owner")
+
+  Stub.script(picker.buttons.cancel, "OnClick")(picker.buttons.cancel)
+  near(target.r, 0.2, "Cancel restores the previous color")
+  eq(picker:IsShown(), false, "Cancel closes the picker")
+
+  RakaMod.ColorPicker.Pick(target, function() end)
+  picker:SetColorRGB(0.9, 0.8, 0.7)
+  Stub.script(select, "OnColorSelect")(select)
+  Stub.script(picker.buttons.okay, "OnClick")(picker.buttons.okay)
+  near(target.r, 0.9, "Okay keeps the picked color")
+  eq(picker:IsShown(), false, "Okay closes the picker")
+end
+
 if failures > 0 then
   os.exit(1)
 end

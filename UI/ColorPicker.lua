@@ -193,65 +193,88 @@ local function ApplyFromHexField()
   SetPickerRGB(r / 255, g / 255, b / 255)
 end
 
-local function SetupColorSelectTextures(dest)
-  if dest.SetColorWheelTexture then
-    pcall(dest.SetColorWheelTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Wheel")
+-- ColorSelect setters take Texture widgets, not file paths. The wheel and value canvases must stay
+-- blank so the engine can paint the live hue wheel and brightness gradient onto them (setting a file
+-- or SetColorTexture on them blocks that). Some clients (WoW Forever) never paint them, so shipped
+-- Media art sits underneath as a visible fallback; clicks and drags are still hit-tested by ColorSelect
+-- against the canvas rectangles.
+local THUMB_PATH = "Interface\\Buttons\\UI-ColorPicker-Buttons"
+local WHEEL_SIZE = 128
+local VALUE_WIDTH = 16
+
+local function WheelArtPath()
+  if RakaMod.Media and type(RakaMod.Media.ColorWheelPath) == "string" then
+    return RakaMod.Media.ColorWheelPath
   end
-  if dest.SetColorWheelThumbTexture then
-    pcall(dest.SetColorWheelThumbTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
-  end
-  if dest.SetColorValueTexture then
-    pcall(dest.SetColorValueTexture, dest, "Interface\\Buttons\\WHITE8x8")
-  end
-  if dest.SetColorValueThumbTexture then
-    pcall(dest.SetColorValueThumbTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
-  end
-  if not ColorPickerFrame then
-    return
-  end
-  local function copy(getter, setter)
-    if not getter or not setter then
-      return
-    end
-    local ok, tex = pcall(getter, ColorPickerFrame)
-    if ok and tex then
-      pcall(setter, dest, tex)
-    end
-  end
-  copy(ColorPickerFrame.GetColorWheelTexture, dest.SetColorWheelTexture)
-  copy(ColorPickerFrame.GetColorWheelThumbTexture, dest.SetColorWheelThumbTexture)
-  copy(ColorPickerFrame.GetColorValueTexture, dest.SetColorValueTexture)
-  copy(ColorPickerFrame.GetColorValueThumbTexture, dest.SetColorValueThumbTexture)
+  return "Interface\\AddOns\\RakaMod\\Media\\colorwheel"
 end
 
-local function LayoutColorSelect(select)
-  if not select then
+-- Vertical gradient from black (bottom) to the given color (top), for the value-bar fallback.
+local function PaintGradient(tex, r, g, b)
+  tex:SetColorTexture(1, 1, 1, 1)
+  if not tex.SetGradient then
+    tex:SetColorTexture(r, g, b, 1)
     return
   end
-  local wheel = select.GetColorWheelTexture and select:GetColorWheelTexture()
-  local wheelThumb = select.GetColorWheelThumbTexture and select:GetColorWheelThumbTexture()
-  local value = select.GetColorValueTexture and select:GetColorValueTexture()
-  local valueThumb = select.GetColorValueThumbTexture and select:GetColorValueThumbTexture()
-  if wheel then
-    wheel:ClearAllPoints()
-    wheel:SetSize(128, 128)
-    wheel:SetPoint("TOPLEFT", select, "TOPLEFT", 0, 0)
+  local ok = false
+  if CreateColor then
+    ok = pcall(tex.SetGradient, tex, "VERTICAL", CreateColor(0, 0, 0, 1), CreateColor(r, g, b, 1))
   end
-  if wheelThumb then
-    wheelThumb:SetSize(10, 10)
+  if not ok then
+    ok = pcall(tex.SetGradient, tex, "VERTICAL", 0, 0, 0, r, g, b)
   end
-  if value then
-    value:ClearAllPoints()
-    value:SetSize(16, 128)
-    if wheel then
-      value:SetPoint("TOPLEFT", wheel, "TOPRIGHT", 10, 0)
-    else
-      value:SetPoint("TOPLEFT", select, "TOPLEFT", 138, 0)
-    end
+  if not ok then
+    tex:SetColorTexture(r * 0.5, g * 0.5, b * 0.5, 1)
   end
-  if valueThumb then
-    valueThumb:SetSize(16, 8)
+end
+
+-- Top of the value bar: the current hue/saturation at full brightness.
+local function UpdateValueFallback(select, r, g, b)
+  local fallback = select and select.rakaValueFallback
+  if not fallback then
+    return
   end
+  local top = math.max(r or 0, g or 0, b or 0)
+  if top <= 0 then
+    PaintGradient(fallback, 1, 1, 1)
+  else
+    PaintGradient(fallback, r / top, g / top, b / top)
+  end
+end
+
+local function SetupColorSelectTextures(select)
+  local wheelArt = select:CreateTexture(nil, "BORDER")
+  wheelArt:SetSize(WHEEL_SIZE, WHEEL_SIZE)
+  wheelArt:SetPoint("TOPLEFT", select, "TOPLEFT", 0, 0)
+  wheelArt:SetTexture(WheelArtPath())
+
+  local wheel = select:CreateTexture(nil, "ARTWORK")
+  wheel:SetSize(WHEEL_SIZE, WHEEL_SIZE)
+  wheel:SetPoint("TOPLEFT", select, "TOPLEFT", 0, 0)
+  select:SetColorWheelTexture(wheel)
+
+  local wheelThumb = select:CreateTexture(nil, "OVERLAY")
+  wheelThumb:SetSize(10, 10)
+  wheelThumb:SetTexture(THUMB_PATH)
+  wheelThumb:SetTexCoord(0, 0.15625, 0, 0.625)
+  select:SetColorWheelThumbTexture(wheelThumb)
+
+  local valueFallback = select:CreateTexture(nil, "BORDER")
+  valueFallback:SetSize(VALUE_WIDTH, WHEEL_SIZE)
+  valueFallback:SetPoint("TOPLEFT", wheel, "TOPRIGHT", 10, 0)
+  select.rakaValueFallback = valueFallback
+  PaintGradient(valueFallback, 1, 1, 1)
+
+  local value = select:CreateTexture(nil, "ARTWORK")
+  value:SetSize(VALUE_WIDTH, WHEEL_SIZE)
+  value:SetPoint("TOPLEFT", wheel, "TOPRIGHT", 10, 0)
+  select:SetColorValueTexture(value)
+
+  local valueThumb = select:CreateTexture(nil, "OVERLAY")
+  valueThumb:SetSize(VALUE_WIDTH, 8)
+  valueThumb:SetTexture(THUMB_PATH)
+  valueThumb:SetTexCoord(0.25, 1, 0, 0.875)
+  select:SetColorValueThumbTexture(valueThumb)
 end
 
 local function EnsureRakaPicker()
@@ -295,8 +318,8 @@ local function EnsureRakaPicker()
   select:SetSize(160, 128)
   select:SetPoint("TOPLEFT", 18, -40)
   SetupColorSelectTextures(select)
-  LayoutColorSelect(select)
   f.select = select
+  f.buttons = pickerButtons
 
   -- Right column: swatches → Copy|Paste → Class → Default → Hex
   local newSwatch = f:CreateTexture(nil, "ARTWORK")
@@ -420,6 +443,7 @@ local function EnsureRakaPicker()
 
   select:SetScript("OnColorSelect", function(self)
     local r, g, b = self:GetColorRGB()
+    UpdateValueFallback(self, r, g, b)
     if pickerSession and pickerSession.write then
       pickerSession.write(r, g, b)
     end
@@ -455,8 +479,6 @@ local function EnsureRakaPicker()
 
   f:SetScript("OnShow", function()
     pickerAccepted = false
-    SetupColorSelectTextures(select)
-    LayoutColorSelect(select)
     UpdatePasteButton()
     local hasDefault = pickerSession and type(pickerSession.getDefault) == "function"
     defaultBtn:SetEnabled(hasDefault and true or false)
@@ -505,4 +527,9 @@ local function PickColor(target, onChange, opts)
   f:Raise()
 end
 
-RakaMod.ColorPicker = { Pick = PickColor }
+RakaMod.ColorPicker = {
+  Pick = PickColor,
+  Frame = function()
+    return rakaPicker
+  end,
+}
