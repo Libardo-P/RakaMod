@@ -115,6 +115,27 @@ eq(Logic.AfkSuppressed(70, 70), false, "suppress expired")
 eq(Logic.AfkLayoutScale(1920, 1080), 1, "1080p baseline")
 eq(Logic.AfkLayoutScale(1280, 720), 0.7, "720p clamps to floor")
 eq(Logic.AfkLayoutScale(3840, 2160), 1.15, "4k clamps to ceiling")
+
+do
+  local seen = {}
+  local count = 0
+  for classFile in pairs(Logic.FABLED_CLASS_CELLS) do
+    local l, r, t, b = Logic.FabledClassTexCoords(classFile)
+    count = count + 1
+    eq(type(l) == "number" and l >= 0 and r <= 1 and t >= 0 and b <= 1 and l < r and t < b, true, "fabled coords in range " .. classFile)
+    local key = string.format("%.4f,%.4f", l, t)
+    eq(seen[key], nil, "fabled cell unique " .. classFile)
+    seen[key] = true
+  end
+  eq(count, 13, "fabled sheet covers all 13 classes")
+  local l, r, t, b = Logic.FabledClassTexCoords("WARRIOR")
+  eq(l, 0.125, "warrior left")
+  eq(r, 0.25, "warrior right")
+  eq(t, 0, "warrior top")
+  eq(b, 0.125, "warrior bottom")
+  eq(Logic.FabledClassTexCoords("NOPE"), nil, "unknown class has no icon")
+  eq(Logic.FabledClassTexCoords(nil), nil, "nil class has no icon")
+end
 eq(Logic.FadeShadeAlpha(50), 0.50, "shared fade mid")
 eq(Logic.FadeShadeAlpha(nil), 0.50, "shared fade nil default")
 eq(Logic.FadeShadeAlpha(0), 0, "shared fade min")

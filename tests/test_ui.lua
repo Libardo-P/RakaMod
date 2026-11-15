@@ -298,6 +298,46 @@ do
   eq(chat1.listening, true, "login request is not muted")
 end
 
+-- AFK center stack: Fabled class art, class-colored name, spec and class lines -----------
+do
+  local afk = RakaMod.AFK
+  eq(type(afk.Enter), "function", "AFK module loaded")
+  local ui = afk.ui
+  local savedUnitClass = UnitClass
+  UnitClass = function() return "Warrior", "WARRIOR", 1 end
+  local function enter(specName)
+    rawset(_G, "GetSpecialization", specName and function() return 2 end or nil)
+    rawset(_G, "GetSpecializationInfo", specName and function() return 72, specName end or nil)
+    local ok, err = pcall(afk.Enter, afk)
+    eq(ok, true, "AFK:Enter runs: " .. tostring(err))
+    return ok
+  end
+
+  if enter("Fury") then
+    eq(Stub.stored(ui.classArt, "Texture"), RakaMod.Media.FabledClassPath, "center icon uses the Fabled class sheet")
+    local l, r, t, b = Stub.stored(ui.classArt, "TexCoord")
+    near(l, 0.125, "warrior icon left")
+    near(r, 0.25, "warrior icon right")
+    near(t, 0, "warrior icon top")
+    near(b, 0.125, "warrior icon bottom")
+    eq(ui.classArt:IsShown(), true, "class art shown")
+    eq(Stub.stored(ui.nameText, "Text"), "Tester", "name line")
+    eq(Stub.stored(ui.specText, "Text"), "Fury", "spec line")
+    eq(ui.specText:IsShown(), true, "spec line shown")
+    eq(Stub.stored(ui.classText, "Text"), "Warrior", "class line")
+    afk:Leave(false)
+  end
+
+  if enter(nil) then
+    eq(ui.specText:IsShown(), false, "spec line hidden when the client has no specs")
+    eq(Stub.stored(ui.classText, "Text"), "Warrior", "class line still shown without a spec")
+    afk:Leave(false)
+  end
+  rawset(_G, "GetSpecialization", nil)
+  rawset(_G, "GetSpecializationInfo", nil)
+  UnitClass = savedUnitClass
+end
+
 if failures > 0 then
   os.exit(1)
 end

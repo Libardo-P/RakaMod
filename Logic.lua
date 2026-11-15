@@ -464,6 +464,26 @@ function Logic.ClassRgb(classFile, classColors)
   return 1, 1, 1
 end
 
+-- Media/class/fabledclass.tga: 2048x2048, 256px cells (8x8 grid), icons laid out left to right,
+-- top to bottom in rows of 5 / 4 / 4. Cell = { column, row }, both zero-based.
+Logic.FABLED_CLASS_GRID = 8
+Logic.FABLED_CLASS_CELLS = {
+  MAGE = { 0, 0 }, WARRIOR = { 1, 0 }, ROGUE = { 2, 0 }, DRUID = { 3, 0 }, EVOKER = { 4, 0 },
+  HUNTER = { 0, 1 }, SHAMAN = { 1, 1 }, PRIEST = { 2, 1 }, WARLOCK = { 3, 1 },
+  PALADIN = { 0, 2 }, DEATHKNIGHT = { 1, 2 }, MONK = { 2, 2 }, DEMONHUNTER = { 3, 2 },
+}
+
+-- Texture coordinates (left, right, top, bottom) of a class icon on the Fabled class sheet,
+-- or nil for an unknown class.
+function Logic.FabledClassTexCoords(classFile)
+  local cell = Logic.FABLED_CLASS_CELLS[classFile]
+  if type(cell) ~= "table" then
+    return nil
+  end
+  local step = 1 / Logic.FABLED_CLASS_GRID
+  return cell[1] * step, (cell[1] + 1) * step, cell[2] * step, (cell[2] + 1) * step
+end
+
 -- Settings window accent: a preset, a custom color or the player's class color.
 Logic.ACCENT_MODES = { "preset", "custom", "class" }
 Logic.ACCENT_PRESETS = {

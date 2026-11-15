@@ -9,6 +9,8 @@ RakaMod.Media = {
   ColorWheelPath = ROOT .. "colorwheel",
   IconPath = ROOT .. "icon",
   GrainPath = ROOT .. "background\\grain",
+  -- 2048x2048 sheet, 256px cells, 13 class icons (see Logic.FabledClassTexCoords).
+  FabledClassPath = ROOT .. "class\\fabledclass",
   -- Settings window text: bold condensed face (Rk Roboto Condensed).
   UIFontPath = ROOT .. "font\\Roboto Condensed.ttf",
   FontName = "Rk RakaMod",

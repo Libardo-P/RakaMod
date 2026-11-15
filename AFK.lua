@@ -29,12 +29,10 @@ local frame
 local shade
 local grain
 local model
-local logo
+local classArt
 local nameText
-local titleText
+local specText
 local timerText
-local levelText
-local classIcon
 local classText
 local changelogPanel
 local changelogPool = {}
@@ -149,18 +147,17 @@ local function ScreenSize()
 end
 
 local function ApplyLayout()
-  if not frame or not logo then
+  if not frame or not classArt then
     return
   end
   local w, h = ScreenSize()
   local s = RakaMod.Logic.AfkLayoutScale(w, h)
   local pad = math.floor(24 * s + 0.5)
-  local logoSize = math.floor(72 * s + 0.5)
-  local logoTop = math.floor(52 * s + 0.5)
-  local gapLogo = -math.floor(12 * s + 0.5)
+  local artSize = math.floor(112 * s + 0.5)
+  local artTop = math.floor(44 * s + 0.5)
+  local gapArt = -math.floor(8 * s + 0.5)
   local gapTimer = -math.floor(14 * s + 0.5)
   local gapName = -math.floor(4 * s + 0.5)
-  local classPx = math.floor(16 * s + 0.5)
   -- Changelog column: top-left, modest width so it stays left of center brand.
   local changelogW = math.min(math.floor(w * 0.24 + 0.5), math.floor(320 * s + 0.5))
   if changelogW < 200 then
@@ -177,38 +174,31 @@ local function ApplyLayout()
   local timerSize = math.max(18, math.floor(26 * s + 0.5))
   local nameSize = math.max(16, math.floor(20 * s + 0.5))
   local titleSize = math.max(12, math.floor(13 * s + 0.5))
-  local levelSize = math.max(12, math.floor(13 * s + 0.5))
   local footerPad = math.floor(10 * s + 0.5)
 
-  logo:SetSize(logoSize, logoSize)
-  logo:ClearAllPoints()
-  logo:SetPoint("TOP", frame, "TOP", 0, -logoTop)
+  classArt:SetSize(artSize, artSize)
+  classArt:ClearAllPoints()
+  classArt:SetPoint("TOP", frame, "TOP", 0, -artTop)
 
   timerText:ClearAllPoints()
-  timerText:SetPoint("TOP", logo, "BOTTOM", 0, gapLogo)
+  timerText:SetPoint("TOP", classArt, "BOTTOM", 0, gapArt)
   Paint(timerText, timerSize, TIMER_CYAN.r, TIMER_CYAN.g, TIMER_CYAN.b)
 
   nameText:ClearAllPoints()
   nameText:SetPoint("TOP", timerText, "BOTTOM", 0, gapTimer)
   EnsureFont(nameText, nameSize, "OUTLINE")
 
-  titleText:ClearAllPoints()
-  titleText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
-  Paint(titleText, titleSize, 0.85, 0.85, 0.85)
+  specText:ClearAllPoints()
+  specText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
+  Paint(specText, titleSize, 0.85, 0.85, 0.85)
 
-  classIcon:SetSize(classPx, classPx)
-  classIcon:ClearAllPoints()
-  if titleText:IsShown() then
-    classIcon:SetPoint("TOP", titleText, "BOTTOM", 0, -math.floor(12 * s + 0.5))
-  else
-    classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, -math.floor(12 * s + 0.5))
-  end
-  levelText:ClearAllPoints()
-  levelText:SetPoint("RIGHT", classIcon, "LEFT", -math.floor(4 * s + 0.5), 0)
-  Paint(levelText, levelSize, 1, 1, 1)
   classText:ClearAllPoints()
-  classText:SetPoint("LEFT", classIcon, "RIGHT", math.floor(4 * s + 0.5), 0)
-  EnsureFont(classText, levelSize, "OUTLINE")
+  if specText:IsShown() then
+    classText:SetPoint("TOP", specText, "BOTTOM", 0, gapName)
+  else
+    classText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
+  end
+  Paint(classText, titleSize, 1, 1, 1)
 
   changelogWidth = changelogW
   if changelogPanel then
@@ -283,17 +273,26 @@ local function PlayerName()
   return UnitName("player") or ""
 end
 
-local function PlayerTitle()
-  if type(GetCurrentTitle) ~= "function" or type(GetTitleName) ~= "function" then
+-- Current specialization name, or nil when the client has no specs (or the call fails).
+local function PlayerSpecName()
+  local getIndex = GetSpecialization
+  if type(getIndex) ~= "function" and type(C_SpecializationInfo) == "table" then
+    getIndex = C_SpecializationInfo.GetSpecialization
+  end
+  local getInfo = GetSpecializationInfo
+  if type(getInfo) ~= "function" and type(C_SpecializationInfo) == "table" then
+    getInfo = C_SpecializationInfo.GetSpecializationInfo
+  end
+  if type(getIndex) ~= "function" or type(getInfo) ~= "function" then
     return nil
   end
-  local ok, titleId = pcall(GetCurrentTitle)
-  if not ok or type(titleId) ~= "number" or titleId <= 0 then
+  local okIndex, index = pcall(getIndex)
+  if not okIndex or type(index) ~= "number" or index <= 0 then
     return nil
   end
-  local okName, title = pcall(GetTitleName, titleId)
-  if okName and type(title) == "string" and title ~= "" then
-    return title
+  local okInfo, _, name = pcall(getInfo, index)
+  if okInfo and type(name) == "string" and name ~= "" then
+    return name
   end
   return nil
 end
@@ -307,15 +306,16 @@ local function ClassColor(classFile)
   return RakaMod.Logic.ClassRgb(classFile, RAID_CLASS_COLORS)
 end
 
-local function ApplyClassIcon(classFile)
-  local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[classFile]
-  if type(coords) ~= "table" then
-    classIcon:Hide()
+local function ApplyClassArt(classFile)
+  local l, r, t, b = RakaMod.Logic.FabledClassTexCoords(classFile)
+  local path = RakaMod.Media and RakaMod.Media.FabledClassPath
+  if not l or not path then
+    classArt:Hide()
     return
   end
-  classIcon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CharacterCreate-Classes")
-  classIcon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-  classIcon:Show()
+  classArt:SetTexture(path)
+  classArt:SetTexCoord(l, r, t, b)
+  classArt:Show()
 end
 
 local function EllesmerePatches()
@@ -714,39 +714,23 @@ function AFK:Enter()
     pcall(frame.SetPropagateKeyboardInput, frame, false)
   end
 
-  ApplyLayout()
-
   local localized, classFile = ClassInfo()
   local cr, cg, cb = ClassColor(classFile)
   nameText:SetText(PlayerName())
   nameText:SetTextColor(cr, cg, cb, 1)
 
-  local sw, sh = ScreenSize()
-  local s = RakaMod.Logic.AfkLayoutScale(sw, sh)
-  local gapClass = -math.floor(12 * s + 0.5)
-
-  local title = PlayerTitle()
-  if title then
-    titleText:SetText(title)
-    titleText:Show()
-    classIcon:ClearAllPoints()
-    classIcon:SetPoint("TOP", titleText, "BOTTOM", 0, gapClass)
+  local spec = PlayerSpecName()
+  if spec then
+    specText:SetText(spec)
+    specText:Show()
   else
-    titleText:SetText("")
-    titleText:Hide()
-    classIcon:ClearAllPoints()
-    classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, gapClass)
+    specText:SetText("")
+    specText:Hide()
   end
-
-  levelText:SetText("Lv " .. tostring(UnitLevel("player") or "?"))
   classText:SetText(localized)
   classText:SetTextColor(cr, cg, cb, 1)
-  ApplyClassIcon(classFile)
-
-  local iconPath = RakaMod.Media and RakaMod.Media.IconPath
-  if iconPath then
-    logo:SetTexture(iconPath)
-  end
+  ApplyClassArt(classFile)
+  ApplyLayout()
 
   timerText:SetText(RakaMod.Logic.FormatClock(0))
   ApplyShade()
@@ -909,14 +893,9 @@ frame:SetScript("OnMouseDown", function()
   end
 end)
 
-logo = frame:CreateTexture(nil, "ARTWORK")
-logo:SetPoint("TOP", frame, "TOP", 0, -52)
-do
-  local path = RakaMod.Media and RakaMod.Media.IconPath
-  if path then
-    logo:SetTexture(path)
-  end
-end
+classArt = frame:CreateTexture(nil, "ARTWORK")
+classArt:SetPoint("TOP", frame, "TOP", 0, -44)
+classArt:Hide()
 
 timerText = frame:CreateFontString(nil, "OVERLAY")
 timerText:SetJustifyH("CENTER")
@@ -926,21 +905,17 @@ nameText = frame:CreateFontString(nil, "OVERLAY")
 nameText:SetJustifyH("CENTER")
 EnsureFont(nameText, 20, "OUTLINE")
 
-titleText = frame:CreateFontString(nil, "OVERLAY")
-titleText:SetJustifyH("CENTER")
-EnsureFont(titleText, 13, "OUTLINE")
-titleText:Hide()
-
-classIcon = frame:CreateTexture(nil, "ARTWORK")
-classIcon:Hide()
-
-levelText = frame:CreateFontString(nil, "OVERLAY")
-levelText:SetJustifyH("RIGHT")
-EnsureFont(levelText, 13, "OUTLINE")
+specText = frame:CreateFontString(nil, "OVERLAY")
+specText:SetJustifyH("CENTER")
+EnsureFont(specText, 13, "OUTLINE")
+specText:Hide()
 
 classText = frame:CreateFontString(nil, "OVERLAY")
-classText:SetJustifyH("LEFT")
+classText:SetJustifyH("CENTER")
 EnsureFont(classText, 13, "OUTLINE")
+
+-- Center stack widgets, exposed for tests.
+AFK.ui = { classArt = classArt, timerText = timerText, nameText = nameText, specText = specText, classText = classText }
 
 changelogPanel = CreateFrame("Frame", nil, frame)
 changelogPanel:SetSize(300, 200)
