@@ -1,3 +1,7 @@
 RakaMod
 Copyright (c) 2026 Raka
 All rights reserved.
+
+Third-party assets bundled in Media/ and libraries bundled in Libs/ remain the property of
+their respective authors and are covered by their own licences. See Media/CREDITS.md for the
+list of authors and licences (some are marked Unknown) and Media/licenses/ for licence texts.
