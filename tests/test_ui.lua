@@ -278,6 +278,24 @@ do
   timers[#timers]()
   eq(chat1.listening, true, "timer restores when no reply arrives")
   eq(chat3.listening, true, "timer restores frame 3 when no reply arrives")
+
+  -- Login grace: another addon's reply suppresses our own request, silence requests once.
+  now = now + 1000
+  timers = {}
+  requests = 0
+  Stub.fire(env, fail, "PLAYER_LOGIN")
+  eq(requests, 0, "login waits for a reply before asking")
+  eq(#timers, 1, "login schedules one grace check")
+  Stub.fire(env, fail, "TIME_PLAYED_MSG", 100, 50)
+  timers[1]()
+  eq(requests, 0, "no second request when someone else already asked")
+
+  now = now + 1000
+  timers = {}
+  Stub.fire(env, fail, "PLAYER_LOGIN")
+  timers[1]()
+  eq(requests, 1, "login asks once when nobody replied")
+  eq(chat1.listening, true, "login request is not muted")
 end
 
 if failures > 0 then

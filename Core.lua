@@ -110,7 +110,9 @@ frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
 
 local PLAYED_MUTE_MAX_SECONDS = 10
+local PLAYED_LOGIN_GRACE_SECONDS = 3
 local playedMuted = nil
+local playedSeen = false
 
 -- Hands TIME_PLAYED_MSG back to every chat frame we took it from. Safe to call twice.
 local function RestorePlayedChat()
@@ -119,7 +121,6 @@ local function RestorePlayedChat()
     return
   end
   playedMuted = nil
-  frame:UnregisterEvent("TIME_PLAYED_MSG")
   for i = 1, #chats do
     pcall(chats[i].RegisterEvent, chats[i], "TIME_PLAYED_MSG")
   end
@@ -146,7 +147,6 @@ local function MutePlayedChat()
     return
   end
   playedMuted = chats
-  frame:RegisterEvent("TIME_PLAYED_MSG")
   C_Timer.After(PLAYED_MUTE_MAX_SECONDS, RestorePlayedChat)
 end
 
@@ -189,8 +189,21 @@ frame:SetScript("OnEvent", function(_, event, name)
     RakaMod.playedThisSession = false
     loginDone = true
     Core:RefreshModules()
-    Core:RequestPlayed(false)
+    playedSeen = false
+    frame:RegisterEvent("TIME_PLAYED_MSG")
+    -- Other addons (and the client) often ask for /played at login. If a reply shows up
+    -- during the grace period we do not ask again, otherwise chat prints the lines twice.
+    if C_Timer and C_Timer.After then
+      C_Timer.After(PLAYED_LOGIN_GRACE_SECONDS, function()
+        if not playedSeen then
+          Core:RequestPlayed(false)
+        end
+      end)
+    else
+      Core:RequestPlayed(false)
+    end
   elseif event == "TIME_PLAYED_MSG" then
+    playedSeen = true
     RestorePlayedChat()
   end
 end)
