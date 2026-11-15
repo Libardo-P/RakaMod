@@ -1248,14 +1248,11 @@ end
 do
   local page = CreatePage("fonts", "fonts")
   local choices = RakaMod.Media.FontChoices()
-  local afk = page.Card("AFK Mode", 1)
-  AddDropdown(afk, "AFK Font", "fonts", "afk", choices, RakaMod.Logic.DEFAULT_AFK_FONT, RefreshAfk, 200)
-  AddHint(afk, "Name, timer, identity line, changelog and footer in AFK mode. Applies the next time AFK mode starts.")
-  afk.Done()
-  local ui = page.Card("Settings Window", 2)
-  AddDropdown(ui, "App Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 200)
-  AddHint(ui, "Text of this settings window. Applied immediately.")
-  ui.Done()
+  local card = page.Card("Fonts")
+  AddDropdown(card, "AFK Font", "fonts", "afk", choices, RakaMod.Logic.DEFAULT_AFK_FONT, RefreshAfk, 220)
+  AddDropdown(card, "App Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 220)
+  AddHint(card, "AFK Font styles the name, timer, identity line, changelog and footer in AFK mode and applies the next time AFK starts. App Font styles this window and applies immediately.")
+  card.Done()
   page.Finish()
 end
 

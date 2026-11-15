@@ -99,6 +99,19 @@ def pin():
     return finish(img, "zonetext")
 
 
+def fonts():
+    img, d = canvas()
+    # Large "A" with a crossbar and a small single-story "a" beside it.
+    d.line([(p(8), p(54)), (p(22), p(10))], fill=W, width=p(8))
+    d.line([(p(22), p(10)), (p(36), p(54))], fill=W, width=p(8))
+    for cx, cy in ((8, 54), (36, 54), (22, 10)):
+        d.ellipse([p(cx - 4), p(cy - 4), p(cx + 4), p(cy + 4)], fill=W)
+    d.rectangle([p(14), p(38), p(30), p(44)], fill=W)
+    d.ellipse([p(38), p(34), p(58), p(54)], outline=W, width=p(5))
+    d.rectangle([p(53), p(34), p(58), p(54)], fill=W)
+    return finish(img, "fonts")
+
+
 def gradient():
     img, d = canvas()
     d.rounded_rectangle([p(4), p(14), p(60), p(50)], radius=p(5), outline=W, width=p(4))
@@ -112,5 +125,5 @@ def gradient():
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    for fn in (gear, sparkle, panel, moon, unit_frame, pin, gradient):
+    for fn in (gear, sparkle, panel, moon, unit_frame, pin, fonts, gradient):
         print(fn())
