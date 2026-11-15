@@ -300,6 +300,8 @@ function Shell.Create()
   tabRow:SetPoint("TOPLEFT", content, "TOPLEFT", Shell.BODY_MARGIN, -Shell.HEADER_HEIGHT)
   tabRow:SetPoint("TOPRIGHT", content, "TOPRIGHT", -Shell.BODY_MARGIN, -Shell.HEADER_HEIGHT)
   tabRow:SetHeight(Shell.TAB_HEIGHT)
+  -- Above the body so the selected tab overlaps its top border.
+  tabRow:SetFrameLevel((content:GetFrameLevel() or 1) + 6)
   shell.tabRow = tabRow
 
   local toolbar = CreateFrame("Frame", nil, tabRow)
@@ -311,7 +313,6 @@ function Shell.Create()
   body:SetPoint("TOPLEFT", tabRow, "BOTTOMLEFT", 0, 1)
   body:SetPoint("BOTTOMRIGHT", footer, "TOPRIGHT", -Shell.BODY_MARGIN, 12)
   Theme.Panel(body, C.BODY, C.BORDER)
-  body:SetFrameLevel((tabRow:GetFrameLevel() or 1) - 1)
   shell.body = body
 
   local desc = Theme.Text(body, 14, C.MUTED)

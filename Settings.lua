@@ -532,17 +532,22 @@ local function CreatePage(pageKey, navKey)
         box:Hide()
       else
         anyShown = true
+        -- While filtering, half-width groups fill the shorter column so a lone match sits at the left.
+        local col = card.col
+        if filtering and col then
+          col = (colY[1] >= colY[2]) and 1 or 2
+        end
         local top
-        if card.col == 1 or card.col == 2 then
-          top = colY[card.col]
+        if col == 1 or col == 2 then
+          top = colY[col]
         else
           top = math.min(colY[1], colY[2])
         end
         box:ClearAllPoints()
-        if card.col == 1 then
+        if col == 1 then
           box:SetPoint("TOPLEFT", content, "TOPLEFT", 0, top)
           box:SetPoint("TOPRIGHT", content, "TOP", -CARD_GAP / 2, top)
-        elseif card.col == 2 then
+        elseif col == 2 then
           box:SetPoint("TOPLEFT", content, "TOP", CARD_GAP / 2, top)
           box:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, top)
         else
@@ -582,8 +587,8 @@ local function CreatePage(pageKey, navKey)
         box:SetHeight(height)
         box:Show()
         local nextTop = top - height - CARD_GAP
-        if card.col == 1 or card.col == 2 then
-          colY[card.col] = nextTop
+        if col == 1 or col == 2 then
+          colY[col] = nextTop
         else
           colY[1] = nextTop
           colY[2] = nextTop

@@ -9,7 +9,18 @@ Companion addon for [EllesmereUI](https://www.curseforge.com/wow/addons/ellesmer
 - Zone text styling
 - Full-screen AFK mode with the latest EllesmereUI changelog, class-coloured character info, model animation and a whisper log
 - Per-class, NPC and unit-state health bar gradients on Ellesmere unit, raid and nameplate frames
-- Settings window (`/rakamod`, `/rmod` or `/rm`), minimap icon and an entry under Esc > Options > AddOns
+- ElvUI-style settings window (`/rakamod`, `/rmod` or `/rm`), minimap icon and an entry under Esc > Options > AddOns
+
+## Settings window
+
+The settings window (v0.6.0) follows an ElvUI-config layout: a sidebar with the RakaMod crest, a search box and icon navigation; a header with the title, version and close button; a tab row above a bordered body with titled option groups in two columns; and a footer with **Apply & Reload UI**.
+
+- **Search** (top of the sidebar) filters the page list and the options on the open page by label, group title, page and tab name. It jumps to the first page or tab that matches; clear it to see everything again.
+- **Accent color**: General > Colors. Pick a preset (gold, blue, green, red, purple, cyan, white), a custom color through the color picker, or your class color (follows the current character and spec). The whole window recolors immediately, no reload. The default is blue.
+- Pages with a master switch show **Enabled** in the toolbar next to the tabs, together with **Reset Page** (click twice to confirm). Pages without a nav icon show text only.
+- Text uses the bundled `Rk Roboto Condensed` font; nav icons are `Media/ui/nav-*.tga` (regenerate with `python3 tools/make_nav_icons.py`).
+
+Layout lives in `UI/` (`Theme.lua` palette, fonts and accent, `Widgets.lua` controls, `Shell.lua` window chrome, `ColorPicker.lua`); `Settings.lua` holds the pages and option bindings. Setting keys are unchanged; the only new key is `general.accent`.
 
 ## Install
 
@@ -34,11 +45,13 @@ Authors and licences for every asset are listed in [`Media/CREDITS.md`](Media/CR
 ## Development
 
 ```
-lua tests/run.lua        # logic, gradient and load smoke tests (Lua 5.1 and 5.4)
+lua tests/run.lua        # logic, gradient, load smoke and settings UI tests (Lua 5.1 and 5.4)
 luacheck .               # lint, WoW globals declared in .luacheckrc
 ```
 
 `tests/smoke_load.lua` loads every file in TOC order against a stubbed WoW API, checks for load errors and stray globals, verifies that every registered media file exists with an `Rk ` name, and checks that the Esc > Options category registers. CI (`.github/workflows/ci.yml`) runs the tests on Lua 5.1 and 5.4 and luacheck on every push and pull request.
+
+`tests/test_ui.lua` drives the settings window through a stateful WoW stub (`tests/wowstub.lua`): accent switching and live repaint, search filtering, Apply & Reload UI, close and the ways of opening the window.
 
 Design notes and plans are in `docs/superpowers/`. The original v1 design carries a status banner listing where it has been superseded.
 

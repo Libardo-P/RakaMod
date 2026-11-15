@@ -1,6 +1,6 @@
 # Settings window: ConfUI-style restyle (v2)
 
-Status: Implemented, pending in-game visual review.
+Status: Superseded in v0.6.0 by the ElvUI-style layout (README, "Settings window"): blue-only accent became a selectable accent, the sidebar category headers and page title were dropped, and Reset Page moved from the footer to the toolbar. Controls, tabs and setting keys below still apply.
 
 ## Scope
 
