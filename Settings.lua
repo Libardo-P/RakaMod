@@ -35,6 +35,7 @@ local gradientNote
 local tabButtons = {}
 
 local shell = Shell.Create()
+Settings.shell = shell
 local frame = shell.frame
 local pageHost = shell.pageHost
 
@@ -248,6 +249,7 @@ end)
 local toolbar = shell.toolbar
 local RESET_TEXT = "Reset Page"
 local resetBtn = Widgets.Button(toolbar, RESET_TEXT, 112, 26)
+shell.resetButton = resetBtn
 resetBtn:SetPoint("RIGHT", toolbar, "RIGHT", 0, 0)
 local resetToken = 0
 local resetArmed = false
@@ -509,6 +511,7 @@ local function CreatePage(pageKey, navKey)
       end
     end
     local filtering = query ~= ""
+    ctx.visibleRows = {}
     local showAll = not filtering or Contains(labels, query)
     local colY = { 0, 0 }
     local anyShown = false
@@ -571,6 +574,9 @@ local function CreatePage(pageKey, navKey)
             y = y - row.height
           end
           row:Show()
+          if row.search then
+            ctx.visibleRows[#ctx.visibleRows + 1] = row.search
+          end
         end
         local height = (-y) + 14
         box:SetHeight(height)
@@ -1367,6 +1373,26 @@ end
 ---------------------------------------------------------------------------
 -- Reset, sync, show
 ---------------------------------------------------------------------------
+-- Read-only snapshot of navigation and search state (used by tests/test_ui.lua).
+function Settings.Inspect()
+  local info = { selectedNav = selectedNav, selectedTab = selectedTab, query = query, navs = {}, rows = {}, tabs = {} }
+  for i = 1, #NAV do
+    if navs[NAV[i].key].button:IsShown() then
+      info.navs[#info.navs + 1] = NAV[i].key
+    end
+  end
+  local entry = pages[selectedTab]
+  if entry and entry.ctx and entry.ctx.visibleRows then
+    for i = 1, #entry.ctx.visibleRows do
+      info.rows[i] = entry.ctx.visibleRows[i]
+    end
+  end
+  for i = 1, #navs[selectedNav].tabs do
+    info.tabs[i] = navs[selectedNav].tabs[i].key
+  end
+  return info
+end
+
 function Settings:SyncFromDB()
   local db = RakaMod.db
   if type(db) ~= "table" then
