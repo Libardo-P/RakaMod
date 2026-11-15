@@ -129,14 +129,19 @@ local NAV = {
     icon = ICON_DIR .. "INV_Misc_Gem_Sapphire_01",
     -- Master switch shown in the page header, above every tab of this page.
     master = { section = "gradient", key = "enabled", label = "Enabled" },
-    tabs = {
-      { key = "gradient", label = "Health" },
-      { key = "gradientBars", label = "Bars" },
-      { key = "gradientResources", label = "Resources" },
-      { key = "gradientNameplates", label = "Nameplates" },
-    },
+    tabs = { { key = "gradient", label = "Health" } },
   },
 }
+
+-- Bars, Resources and Nameplates store colors, but Gradient.lua does not paint them yet.
+-- Keep them hidden until it does, then flip this flag.
+local SHOW_UNPAINTED_GRADIENT_TABS = false
+if SHOW_UNPAINTED_GRADIENT_TABS then
+  local gradientTabs = NAV[#NAV].tabs
+  gradientTabs[#gradientTabs + 1] = { key = "gradientBars", label = "Bars" }
+  gradientTabs[#gradientTabs + 1] = { key = "gradientResources", label = "Resources" }
+  gradientTabs[#gradientTabs + 1] = { key = "gradientNameplates", label = "Nameplates" }
+end
 
 local function ApplyPanel(target, color, border, borderAlpha)
   if not target.SetBackdrop then
@@ -2273,14 +2278,13 @@ do
     { key = "dead", label = "Dead", color = stateColor },
     { key = "offline", label = "Offline", color = stateColor },
     { key = "tapped", label = "Tapped", color = stateColor },
-    { key = "disconnected", label = "Disconnected", color = stateColor },
   })
   states.Done()
   page.Finish()
 end
 
 -- Gradient: Bars
-do
+if SHOW_UNPAINTED_GRADIENT_TABS then
   local page = CreatePage("gradientBars", "gradient")
   local power = page.Card("Power Colors", 1)
   AddHint(power, "Gradient shifts for power types.")
@@ -2304,7 +2308,7 @@ do
 end
 
 -- Gradient: Resources
-do
+if SHOW_UNPAINTED_GRADIENT_TABS then
   local page = CreatePage("gradientResources", "gradient")
   local card = page.Card("Class Resources")
   AddHint(card, "Gradient shifts for class resource bars.")
@@ -2328,10 +2332,9 @@ do
 end
 
 -- Gradient: Nameplates
-do
+if SHOW_UNPAINTED_GRADIENT_TABS then
   local page = CreatePage("gradientNameplates", "gradient")
   local main = page.Card("Nameplates")
-  AddCheck(main, "Enabled", "gradient", "nameplatesEnabled", nil, "toggle")
   AddDropdown(main, "Fade Direction", "gradient", "nameplateFadeDirection", { "LEFT", "RIGHT" }, "RIGHT", RefreshGradient)
   AddHint(main, "Class, NPC, and State colors are shared with unit frames. Threat and classification colors below are nameplate-specific.")
   main.Done()
