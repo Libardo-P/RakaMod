@@ -407,7 +407,6 @@ local function ApplyFromHexField()
 end
 
 local function SetupColorSelectTextures(dest)
-  -- Standard Blizzard color-picker art (works on Forever + retail).
   if dest.SetColorWheelTexture then
     pcall(dest.SetColorWheelTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Wheel")
   end
@@ -415,37 +414,56 @@ local function SetupColorSelectTextures(dest)
     pcall(dest.SetColorWheelThumbTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
   end
   if dest.SetColorValueTexture then
-    pcall(dest.SetColorValueTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
+    pcall(dest.SetColorValueTexture, dest, "Interface\\Buttons\\WHITE8x8")
   end
   if dest.SetColorValueThumbTexture then
     pcall(dest.SetColorValueThumbTexture, dest, "Interface\\Buttons\\UI-ColorPicker-Buttons")
   end
-  -- Prefer live textures from ColorPickerFrame when available.
-  if ColorPickerFrame then
-    if dest.SetColorWheelTexture and ColorPickerFrame.GetColorWheelTexture then
-      local ok, tex = pcall(ColorPickerFrame.GetColorWheelTexture, ColorPickerFrame)
-      if ok and tex then
-        pcall(dest.SetColorWheelTexture, dest, tex)
-      end
+  if not ColorPickerFrame then
+    return
+  end
+  local function copy(getter, setter)
+    if not getter or not setter then
+      return
     end
-    if dest.SetColorWheelThumbTexture and ColorPickerFrame.GetColorWheelThumbTexture then
-      local ok, tex = pcall(ColorPickerFrame.GetColorWheelThumbTexture, ColorPickerFrame)
-      if ok and tex then
-        pcall(dest.SetColorWheelThumbTexture, dest, tex)
-      end
+    local ok, tex = pcall(getter, ColorPickerFrame)
+    if ok and tex then
+      pcall(setter, dest, tex)
     end
-    if dest.SetColorValueTexture and ColorPickerFrame.GetColorValueTexture then
-      local ok, tex = pcall(ColorPickerFrame.GetColorValueTexture, ColorPickerFrame)
-      if ok and tex then
-        pcall(dest.SetColorValueTexture, dest, tex)
-      end
+  end
+  copy(ColorPickerFrame.GetColorWheelTexture, dest.SetColorWheelTexture)
+  copy(ColorPickerFrame.GetColorWheelThumbTexture, dest.SetColorWheelThumbTexture)
+  copy(ColorPickerFrame.GetColorValueTexture, dest.SetColorValueTexture)
+  copy(ColorPickerFrame.GetColorValueThumbTexture, dest.SetColorValueThumbTexture)
+end
+
+local function LayoutColorSelect(select)
+  if not select then
+    return
+  end
+  local wheel = select.GetColorWheelTexture and select:GetColorWheelTexture()
+  local wheelThumb = select.GetColorWheelThumbTexture and select:GetColorWheelThumbTexture()
+  local value = select.GetColorValueTexture and select:GetColorValueTexture()
+  local valueThumb = select.GetColorValueThumbTexture and select:GetColorValueThumbTexture()
+  if wheel then
+    wheel:ClearAllPoints()
+    wheel:SetSize(128, 128)
+    wheel:SetPoint("TOPLEFT", select, "TOPLEFT", 0, 0)
+  end
+  if wheelThumb then
+    wheelThumb:SetSize(10, 10)
+  end
+  if value then
+    value:ClearAllPoints()
+    value:SetSize(16, 128)
+    if wheel then
+      value:SetPoint("TOPLEFT", wheel, "TOPRIGHT", 10, 0)
+    else
+      value:SetPoint("TOPLEFT", select, "TOPLEFT", 138, 0)
     end
-    if dest.SetColorValueThumbTexture and ColorPickerFrame.GetColorValueThumbTexture then
-      local ok, tex = pcall(ColorPickerFrame.GetColorValueThumbTexture, ColorPickerFrame)
-      if ok and tex then
-        pcall(dest.SetColorValueThumbTexture, dest, tex)
-      end
-    end
+  end
+  if valueThumb then
+    valueThumb:SetSize(16, 8)
   end
 end
 
@@ -454,13 +472,9 @@ local function EnsureRakaPicker()
     return rakaPicker
   end
 
-  -- Exact Toxi-style layout from the print:
-  -- Title
-  -- Wheel + value (left) | swatches, Copy/Paste, Class, Default, Hex (right)
-  -- R G B horizontal under wheel
-  -- Okay | Cancel
-  local f = CreateFrame("ColorSelect", "RakaModColorPicker", UIParent, template)
-  f:SetSize(360, 340)
+  -- Shell frame (Toxi print) + nested ColorSelect for wheel/value only.
+  local f = CreateFrame("Frame", "RakaModColorPicker", UIParent, template)
+  f:SetSize(360, 320)
   f:SetPoint("CENTER")
   f:SetFrameStrata("FULLSCREEN_DIALOG")
   f:SetToplevel(true)
@@ -481,43 +495,46 @@ local function EnsureRakaPicker()
       edgeSize = 1,
       insets = { left = 1, right = 1, top = 1, bottom = 1 },
     })
-    f:SetBackdropColor(0.14, 0.14, 0.16, 1)
+    f:SetBackdropColor(0.12, 0.12, 0.14, 1)
     f:SetBackdropBorderColor(0.05, 0.05, 0.05, 1)
   end
 
   local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  title:SetPoint("TOP", 0, -12)
+  title:SetPoint("TOP", 0, -10)
   title:SetText("Color Picker")
   title:SetTextColor(ORANGE.r, ORANGE.g, ORANGE.b)
 
-  SetupColorSelectTextures(f)
+  local select = CreateFrame("ColorSelect", "RakaModColorSelect", f)
+  select:SetSize(160, 128)
+  select:SetPoint("TOPLEFT", 18, -40)
+  SetupColorSelectTextures(select)
+  LayoutColorSelect(select)
+  f.select = select
 
-  -- Right column
-  local colX = -18
+  -- Right column: swatches → Copy|Paste → Class → Default → Hex
   local newSwatch = f:CreateTexture(nil, "ARTWORK")
-  newSwatch:SetSize(72, 18)
-  newSwatch:SetPoint("TOPRIGHT", colX, -42)
+  newSwatch:SetSize(90, 18)
+  newSwatch:SetPoint("TOPRIGHT", -18, -40)
   newSwatch:SetColorTexture(1, 1, 1, 1)
   local oldSwatch = f:CreateTexture(nil, "ARTWORK")
-  oldSwatch:SetSize(72, 18)
+  oldSwatch:SetSize(90, 18)
   oldSwatch:SetPoint("TOPRIGHT", newSwatch, "BOTTOMRIGHT", 0, -2)
   oldSwatch:SetColorTexture(1, 1, 1, 1)
   pickerFields.newSwatch = newSwatch
   pickerFields.oldSwatch = oldSwatch
 
-  -- Column width 146 under the swatches (Copy|Paste, Class, Default, Hex)
   local copy = MakePickerButton(f, "Copy", 70, 24)
-  copy:SetPoint("TOPRIGHT", f, "TOPRIGHT", -94, -92)
+  copy:SetPoint("TOPRIGHT", -94, -86)
   local paste = MakePickerButton(f, "Paste", 70, 24)
-  paste:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -92)
+  paste:SetPoint("TOPRIGHT", -18, -86)
 
   local classBtn = MakePickerButton(f, "Class", 146, 24)
-  classBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -122)
+  classBtn:SetPoint("TOPRIGHT", -18, -116)
   local defaultBtn = MakePickerButton(f, "Default", 146, 24)
-  defaultBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -152)
+  defaultBtn:SetPoint("TOPRIGHT", -18, -146)
 
-  local hex = MakeRgbBox(f, 146, 6, false)
-  hex:SetPoint("TOPRIGHT", f, "TOPRIGHT", -18, -184)
+  local hex = MakeRgbBox(f, 146, 7, false)
+  hex:SetPoint("TOPRIGHT", -18, -178)
   local hexHash = hex:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   hexHash:SetPoint("LEFT", 6, 0)
   hexHash:SetText("#")
@@ -527,7 +544,7 @@ local function EnsureRakaPicker()
 
   -- RGB under wheel, one horizontal row
   local rLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  rLabel:SetPoint("BOTTOMLEFT", 28, 56)
+  rLabel:SetPoint("TOPLEFT", select, "BOTTOMLEFT", 0, -14)
   rLabel:SetText("R")
   rLabel:SetTextColor(1, 1, 1)
   local rBox = MakeRgbBox(f, 40, 3, true)
@@ -548,9 +565,9 @@ local function EnsureRakaPicker()
   bBox:SetPoint("LEFT", bLabel, "RIGHT", 4, 0)
 
   local okay = MakePickerButton(f, "Okay", 150, 28)
-  okay:SetPoint("BOTTOMLEFT", 24, 16)
+  okay:SetPoint("BOTTOMLEFT", 18, 14)
   local cancel = MakePickerButton(f, "Cancel", 150, 28)
-  cancel:SetPoint("BOTTOMRIGHT", -24, 16)
+  cancel:SetPoint("BOTTOMRIGHT", -18, 14)
 
   pickerButtons.copy = copy
   pickerButtons.paste = paste
@@ -563,8 +580,12 @@ local function EnsureRakaPicker()
   pickerFields.g = gBox
   pickerFields.b = bBox
 
+  local function ReadSelectRGB()
+    return select:GetColorRGB()
+  end
+
   copy:SetScript("OnClick", function()
-    local r, g, b = f:GetColorRGB()
+    local r, g, b = ReadSelectRGB()
     colorClipboard = { r = r, g = g, b = b }
     UpdatePasteButton()
   end)
@@ -610,7 +631,7 @@ local function EnsureRakaPicker()
     end
   end)
 
-  f:SetScript("OnColorSelect", function(self)
+  select:SetScript("OnColorSelect", function(self)
     local r, g, b = self:GetColorRGB()
     if pickerSession and pickerSession.write then
       pickerSession.write(r, g, b)
@@ -619,7 +640,7 @@ local function EnsureRakaPicker()
   end)
 
   okay:SetScript("OnClick", function()
-    local r, g, b = f:GetColorRGB()
+    local r, g, b = ReadSelectRGB()
     if pickerSession and pickerSession.write then
       pickerSession.write(r, g, b)
     end
@@ -636,7 +657,8 @@ local function EnsureRakaPicker()
   end)
 
   f:SetScript("OnShow", function()
-    SetupColorSelectTextures(f)
+    SetupColorSelectTextures(select)
+    LayoutColorSelect(select)
     UpdatePasteButton()
     local hasDefault = pickerSession and type(pickerSession.getDefault) == "function"
     defaultBtn:SetEnabled(hasDefault and true or false)
@@ -648,6 +670,14 @@ local function EnsureRakaPicker()
       defaultBtn.label:SetTextColor(0.55, 0.55, 0.55)
     end
   end)
+
+  -- API shims used by SetPickerRGB / PickColor
+  function f:GetColorRGB()
+    return select:GetColorRGB()
+  end
+  function f:SetColorRGB(r, g, b)
+    select:SetColorRGB(r, g, b)
+  end
 
   rakaPicker = f
   return f
