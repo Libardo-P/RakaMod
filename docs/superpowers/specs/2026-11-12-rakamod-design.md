@@ -1,5 +1,13 @@
 # RakaMod design
 
+> **Status (updated for 0.5.0): this is the original v1 design and is partly superseded.**
+> - Version is read from `RakaMod.toc` (the `0.1.0` below is historical).
+> - The Reveal `healthPercent` threshold is gone. Reveal now triggers on "Health above 100%" (health plus absorbs over max).
+> - The two-color health gradient became per-class, NPC-reaction and unit-state gradient pairs (see the gradient-by-class spec). Power, castbar, resource and nameplate gradients are stored but not painted yet; their settings tabs are hidden.
+> - AFK mode loops a dance animation, shows the EllesmereUI changelog (with a LATEST badge) and dismisses on key press or click only (no mouse-move dismissal, no guild line, no Tips column).
+> - The media pack is now bundled and self-registered under `Rk ` names; see `Media/CREDITS.md`. The "no third-party fonts or art" line below no longer holds.
+> - LibStub, CallbackHandler, LibDataBroker, LibDBIcon and LibSharedMedia are vendored under `Libs/`.
+
 Date: 2026-11-12
 
 RakaMod is an original companion addon for EllesmereUI. It runs from one folder on World of Warcraft retail and WoW Forever. KryoMOD and ToxiUI are references for behavior only. None of their code, fonts, or art is copied.

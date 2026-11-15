@@ -1,7 +1,7 @@
 # Gradient Bars Tab Design
 
 **Date:** 2026-11-14  
-**Status:** Draft for review  
+**Status:** Settings and defaults implemented; the Bars, Resources and Nameplates tabs are hidden in the UI (`SHOW_UNPAINTED_GRADIENT_TABS` in `Settings.lua`) until painting exists  
 **Depends on:** Per-class gradient mode (`2026-11-13-gradient-by-class-design.md`)
 
 ## Goal

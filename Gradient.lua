@@ -202,14 +202,14 @@ function Gradient:Hook(bar, unitHint)
     end
   end
   hooked[#hooked + 1] = bar
-  hooksecurefunc(bar, "SetStatusBarColor", function(self, r, g, b, a)
-    local st = barState[self]
+  hooksecurefunc(bar, "SetStatusBarColor", function(hookedBar, r, g, b, a)
+    local st = barState[hookedBar]
     if not st then
       return
     end
     st.lastColor = { r, g, b, a }
     if active then
-      RakaMod.Gradient:Paint(self)
+      RakaMod.Gradient:Paint(hookedBar)
     end
   end)
 end

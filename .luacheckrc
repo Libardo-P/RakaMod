@@ -1,6 +1,8 @@
 std = "lua51"
 max_line_length = false
 codes = true
+-- Unused arguments are normal in WoW script/event callbacks.
+ignore = { "212" }
 exclude_files = { "Libs/**" }
 
 -- WoW API surface used by the addon is declared as read globals by name.
@@ -46,4 +48,9 @@ read_globals = {
   "HideUIPanel", "GetTotalAchievementPoints", "EllesmereUIUnitFrames_Player", "EllesmereUIUnitFrames_Pet",
   "canaccessvalue", "UnitIsDeadOrGhost", "Screenshot", "GetBattlefieldStatus", "CloseAllWindows",
   "NUM_CHAT_WINDOWS", "NamePlateDriverFrame", "C_NamePlate", "CastingBarFrame", "PlayerCastingBarFrame", "TargetFrameSpellBar",
+}
+
+files["tests/"] = {
+  -- Tests replace WoW globals with fakes and reuse short local names.
+  ignore = { "121", "143", "211", "212", "241", "411", "421", "431" },
 }

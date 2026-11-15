@@ -13,7 +13,6 @@ for k in pairs(_G) do
   before[k] = true
 end
 
-local Stub = {}
 local NUMERIC_GETTERS = {
   Width = 100, Height = 20, Left = 0, Right = 100, Top = 100, Bottom = 0, Alpha = 1, Scale = 1,
   Number = 0, Value = 0, MinMaxValues = 0, FrameLevel = 1, StringWidth = 50, StringHeight = 10,

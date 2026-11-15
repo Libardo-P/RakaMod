@@ -1883,10 +1883,6 @@ local function AddHint(ctx, text)
   return AddText(ctx, text, MUTED)
 end
 
-local function AddNote(ctx, text)
-  return AddText(ctx, text, { r = 0.55, g = 0.75, b = 1.0 })
-end
-
 local function AddInfo(ctx, labelText, valueText)
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", ctx.padX, ctx.LocalY() - 4)
