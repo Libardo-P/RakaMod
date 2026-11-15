@@ -2,6 +2,7 @@
 -- footer/header chrome and the ways of opening the window. Runs against tests/wowstub.lua.
 -- Run from the repo root: lua tests/test_ui.lua
 
+local unpack = table.unpack or unpack
 local failures = 0
 local function fail(msg)
   failures = failures + 1
@@ -343,6 +344,40 @@ do
   rawset(_G, "GetSpecialization", nil)
   rawset(_G, "GetSpecializationInfo", nil)
   UnitClass = savedUnitClass
+end
+
+-- /rakamod spec prints the probe and does not open the settings window ------------------
+do
+  local printed = {}
+  local savedPrint = print
+  print = function(text) printed[#printed + 1] = tostring(text) end
+  local opened = 0
+  local savedOpen = RakaMod.OpenSettings
+  RakaMod.OpenSettings = function() opened = opened + 1 end
+  rawset(_G, "GetNumTalentTabs", function() return 3 end)
+  rawset(_G, "GetTalentTabInfo", function(tab)
+    local tabs = { { "Elemental", "i", 0 }, { "Enhancement", "i", 41 }, { "Restoration", "i", 5 } }
+    return unpack(tabs[tab])
+  end)
+  local handler = SlashCmdList.RAKAMOD
+  handler("spec")
+  eq(opened, 0, "/rakamod spec does not open settings")
+  eq(#printed > 0, true, "/rakamod spec prints the probe")
+  local joined = table.concat(printed, "\n")
+  eq(joined:find("GetTalentTabInfo(2)", 1, true) ~= nil, true, "probe lists the talent tabs")
+  eq(joined:find("resolved spec: Enhancement via GetTalentTabInfo", 1, true) ~= nil, true, "probe resolves Enhancement")
+  handler("  SPEC  ")
+  eq(opened, 0, "/rm spec is case and space tolerant")
+  printed = {}
+  handler("")
+  eq(opened, 1, "bare slash command still opens settings")
+  handler(nil)
+  eq(opened, 2, "slash command without text still opens settings")
+  eq(#printed, 0, "bare command printed no probe")
+  rawset(_G, "GetNumTalentTabs", nil)
+  rawset(_G, "GetTalentTabInfo", nil)
+  RakaMod.OpenSettings = savedOpen
+  print = savedPrint
 end
 
 if failures > 0 then

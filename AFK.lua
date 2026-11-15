@@ -273,40 +273,9 @@ local function PlayerName()
   return RakaMod.Logic.DisplayName(UnitName("player"))
 end
 
-local function SpecApi()
-  local c = type(C_SpecializationInfo) == "table" and C_SpecializationInfo or {}
-  return {
-    GetSpecialization = GetSpecialization or c.GetSpecialization,
-    GetSpecializationInfo = GetSpecializationInfo or c.GetSpecializationInfo,
-    GetPrimaryTalentTree = GetPrimaryTalentTree,
-    GetNumTalentTabs = GetNumTalentTabs,
-    GetTalentTabInfo = GetTalentTabInfo,
-  }
-end
-
 -- Current specialization name, or nil when the client exposes none (never the class name).
 local function PlayerSpecName(className)
-  return RakaMod.Logic.ResolveSpecName(SpecApi(), className)
-end
-
--- /rakamod spec: shows which talent APIs this client has and what they resolve to.
-function AFK:DebugSpec()
-  local api = SpecApi()
-  local className = UnitClass("player")
-  local names = { "GetSpecialization", "GetSpecializationInfo", "GetPrimaryTalentTree", "GetNumTalentTabs", "GetTalentTabInfo" }
-  for i = 1, #names do
-    print("RakaMod spec: " .. names[i] .. " = " .. type(api[names[i]]))
-  end
-  if type(api.GetSpecialization) == "function" then
-    local ok, index = pcall(api.GetSpecialization)
-    print("RakaMod spec: GetSpecialization() -> " .. tostring(ok) .. ", " .. tostring(index))
-    if ok and type(index) == "number" and type(api.GetSpecializationInfo) == "function" then
-      local okInfo, id, name = pcall(api.GetSpecializationInfo, index)
-      print("RakaMod spec: GetSpecializationInfo(" .. index .. ") -> " .. tostring(okInfo) .. ", " .. tostring(id) .. ", " .. tostring(name))
-    end
-  end
-  local name, source = RakaMod.Logic.ResolveSpecName(api, className)
-  print("RakaMod spec: resolved " .. tostring(name) .. " via " .. tostring(source) .. " (class " .. tostring(className) .. ")")
+  return RakaMod.Logic.ResolveSpecName(RakaMod.Core:SpecApi(), className)
 end
 
 local function ClassInfo()

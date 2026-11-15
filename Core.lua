@@ -208,12 +208,84 @@ frame:SetScript("OnEvent", function(_, event, name)
   end
 end)
 
+-- Talent/spec functions this client may have (Retail, MoP+, Cata+ and classic talent trees).
+function Core:SpecApi()
+  local c = type(C_SpecializationInfo) == "table" and C_SpecializationInfo or {}
+  return {
+    GetSpecialization = GetSpecialization or c.GetSpecialization,
+    GetSpecializationInfo = GetSpecializationInfo or c.GetSpecializationInfo,
+    GetPrimaryTalentTree = GetPrimaryTalentTree,
+    GetNumTalentTabs = GetNumTalentTabs,
+    GetTalentTabInfo = GetTalentTabInfo,
+  }
+end
+
+local function ProbeLine(text)
+  print("|cff33ccffRakaMod spec:|r " .. text)
+end
+
+local function JoinResults(results, first, last)
+  local parts = {}
+  for i = first, last do
+    parts[#parts + 1] = tostring(results[i])
+  end
+  return table.concat(parts, ", ")
+end
+
+local function Pack(...)
+  return { n = select("#", ...), ... }
+end
+
+local function ProbeCall(label, fn, ...)
+  if type(fn) ~= "function" then
+    ProbeLine(label .. " = missing")
+    return
+  end
+  local results = Pack(pcall(fn, ...))
+  if not results[1] then
+    ProbeLine(label .. " -> error: " .. tostring(results[2]))
+  elseif results.n < 2 then
+    ProbeLine(label .. " -> (no values)")
+  else
+    ProbeLine(label .. " -> " .. JoinResults(results, 2, math.min(results.n, 9)))
+  end
+end
+
+-- /rakamod spec: prints which talent APIs exist, their raw returns, and the resolved spec.
+function Core:PrintSpecProbe()
+  local api = self:SpecApi()
+  local localized, classFile = UnitClass("player")
+  local _, _, _, build = GetBuildInfo()
+  ProbeLine("interface " .. tostring(build) .. ", class " .. tostring(localized) .. " (" .. tostring(classFile) .. ")")
+  for _, name in ipairs({ "GetNumSpecializations", "GetActiveSpecGroup", "GetActiveTalentGroup", "GetNumTalents", "GetNumTalentGroups" }) do
+    ProbeCall(name .. "()", _G[name])
+  end
+  ProbeCall("GetSpecialization()", api.GetSpecialization)
+  local okIndex, index = pcall(api.GetSpecialization or function() end)
+  if okIndex and type(index) == "number" and index > 0 then
+    ProbeCall("GetSpecializationInfo(" .. index .. ")", api.GetSpecializationInfo, index)
+  else
+    ProbeCall("GetSpecializationInfo(1)", api.GetSpecializationInfo, 1)
+  end
+  ProbeCall("GetPrimaryTalentTree()", api.GetPrimaryTalentTree)
+  ProbeCall("GetPrimaryTalentTree(false, false, 1)", api.GetPrimaryTalentTree, false, false, 1)
+  ProbeCall("GetNumTalentTabs()", api.GetNumTalentTabs)
+  local okTabs, tabs = pcall(api.GetNumTalentTabs or function() end)
+  tabs = (okTabs and type(tabs) == "number") and tabs or 3
+  for tab = 1, math.min(tabs, 4) do
+    ProbeCall("GetTalentTabInfo(" .. tab .. ")", api.GetTalentTabInfo, tab)
+  end
+  local name, source = Logic.ResolveSpecName(api, localized)
+  ProbeLine("resolved spec: " .. tostring(name) .. " via " .. tostring(source))
+end
+
 SLASH_RAKAMOD1 = "/rakamod"
 SLASH_RAKAMOD2 = "/rmod"
 SLASH_RAKAMOD3 = "/rm"
 SlashCmdList.RAKAMOD = function(msg)
-  if type(msg) == "string" and msg:lower():match("^%s*spec%s*$") and RakaMod.AFK and RakaMod.AFK.DebugSpec then
-    RakaMod.AFK:DebugSpec()
+  local command = type(msg) == "string" and msg:lower():match("^%s*(%S+)") or nil
+  if command == "spec" then
+    Core:PrintSpecProbe()
     return
   end
   RakaMod.OpenSettings()

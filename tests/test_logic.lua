@@ -174,6 +174,16 @@ do
   eq(Logic.ResolveSpecName({ GetSpecialization = function() return 1 end, GetSpecializationInfo = names("Shaman") }, "Shaman"), nil, "class name is not a spec")
   eq(Logic.ResolveSpecName({ GetSpecialization = function() return 0 end }, "Shaman"), nil, "no spec chosen")
   eq(Logic.ResolveSpecName({ GetSpecialization = function() error("boom") end }, "Shaman"), nil, "erroring API is ignored")
+  -- A wrong Retail-style answer loses to the talent tree with the points
+  eq(Logic.ResolveSpecName({
+    GetSpecialization = function() return 1 end,
+    GetSpecializationInfo = function() return 262, "Elemental" end,
+    GetNumTalentTabs = function() return 3 end,
+    GetTalentTabInfo = function(tab)
+      local tabs = { { "Elemental", "i", 0 }, { "Enhancement", "i", 41 }, { "Restoration", "i", 5 } }
+      return unpack(tabs[tab])
+    end,
+  }, "Shaman"), "Enhancement", "talent points beat a wrong spec index")
   eq(Logic.ResolveSpecName({}, "Shaman"), nil, "no talent API")
   eq(Logic.ResolveSpecName({ GetNumTalentTabs = function() return 3 end, GetTalentTabInfo = function(t) return "Tree" .. t, "i", 0 end }, "Shaman"), nil, "no points spent")
 end

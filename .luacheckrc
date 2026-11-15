@@ -23,7 +23,7 @@ read_globals = {
   "UnitReaction", "UnitCanAttack", "UnitIsEnemy", "UnitIsFriend", "UnitGetTotalAbsorbs",
   "UnitAffectingCombat", "UnitIsUnit", "UnitIsGroupLeader", "UnitPower", "UnitPowerMax",
   "UnitFactionGroup", "UnitSex", "UnitIsVisible", "UnitClassBase", "UnitGroupRolesAssigned",
-  "GetCurrentTitle", "GetTitleName", "GetSpecialization", "GetSpecializationInfo", "C_SpecializationInfo", "GetPrimaryTalentTree", "GetNumTalentTabs", "GetTalentTabInfo", "GetNumGroupMembers", "IsInRaid", "IsInGroup",
+  "GetCurrentTitle", "GetTitleName", "GetSpecialization", "GetSpecializationInfo", "C_SpecializationInfo", "GetPrimaryTalentTree", "GetNumTalentTabs", "GetTalentTabInfo", "GetNumSpecializations", "GetActiveSpecGroup", "GetActiveTalentGroup", "GetNumTalents", "GetNumTalentGroups", "GetNumGroupMembers", "IsInRaid", "IsInGroup",
   "GetCVar", "SetCVar", "GetCursorPosition", "GetScreenWidth", "GetScreenHeight",
   "RegisterStateDriver", "UnregisterStateDriver", "RAID_CLASS_COLORS", "CLASS_ICON_TCOORDS",
   "LOCALIZED_CLASS_NAMES_MALE", "LOCALIZED_CLASS_NAMES_FEMALE", "FACTION_BAR_COLORS",

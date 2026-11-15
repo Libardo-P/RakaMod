@@ -507,8 +507,8 @@ end
 
 -- Current specialization name from whichever talent API the client has, or nil.
 -- `api` maps API names to functions (any may be missing). Names equal to the class name are
--- rejected so the spec line never repeats the class line. Order: spec index (Retail, MoP+),
--- primary talent tree (Cata+), then the talent tree with the most points (classic trees).
+-- rejected so the spec line never repeats the class line. Order: the talent tree with the most
+-- points spent (classic trees), the primary talent tree (Cata+), then the spec index (Retail, MoP+).
 function Logic.ResolveSpecName(api, className)
   if type(api) ~= "table" then
     return nil, nil
@@ -528,28 +528,12 @@ function Logic.ResolveSpecName(api, className)
     return type(name) == "string" and name ~= "" and name:lower() ~= classLower
   end
 
-  local index = call(api.GetSpecialization)
-  if type(index) == "number" and index > 0 then
-    local _, name = call(api.GetSpecializationInfo, index)
-    if usable(name) then
-      return name, "GetSpecializationInfo"
-    end
-  end
-
   local function tabInfo(tab)
     local first, second, third, _, fifth = call(api.GetTalentTabInfo, tab)
     if type(first) == "number" then
       return second, fifth
     end
     return first, third
-  end
-
-  local primary = call(api.GetPrimaryTalentTree)
-  if type(primary) == "number" and primary > 0 then
-    local name = tabInfo(primary)
-    if usable(name) then
-      return name, "GetPrimaryTalentTree"
-    end
   end
 
   local tabs = call(api.GetNumTalentTabs)
@@ -563,6 +547,22 @@ function Logic.ResolveSpecName(api, className)
     end
     if bestName then
       return bestName, "GetTalentTabInfo"
+    end
+  end
+
+  local primary = call(api.GetPrimaryTalentTree)
+  if type(primary) == "number" and primary > 0 then
+    local name = tabInfo(primary)
+    if usable(name) then
+      return name, "GetPrimaryTalentTree"
+    end
+  end
+
+  local index = call(api.GetSpecialization)
+  if type(index) == "number" and index > 0 then
+    local _, name = call(api.GetSpecializationInfo, index)
+    if usable(name) then
+      return name, "GetSpecializationInfo"
     end
   end
   return nil, nil
