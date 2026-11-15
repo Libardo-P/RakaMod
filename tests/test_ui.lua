@@ -371,11 +371,11 @@ do
   rawset(_G, "GetNumTalentTabs", nil)
   rawset(_G, "GetTalentTabInfo", nil)
   rawset(_G, "GetSpecialization", function() return 1 end)
-  rawset(_G, "GetSpecializationInfo", function() return 1489, "Warrior", "", 626006, "DAMAGER" end)
+  rawset(_G, "GetSpecializationInfo", function() return 1489, (UnitClass("player")), "", 626006, "DAMAGER" end)
   printed = {}
   handler("spec")
   joined = table.concat(printed, "\n")
-  eq(joined:find("GetSpecializationInfo(1) -> 1489, Warrior", 1, true) ~= nil, true, "probe prints the spec info returns")
+  eq(joined:find("GetSpecializationInfo(1) -> 1489, " .. (UnitClass("player")), 1, true) ~= nil, true, "probe prints the spec info returns")
   eq(joined:find("GetSpecializationInfoByID(1489) = missing", 1, true) ~= nil, true, "probe reports the by-id lookup")
   eq(joined:find("no usable name API", 1, true) ~= nil, true, "probe says when no API gives a name")
   rawset(_G, "GetSpecialization", nil)
