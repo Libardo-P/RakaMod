@@ -191,10 +191,65 @@ eq(r, 0.00, "shaman r")
 eq(g, 0.44, "shaman g")
 eq(b, 0.87, "shaman b")
 
-if failures > 0 then
-  os.exit(1)
+
+-- Accent color logic (settings window)
+do
+  local d = Logic.BuildAccentDefaults()
+  eq(d.mode, "preset", "accent default mode")
+  eq(d.preset, Logic.ACCENT_DEFAULT_PRESET, "accent default preset")
+  local br, bg, bb = Logic.GetAccentColor(d, nil)
+  eq(br, Logic.AccentPreset("blue").r, "default accent is blue r")
+  eq(bg, 0.62, "default accent is blue g")
+  eq(bb, 1.0, "default accent is blue b")
+
+  local pr, pg, pb = Logic.GetAccentColor({ mode = "preset", preset = "gold" }, nil)
+  eq(pr, 0.94, "preset gold r")
+  eq(pg, 0.77, "preset gold g")
+  eq(pb, 0.16, "preset gold b")
+  local ur = Logic.GetAccentColor({ mode = "preset", preset = "nope" }, nil)
+  eq(ur, Logic.AccentPreset("blue").r, "unknown preset falls back")
+
+  local cr, cg, cb = Logic.GetAccentColor({ mode = "custom", r = 0.1, g = 0.2, b = 0.3 }, nil)
+  eq(cr, 0.1, "custom r")
+  eq(cg, 0.2, "custom g")
+  eq(cb, 0.3, "custom b")
+  local clr, clg, clb = Logic.GetAccentColor({ mode = "custom", r = 5, g = -1, b = 0.5 }, nil)
+  eq(clr, 1, "custom clamps high")
+  eq(clg, 0, "custom clamps low")
+  eq(clb, 0.5, "custom keeps mid")
+  eq(Logic.GetAccentColor({ mode = "custom", r = "x" }, nil), Logic.AccentPreset("blue").r, "custom bad data falls back")
+
+  local kr, kg, kb = Logic.GetAccentColor({ mode = "class", preset = "gold" }, { r = 0.78, g = 0.61, b = 0.43 })
+  eq(kr, 0.78, "class mode uses class r")
+  eq(kg, 0.61, "class mode uses class g")
+  eq(kb, 0.43, "class mode uses class b")
+  eq(Logic.GetAccentColor({ mode = "class" }, nil), Logic.AccentPreset("blue").r, "class mode without class falls back")
+  eq(Logic.GetAccentColor({ mode = "bogus", preset = "gold" }, nil), 0.94, "unknown mode acts as preset")
+  eq(Logic.GetAccentColor(nil, nil), Logic.AccentPreset("blue").r, "nil accent falls back")
+  eq(Logic.GetAccentColor("bad", nil), Logic.AccentPreset("blue").r, "non-table accent falls back")
+
+  eq(#Logic.ACCENT_PRESETS, 7, "seven accent presets")
+  local seenKey = {}
+  for i = 1, #Logic.ACCENT_PRESETS do
+    local preset = Logic.ACCENT_PRESETS[i]
+    eq(seenKey[preset.key], nil, "unique preset " .. preset.key)
+    seenKey[preset.key] = true
+  end
+
+  local tr = Logic.AccentTextColor(0.94, 0.77, 0.16)
+  eq(tr < 0.2, true, "dark text on gold")
+  eq(Logic.AccentTextColor(0.25, 0.30, 0.9), 1, "white text on dark blue")
+  local sr, sg, sb = Logic.ShadeColor(0.8, 0.4, 0.2, 0.5)
+  eq(math.abs(sr - 0.4) < 1e-9, true, "shade r")
+  eq(math.abs(sg - 0.2) < 1e-9, true, "shade g")
+  eq(math.abs(sb - 0.1) < 1e-9, true, "shade b")
+
+  local merged = Logic.MergeDefaults({ general = { accent = { mode = "class" } } }, { general = { accent = d } })
+  eq(merged.general.accent.mode, "class", "saved accent mode kept")
+  eq(merged.general.accent.preset, "blue", "missing accent keys filled")
+  local fresh = Logic.MergeDefaults({}, { general = { accent = d } })
+  eq(fresh.general.accent.mode, "preset", "fresh install gets default accent")
 end
-print("ok")
 
 eq(Logic.PrefixMediaName("Doris PP"), "Rk Doris PP", "prefix adds Rk")
 eq(Logic.PrefixMediaName("Rk Doris PP"), "Rk Doris PP", "prefix idempotent")
@@ -213,3 +268,8 @@ do
   Logic.MigrateMediaNames(saved, legacy)
   eq(saved.font, "Doris PP", "migration runs once")
 end
+
+if failures > 0 then
+  os.exit(1)
+end
+print("ok")

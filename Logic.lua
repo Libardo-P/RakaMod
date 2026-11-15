@@ -464,6 +464,89 @@ function Logic.ClassRgb(classFile, classColors)
   return 1, 1, 1
 end
 
+-- Settings window accent: a preset, a custom color or the player's class color.
+Logic.ACCENT_MODES = { "preset", "custom", "class" }
+Logic.ACCENT_PRESETS = {
+  { key = "gold", label = "Gold", r = 0.94, g = 0.77, b = 0.16 },
+  { key = "blue", label = "Blue", r = 0.25, g = 0.62, b = 1.00 },
+  { key = "green", label = "Green", r = 0.30, g = 0.80, b = 0.40 },
+  { key = "red", label = "Red", r = 0.90, g = 0.30, b = 0.30 },
+  { key = "purple", label = "Purple", r = 0.65, g = 0.42, b = 0.95 },
+  { key = "cyan", label = "Cyan", r = 0.20, g = 0.82, b = 0.85 },
+  { key = "white", label = "White", r = 0.92, g = 0.92, b = 0.94 },
+}
+Logic.ACCENT_DEFAULT_PRESET = "blue"
+
+function Logic.AccentPreset(key)
+  for i = 1, #Logic.ACCENT_PRESETS do
+    local preset = Logic.ACCENT_PRESETS[i]
+    if preset.key == key then
+      return preset
+    end
+  end
+  return nil
+end
+
+function Logic.BuildAccentDefaults()
+  local preset = Logic.AccentPreset(Logic.ACCENT_DEFAULT_PRESET)
+  return { mode = "preset", preset = preset.key, r = preset.r, g = preset.g, b = preset.b }
+end
+
+local function validAccentMode(mode)
+  for i = 1, #Logic.ACCENT_MODES do
+    if Logic.ACCENT_MODES[i] == mode then
+      return true
+    end
+  end
+  return false
+end
+
+-- Returns r, g, b for the saved accent table. Never errors on bad or missing data.
+-- classRgb is { r, g, b } (or nil) for the player's class; class mode without it falls back to the default preset.
+function Logic.GetAccentColor(accent, classRgb)
+  local default = Logic.AccentPreset(Logic.ACCENT_DEFAULT_PRESET)
+  if type(accent) ~= "table" then
+    return default.r, default.g, default.b
+  end
+  local mode = accent.mode
+  if not validAccentMode(mode) then
+    mode = "preset"
+  end
+  if mode == "class" then
+    if type(classRgb) == "table" and type(classRgb.r) == "number" and type(classRgb.g) == "number" and type(classRgb.b) == "number" then
+      return clamp01(classRgb.r), clamp01(classRgb.g), clamp01(classRgb.b)
+    end
+    return default.r, default.g, default.b
+  end
+  if mode == "custom" then
+    if type(accent.r) == "number" and type(accent.g) == "number" and type(accent.b) == "number" then
+      return clamp01(accent.r), clamp01(accent.g), clamp01(accent.b)
+    end
+    return default.r, default.g, default.b
+  end
+  local preset = Logic.AccentPreset(accent.preset) or default
+  return preset.r, preset.g, preset.b
+end
+
+-- Perceived brightness 0..1 (Rec. 601 weights).
+function Logic.Luminance(r, g, b)
+  return 0.299 * clamp01(r) + 0.587 * clamp01(g) + 0.114 * clamp01(b)
+end
+
+-- Text color readable on a filled accent surface: near-black on light accents, white on dark ones.
+function Logic.AccentTextColor(r, g, b)
+  if Logic.Luminance(r, g, b) >= 0.45 then
+    return 0.07, 0.07, 0.08
+  end
+  return 1, 1, 1
+end
+
+-- Blend the accent toward black (amount 0..1) for dim fills and borders.
+function Logic.ShadeColor(r, g, b, amount)
+  local keep = 1 - clamp01(amount)
+  return clamp01(r) * keep, clamp01(g) * keep, clamp01(b) * keep
+end
+
 local function rgb(r, g, b)
   return { r = clamp01(r), g = clamp01(g), b = clamp01(b) }
 end
