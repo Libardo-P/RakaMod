@@ -275,7 +275,8 @@ end
 
 -- Current specialization name, or nil when the client exposes none (never the class name).
 local function PlayerSpecName(className)
-  return RakaMod.Logic.ResolveSpecName(RakaMod.Core:SpecApi(), className)
+  local _, _, classId = UnitClass("player")
+  return RakaMod.Logic.ResolveSpecName(RakaMod.Core:SpecApi(), className, classId)
 end
 
 local function ClassInfo()

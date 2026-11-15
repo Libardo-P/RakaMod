@@ -508,8 +508,9 @@ end
 -- Current specialization name from whichever talent API the client has, or nil.
 -- `api` maps API names to functions (any may be missing). Names equal to the class name are
 -- rejected so the spec line never repeats the class line. Order: the talent tree with the most
--- points spent (classic trees), the primary talent tree (Cata+), then the spec index (Retail, MoP+).
-function Logic.ResolveSpecName(api, className)
+-- points spent (classic trees), the primary talent tree (Cata+), then the spec index (Retail, MoP+)
+-- and, when that only yields the class name, the spec id looked up through the by-id APIs.
+function Logic.ResolveSpecName(api, className, classId)
   if type(api) ~= "table" then
     return nil, nil
   end
@@ -558,12 +559,51 @@ function Logic.ResolveSpecName(api, className)
     end
   end
 
+  -- A spec id can be turned into a name by several APIs; some clients only fill in one.
+  local function nameForSpecId(specId)
+    if type(specId) ~= "number" or specId <= 0 then
+      return nil
+    end
+    local _, byId = call(api.GetSpecializationInfoByID, specId)
+    if usable(byId) then
+      return byId, "GetSpecializationInfoByID"
+    end
+    local direct = call(api.GetSpecializationNameForSpecID, specId)
+    if usable(direct) then
+      return direct, "GetSpecializationNameForSpecID"
+    end
+    local _, forSpec = call(api.GetSpecializationInfoForSpecID, specId)
+    if usable(forSpec) then
+      return forSpec, "GetSpecializationInfoForSpecID"
+    end
+    if type(classId) == "number" then
+      local count = call(api.GetNumSpecializationsForClassID, classId)
+      for i = 1, (type(count) == "number" and count > 0) and count or 4 do
+        local id, name = call(api.GetSpecializationInfoForClassID, classId, i)
+        if id == specId and usable(name) then
+          return name, "GetSpecializationInfoForClassID"
+        end
+      end
+    end
+    return nil
+  end
+
   local index = call(api.GetSpecialization)
   if type(index) == "number" and index > 0 then
-    local _, name = call(api.GetSpecializationInfo, index)
+    local specId, name = call(api.GetSpecializationInfo, index)
     if usable(name) then
       return name, "GetSpecializationInfo"
     end
+    local byId, source = nameForSpecId(specId)
+    if byId then
+      return byId, source
+    end
+  end
+
+  local inspectId = call(api.GetInspectSpecialization, "player")
+  local inspectName, inspectSource = nameForSpecId(inspectId)
+  if inspectName then
+    return inspectName, inspectSource
   end
   return nil, nil
 end

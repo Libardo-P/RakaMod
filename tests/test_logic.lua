@@ -184,6 +184,32 @@ do
       return unpack(tabs[tab])
     end,
   }, "Shaman"), "Enhancement", "talent points beat a wrong spec index")
+  -- Forever shape: the spec index only yields the class name, the id may resolve elsewhere
+  local forever = {
+    GetSpecialization = function() return 1 end,
+    GetSpecializationInfo = function() return 1489, "Shaman", "", 626006, "DAMAGER" end,
+  }
+  eq(Logic.ResolveSpecName(forever, "Shaman", 7), nil, "forever class-name-only spec stays hidden")
+  forever.GetSpecializationInfoByID = function(id) return id, id == 1489 and "Enhancement" or "Shaman" end
+  local name, source = Logic.ResolveSpecName(forever, "Shaman", 7)
+  eq(name, "Enhancement", "spec id resolved through GetSpecializationInfoByID")
+  eq(source, "GetSpecializationInfoByID", "by-id source")
+  forever.GetSpecializationInfoByID = nil
+  forever.GetSpecializationNameForSpecID = function() return "Enhancement" end
+  eq(Logic.ResolveSpecName(forever, "Shaman", 7), "Enhancement", "spec id resolved through GetSpecializationNameForSpecID")
+  forever.GetSpecializationNameForSpecID = nil
+  forever.GetNumSpecializationsForClassID = function() return 3 end
+  forever.GetSpecializationInfoForClassID = function(classId, i)
+    local list = { { 1488, "Elemental" }, { 1489, "Enhancement" }, { 1490, "Restoration" } }
+    return list[i][1], list[i][2]
+  end
+  name, source = Logic.ResolveSpecName(forever, "Shaman", 7)
+  eq(name, "Enhancement", "spec id matched in the class spec list")
+  eq(source, "GetSpecializationInfoForClassID", "class list source")
+  forever.GetSpecializationInfoForClassID = function() return nil end
+  forever.GetInspectSpecialization = function() return 1489 end
+  forever.GetSpecializationInfoByID = function() return 1489, "Enhancement" end
+  eq(Logic.ResolveSpecName({ GetInspectSpecialization = forever.GetInspectSpecialization, GetSpecializationInfoByID = forever.GetSpecializationInfoByID }, "Shaman", 7), "Enhancement", "inspect spec id path")
   eq(Logic.ResolveSpecName({}, "Shaman"), nil, "no talent API")
   eq(Logic.ResolveSpecName({ GetNumTalentTabs = function() return 3 end, GetTalentTabInfo = function(t) return "Tree" .. t, "i", 0 end }, "Shaman"), nil, "no points spent")
 end

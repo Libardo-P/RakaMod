@@ -209,15 +209,25 @@ frame:SetScript("OnEvent", function(_, event, name)
 end)
 
 -- Talent/spec functions this client may have (Retail, MoP+, Cata+ and classic talent trees).
+-- Each falls back to the C_SpecializationInfo copy when the global is missing.
+local SPEC_API_NAMES = {
+  "GetSpecialization", "GetSpecializationInfo", "GetSpecializationInfoByID",
+  "GetSpecializationNameForSpecID", "GetSpecializationInfoForSpecID",
+  "GetSpecializationInfoForClassID", "GetNumSpecializationsForClassID",
+  "GetInspectSpecialization", "GetNumSpecializations", "GetSpecializationRole",
+}
+
 function Core:SpecApi()
   local c = type(C_SpecializationInfo) == "table" and C_SpecializationInfo or {}
-  return {
-    GetSpecialization = GetSpecialization or c.GetSpecialization,
-    GetSpecializationInfo = GetSpecializationInfo or c.GetSpecializationInfo,
+  local api = {
     GetPrimaryTalentTree = GetPrimaryTalentTree,
     GetNumTalentTabs = GetNumTalentTabs,
     GetTalentTabInfo = GetTalentTabInfo,
   }
+  for _, name in ipairs(SPEC_API_NAMES) do
+    api[name] = _G[name] or c[name]
+  end
+  return api
 end
 
 local function ProbeLine(text)
@@ -251,21 +261,50 @@ local function ProbeCall(label, fn, ...)
   end
 end
 
+local function ProbeNames(label, pattern, source)
+  local found = {}
+  for key, value in pairs(source) do
+    if type(key) == "string" and type(value) == "function" and key:find(pattern) then
+      found[#found + 1] = key
+    end
+  end
+  table.sort(found)
+  ProbeLine(label .. " (" .. #found .. "): " .. table.concat(found, " ", 1, math.min(#found, 40)))
+end
+
 -- /rakamod spec: prints which talent APIs exist, their raw returns, and the resolved spec.
 function Core:PrintSpecProbe()
   local api = self:SpecApi()
-  local localized, classFile = UnitClass("player")
+  local localized, classFile, classId = UnitClass("player")
   local _, _, _, build = GetBuildInfo()
-  ProbeLine("interface " .. tostring(build) .. ", class " .. tostring(localized) .. " (" .. tostring(classFile) .. ")")
+  ProbeLine("interface " .. tostring(build) .. ", class " .. tostring(localized) .. " (" .. tostring(classFile) .. ", id " .. tostring(classId) .. ")")
   for _, name in ipairs({ "GetNumSpecializations", "GetActiveSpecGroup", "GetActiveTalentGroup", "GetNumTalents", "GetNumTalentGroups" }) do
     ProbeCall(name .. "()", _G[name])
   end
   ProbeCall("GetSpecialization()", api.GetSpecialization)
   local okIndex, index = pcall(api.GetSpecialization or function() end)
-  if okIndex and type(index) == "number" and index > 0 then
-    ProbeCall("GetSpecializationInfo(" .. index .. ")", api.GetSpecializationInfo, index)
+  index = (okIndex and type(index) == "number" and index > 0) and index or 1
+  ProbeCall("GetSpecializationInfo(" .. index .. ")", api.GetSpecializationInfo, index)
+  local okInfo, specId = pcall(api.GetSpecializationInfo or function() end, index)
+  if not (okInfo and type(specId) == "number") then
+    specId = nil
+  end
+  ProbeCall("GetSpecializationRole(" .. index .. ")", api.GetSpecializationRole, index)
+  if specId then
+    ProbeCall("GetSpecializationInfoByID(" .. specId .. ")", api.GetSpecializationInfoByID, specId)
+    ProbeCall("GetSpecializationNameForSpecID(" .. specId .. ")", api.GetSpecializationNameForSpecID, specId)
+    ProbeCall("GetSpecializationInfoForSpecID(" .. specId .. ")", api.GetSpecializationInfoForSpecID, specId)
+  end
+  ProbeCall("GetInspectSpecialization(\"player\")", api.GetInspectSpecialization, "player")
+  ProbeCall("GetNumSpecializationsForClassID(" .. tostring(classId) .. ")", api.GetNumSpecializationsForClassID, classId)
+  for i = 1, 4 do
+    ProbeCall("GetSpecializationInfoForClassID(" .. tostring(classId) .. ", " .. i .. ")", api.GetSpecializationInfoForClassID, classId, i)
+  end
+  if type(PlayerUtil) == "table" then
+    ProbeCall("PlayerUtil.GetCurrentSpecID()", PlayerUtil.GetCurrentSpecID)
+    ProbeCall("PlayerUtil.GetSpecName()", PlayerUtil.GetSpecName)
   else
-    ProbeCall("GetSpecializationInfo(1)", api.GetSpecializationInfo, 1)
+    ProbeLine("PlayerUtil = missing")
   end
   ProbeCall("GetPrimaryTalentTree()", api.GetPrimaryTalentTree)
   ProbeCall("GetPrimaryTalentTree(false, false, 1)", api.GetPrimaryTalentTree, false, false, 1)
@@ -275,8 +314,25 @@ function Core:PrintSpecProbe()
   for tab = 1, math.min(tabs, 4) do
     ProbeCall("GetTalentTabInfo(" .. tab .. ")", api.GetTalentTabInfo, tab)
   end
-  local name, source = Logic.ResolveSpecName(api, localized)
+  ProbeNames("globals matching Spec", "Spec", _G)
+  ProbeNames("globals matching Talent", "Talent", _G)
+  if type(C_SpecializationInfo) == "table" then
+    ProbeNames("C_SpecializationInfo functions", ".", C_SpecializationInfo)
+  else
+    ProbeLine("C_SpecializationInfo = missing")
+  end
+  for _, ns in ipairs({ "C_ClassTalents", "C_Traits" }) do
+    if type(_G[ns]) == "table" then
+      ProbeNames(ns .. " functions", ".", _G[ns])
+    else
+      ProbeLine(ns .. " = missing")
+    end
+  end
+  local name, source = Logic.ResolveSpecName(api, localized, classId)
   ProbeLine("resolved spec: " .. tostring(name) .. " via " .. tostring(source))
+  if not name then
+    ProbeLine("no usable name API on this client")
+  end
 end
 
 SLASH_RAKAMOD1 = "/rakamod"
