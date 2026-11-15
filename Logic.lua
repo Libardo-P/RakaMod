@@ -484,6 +484,90 @@ function Logic.FabledClassTexCoords(classFile)
   return cell[1] * step, (cell[1] + 1) * step, cell[2] * step, (cell[2] + 1) * step
 end
 
+-- First and last name for the AFK name line. WoW has no surname API: UnitName returns
+-- (name, realm). A realm suffix is dropped; when the client hands back a spaced name
+-- ("First Last") the first and last words are kept, otherwise just the single name.
+function Logic.DisplayName(name)
+  if type(name) ~= "string" then
+    return ""
+  end
+  name = name:gsub("%-.*$", "")
+  local words = {}
+  for word in name:gmatch("%S+") do
+    words[#words + 1] = word
+  end
+  if #words == 0 then
+    return ""
+  end
+  if #words == 1 then
+    return words[1]
+  end
+  return words[1] .. " " .. words[#words]
+end
+
+-- Current specialization name from whichever talent API the client has, or nil.
+-- `api` maps API names to functions (any may be missing). Names equal to the class name are
+-- rejected so the spec line never repeats the class line. Order: spec index (Retail, MoP+),
+-- primary talent tree (Cata+), then the talent tree with the most points (classic trees).
+function Logic.ResolveSpecName(api, className)
+  if type(api) ~= "table" then
+    return nil, nil
+  end
+  local function call(fn, ...)
+    if type(fn) ~= "function" then
+      return nil
+    end
+    local r = { pcall(fn, ...) }
+    if r[1] then
+      return r[2], r[3], r[4], r[5], r[6]
+    end
+    return nil
+  end
+  local classLower = type(className) == "string" and className:lower() or nil
+  local function usable(name)
+    return type(name) == "string" and name ~= "" and name:lower() ~= classLower
+  end
+
+  local index = call(api.GetSpecialization)
+  if type(index) == "number" and index > 0 then
+    local _, name = call(api.GetSpecializationInfo, index)
+    if usable(name) then
+      return name, "GetSpecializationInfo"
+    end
+  end
+
+  local function tabInfo(tab)
+    local first, second, third, _, fifth = call(api.GetTalentTabInfo, tab)
+    if type(first) == "number" then
+      return second, fifth
+    end
+    return first, third
+  end
+
+  local primary = call(api.GetPrimaryTalentTree)
+  if type(primary) == "number" and primary > 0 then
+    local name = tabInfo(primary)
+    if usable(name) then
+      return name, "GetPrimaryTalentTree"
+    end
+  end
+
+  local tabs = call(api.GetNumTalentTabs)
+  if type(tabs) == "number" and tabs > 0 then
+    local bestName, bestPoints = nil, 0
+    for tab = 1, tabs do
+      local name, points = tabInfo(tab)
+      if usable(name) and type(points) == "number" and points > bestPoints then
+        bestName, bestPoints = name, points
+      end
+    end
+    if bestName then
+      return bestName, "GetTalentTabInfo"
+    end
+  end
+  return nil, nil
+end
+
 -- Settings window accent: a preset, a custom color or the player's class color.
 Logic.ACCENT_MODES = { "preset", "custom", "class" }
 Logic.ACCENT_PRESETS = {

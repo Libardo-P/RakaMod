@@ -211,6 +211,10 @@ end)
 SLASH_RAKAMOD1 = "/rakamod"
 SLASH_RAKAMOD2 = "/rmod"
 SLASH_RAKAMOD3 = "/rm"
-SlashCmdList.RAKAMOD = function()
+SlashCmdList.RAKAMOD = function(msg)
+  if type(msg) == "string" and msg:lower():match("^%s*spec%s*$") and RakaMod.AFK and RakaMod.AFK.DebugSpec then
+    RakaMod.AFK:DebugSpec()
+    return
+  end
   RakaMod.OpenSettings()
 end

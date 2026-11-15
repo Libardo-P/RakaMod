@@ -322,9 +322,16 @@ do
     near(b, 0.125, "warrior icon bottom")
     eq(ui.classArt:IsShown(), true, "class art shown")
     eq(Stub.stored(ui.nameText, "Text"), "Tester", "name line")
+    local fontSize = function(fs) return select(2, Stub.stored(fs, "Font")) end
+    eq(fontSize(ui.timerText) < fontSize(ui.nameText), true, "timer is smaller than the name")
     eq(Stub.stored(ui.specText, "Text"), "Fury", "spec line")
     eq(ui.specText:IsShown(), true, "spec line shown")
     eq(Stub.stored(ui.classText, "Text"), "Warrior", "class line")
+    afk:Leave(false)
+  end
+
+  if enter("Warrior") then
+    eq(ui.specText:IsShown(), false, "spec line hidden when the spec API only returns the class name")
     afk:Leave(false)
   end
 

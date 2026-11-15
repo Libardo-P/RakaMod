@@ -153,7 +153,7 @@ local function ApplyLayout()
   local w, h = ScreenSize()
   local s = RakaMod.Logic.AfkLayoutScale(w, h)
   local pad = math.floor(24 * s + 0.5)
-  local artSize = math.floor(112 * s + 0.5)
+  local artSize = math.floor(88 * s + 0.5)
   local artTop = math.floor(44 * s + 0.5)
   local gapArt = -math.floor(8 * s + 0.5)
   local gapTimer = -math.floor(14 * s + 0.5)
@@ -171,7 +171,7 @@ local function ApplyLayout()
   local modelPad = 0
   local chatW = math.floor(math.min(w * 0.24, 300 * s) + 0.5)
   local chatH = math.floor(110 * s + 0.5)
-  local timerSize = math.max(18, math.floor(26 * s + 0.5))
+  local timerSize = math.max(12, math.floor(15 * s + 0.5))
   local nameSize = math.max(16, math.floor(20 * s + 0.5))
   local titleSize = math.max(12, math.floor(13 * s + 0.5))
   local footerPad = math.floor(10 * s + 0.5)
@@ -270,31 +270,43 @@ local function UnregisterChat()
 end
 
 local function PlayerName()
-  return UnitName("player") or ""
+  return RakaMod.Logic.DisplayName(UnitName("player"))
 end
 
--- Current specialization name, or nil when the client has no specs (or the call fails).
-local function PlayerSpecName()
-  local getIndex = GetSpecialization
-  if type(getIndex) ~= "function" and type(C_SpecializationInfo) == "table" then
-    getIndex = C_SpecializationInfo.GetSpecialization
+local function SpecApi()
+  local c = type(C_SpecializationInfo) == "table" and C_SpecializationInfo or {}
+  return {
+    GetSpecialization = GetSpecialization or c.GetSpecialization,
+    GetSpecializationInfo = GetSpecializationInfo or c.GetSpecializationInfo,
+    GetPrimaryTalentTree = GetPrimaryTalentTree,
+    GetNumTalentTabs = GetNumTalentTabs,
+    GetTalentTabInfo = GetTalentTabInfo,
+  }
+end
+
+-- Current specialization name, or nil when the client exposes none (never the class name).
+local function PlayerSpecName(className)
+  return RakaMod.Logic.ResolveSpecName(SpecApi(), className)
+end
+
+-- /rakamod spec: shows which talent APIs this client has and what they resolve to.
+function AFK:DebugSpec()
+  local api = SpecApi()
+  local className = UnitClass("player")
+  local names = { "GetSpecialization", "GetSpecializationInfo", "GetPrimaryTalentTree", "GetNumTalentTabs", "GetTalentTabInfo" }
+  for i = 1, #names do
+    print("RakaMod spec: " .. names[i] .. " = " .. type(api[names[i]]))
   end
-  local getInfo = GetSpecializationInfo
-  if type(getInfo) ~= "function" and type(C_SpecializationInfo) == "table" then
-    getInfo = C_SpecializationInfo.GetSpecializationInfo
+  if type(api.GetSpecialization) == "function" then
+    local ok, index = pcall(api.GetSpecialization)
+    print("RakaMod spec: GetSpecialization() -> " .. tostring(ok) .. ", " .. tostring(index))
+    if ok and type(index) == "number" and type(api.GetSpecializationInfo) == "function" then
+      local okInfo, id, name = pcall(api.GetSpecializationInfo, index)
+      print("RakaMod spec: GetSpecializationInfo(" .. index .. ") -> " .. tostring(okInfo) .. ", " .. tostring(id) .. ", " .. tostring(name))
+    end
   end
-  if type(getIndex) ~= "function" or type(getInfo) ~= "function" then
-    return nil
-  end
-  local okIndex, index = pcall(getIndex)
-  if not okIndex or type(index) ~= "number" or index <= 0 then
-    return nil
-  end
-  local okInfo, _, name = pcall(getInfo, index)
-  if okInfo and type(name) == "string" and name ~= "" then
-    return name
-  end
-  return nil
+  local name, source = RakaMod.Logic.ResolveSpecName(api, className)
+  print("RakaMod spec: resolved " .. tostring(name) .. " via " .. tostring(source) .. " (class " .. tostring(className) .. ")")
 end
 
 local function ClassInfo()
@@ -719,7 +731,7 @@ function AFK:Enter()
   nameText:SetText(PlayerName())
   nameText:SetTextColor(cr, cg, cb, 1)
 
-  local spec = PlayerSpecName()
+  local spec = PlayerSpecName(localized)
   if spec then
     specText:SetText(spec)
     specText:Show()

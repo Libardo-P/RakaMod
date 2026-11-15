@@ -1,3 +1,4 @@
+local unpack = table.unpack or unpack
 local Logic = dofile("Logic.lua")
 local failures = 0
 
@@ -135,6 +136,46 @@ do
   eq(b, 0.125, "warrior bottom")
   eq(Logic.FabledClassTexCoords("NOPE"), nil, "unknown class has no icon")
   eq(Logic.FabledClassTexCoords(nil), nil, "nil class has no icon")
+end
+
+do
+  eq(Logic.DisplayName("Tester"), "Tester", "single name")
+  eq(Logic.DisplayName("Tester-Nebuchadnezzar"), "Tester", "realm suffix dropped")
+  eq(Logic.DisplayName("  Ada   Lovelace "), "Ada Lovelace", "first and last name")
+  eq(Logic.DisplayName("Ada Byron Lovelace"), "Ada Lovelace", "middle words dropped")
+  eq(Logic.DisplayName(nil), "", "nil name")
+
+  local function names(name) return function() return nil, name end end
+  -- Retail / MoP+: spec index
+  eq(Logic.ResolveSpecName({ GetSpecialization = function() return 2 end, GetSpecializationInfo = function() return 263, "Enhancement" end }, "Shaman"), "Enhancement", "spec index path")
+  -- Spec info that just repeats the class is rejected, then the talent trees decide
+  local classic = {
+    GetSpecialization = function() return 1 end,
+    GetSpecializationInfo = names("Shaman"),
+    GetNumTalentTabs = function() return 3 end,
+    GetTalentTabInfo = function(tab)
+      local tabs = { { "Elemental", "i", 3 }, { "Enhancement", "i", 31 }, { "Restoration", "i", 0 } }
+      return unpack(tabs[tab])
+    end,
+  }
+  local name, source = Logic.ResolveSpecName(classic, "Shaman")
+  eq(name, "Enhancement", "classic tree with most points")
+  eq(source, "GetTalentTabInfo", "classic source")
+  -- Cata+ shape: id, name, description, icon, pointsSpent
+  eq(Logic.ResolveSpecName({
+    GetPrimaryTalentTree = function() return 3 end,
+    GetTalentTabInfo = function(tab) return 100 + tab, "Tree" .. tab, "d", "i", 0 end,
+  }, "Shaman"), "Tree3", "primary talent tree path")
+  eq(Logic.ResolveSpecName({
+    GetNumTalentTabs = function() return 2 end,
+    GetTalentTabInfo = function(tab) return 100 + tab, "Tree" .. tab, "d", "i", tab == 2 and 5 or 1 end,
+  }, "Shaman"), "Tree2", "cata-shaped tabs pick the most points")
+  -- Nothing usable: no spec rather than the class name
+  eq(Logic.ResolveSpecName({ GetSpecialization = function() return 1 end, GetSpecializationInfo = names("Shaman") }, "Shaman"), nil, "class name is not a spec")
+  eq(Logic.ResolveSpecName({ GetSpecialization = function() return 0 end }, "Shaman"), nil, "no spec chosen")
+  eq(Logic.ResolveSpecName({ GetSpecialization = function() error("boom") end }, "Shaman"), nil, "erroring API is ignored")
+  eq(Logic.ResolveSpecName({}, "Shaman"), nil, "no talent API")
+  eq(Logic.ResolveSpecName({ GetNumTalentTabs = function() return 3 end, GetTalentTabInfo = function(t) return "Tree" .. t, "i", 0 end }, "Shaman"), nil, "no points spent")
 end
 eq(Logic.FadeShadeAlpha(50), 0.50, "shared fade mid")
 eq(Logic.FadeShadeAlpha(nil), 0.50, "shared fade nil default")
