@@ -81,14 +81,14 @@ local function ShowRow(row, label, value)
   row:Show()
 end
 
--- Every font string of the panels, so the Game Menu font can be changed live. The original
+-- Every font string of the panels, so the Escape overlay font can be changed live. The original
 -- font of each (the game's own) is remembered for "Game Default".
 local trackedFonts = {}
 Overlay.fontStrings = trackedFonts
 
 local function ApplyFontEntry(entry)
   local media = RakaMod.Media
-  local chosen = media and media.GameMenuFontPath and media.GameMenuFontPath()
+  local chosen = media and media.OverlayFontPath and media.OverlayFontPath()
   local path = chosen or entry.path
   if path then
     pcall(entry.fs.SetFont, entry.fs, path, entry.size, entry.flags)

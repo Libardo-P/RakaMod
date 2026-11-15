@@ -181,10 +181,10 @@ function RakaMod.Media.AfkFontPath()
   return SavedFontPath("afk", RakaMod.Logic.DEFAULT_AFK_FONT) or RakaMod.Media.FontPath
 end
 
--- Font path for the Game Menu (Escape) panels, or nil to keep the game's own font.
-function RakaMod.Media.GameMenuFontPath()
+-- Font path for the Escape overlay panels (Played, Professions, Collections), or nil to keep the game's own font.
+function RakaMod.Media.OverlayFontPath()
   local fonts = RakaMod.db and RakaMod.db.fonts
-  local chosen = type(fonts) == "table" and fonts.gameMenu or nil
+  local chosen = type(fonts) == "table" and fonts.overlay or nil
   return RakaMod.Media.FontPathByName(chosen)
 end
 

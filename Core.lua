@@ -19,7 +19,7 @@ local DEFAULTS = {
     professions = true,
   },
   reveal = { enabled = true, casting = true, health = true, mouseover = true, combat = true, pet = false },
-  fonts = { afk = Logic.DEFAULT_AFK_FONT, ui = Logic.DEFAULT_UI_FONT, gameMenu = Logic.DEFAULT_GAME_MENU_FONT },
+  fonts = { afk = Logic.DEFAULT_AFK_FONT, ui = Logic.DEFAULT_UI_FONT, overlay = Logic.DEFAULT_OVERLAY_FONT },
   afk = {
     enabled = true,
     playEmotes = true,

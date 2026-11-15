@@ -52,7 +52,7 @@ local PAGE_META = {
   overlay = "Left Escape overlay: professions, collections, and played time beside the game menu.",
   afk = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
   reveal = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
-  fonts = "Fonts used by AFK mode, this settings window and the Game Menu panels.",
+  fonts = "Fonts used by AFK mode, this settings window and the Escape overlay panels.",
   gradient = "Health bar gradients shift by class, NPC reaction, and unit state.",
   gradientBars = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
   gradientResources = "Class resource gradient shifts. Colors are saved now; painting comes later.",
@@ -952,7 +952,7 @@ local function RefreshAfk()
   end
 end
 
-local function RefreshGameMenuFont()
+local function RefreshOverlayFont()
   if RakaMod.Overlay and RakaMod.Overlay.ApplyFont then
     RakaMod.Overlay:ApplyFont()
   end
@@ -1194,13 +1194,13 @@ do
   AddDropdown(card, "General Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 220)
   AddHint(card, "Text of this settings window and its menus. Applied immediately.")
   card.Done()
-  local menuChoices = { RakaMod.Logic.DEFAULT_GAME_MENU_FONT }
+  local menuChoices = { RakaMod.Logic.DEFAULT_OVERLAY_FONT }
   for i = 1, #choices do
     menuChoices[#menuChoices + 1] = choices[i]
   end
-  local menu = page.Card("Game Menu")
-  AddDropdown(menu, "Game Menu Font", "fonts", "gameMenu", menuChoices, RakaMod.Logic.DEFAULT_GAME_MENU_FONT, RefreshGameMenuFont, 220)
-  AddHint(menu, "Professions, collections and played-time panels beside the Escape menu. Applied immediately; Game Default keeps the game's own font.")
+  local menu = page.Card("Escape Overlay")
+  AddDropdown(menu, "Escape Overlay Font", "fonts", "overlay", menuChoices, RakaMod.Logic.DEFAULT_OVERLAY_FONT, RefreshOverlayFont, 220)
+  AddHint(menu, "Text of the RakaMod panels shown beside the Escape menu: Played, Professions and Collections. The Blizzard menu itself is not restyled. Applied immediately; Game Default keeps the game's own font.")
   menu.Done()
   page.Finish()
 end
@@ -1400,7 +1400,7 @@ function Settings:ResetCurrentPage()
   RakaMod.Core:RefreshModules()
   RefreshSharedFades()
   RefreshGradient()
-  RefreshGameMenuFont()
+  RefreshOverlayFont()
   self:ApplyScale()
   Theme.Refresh()
   Theme.RefreshFonts()

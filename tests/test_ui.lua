@@ -170,8 +170,8 @@ eq(joined(info.navs), "fonts", "general font option is searchable")
 eq(info.selectedTab, "fonts", "general font option opens the Fonts tab")
 eq(joined(info.rows), "general font", "only the general font row stays visible")
 
-info = search("game menu font")
-eq(joined(info.rows), "game menu font", "game menu font option is searchable")
+info = search("escape overlay font")
+eq(joined(info.rows), "escape overlay font", "escape overlay font option is searchable")
 
 info = search("minimap")
 eq(joined(info.navs), "general", "search matches option labels")
@@ -198,9 +198,9 @@ do
   local Media = RakaMod.Media
   eq(RakaMod.db.fonts.afk, "Rk RakaMod", "default AFK font")
   eq(RakaMod.db.fonts.ui, "Rk Roboto Condensed", "default general font")
-  eq(RakaMod.db.fonts.gameMenu, "Game Default", "default game menu font keeps the game's own font")
+  eq(RakaMod.db.fonts.overlay, "Game Default", "default escape overlay font keeps the game's own font")
   eq(RakaMod.db.zoneText, nil, "no zone text settings are saved")
-  eq(Media.GameMenuFontPath(), nil, "default game menu font has no override path")
+  eq(Media.OverlayFontPath(), nil, "default escape overlay font has no override path")
   eq(Media.AfkFontPath(), Media.FontPath, "default AFK font path is the old FontPath")
   eq(Media.UiFontPathChosen(), Media.UIFontPath, "default app font path is the old UIFontPath")
 
@@ -225,12 +225,12 @@ do
   RakaMod.db.fonts.ui = "Rk Roboto Condensed"
   Theme.RefreshFonts()
   local overlay = RakaMod.Overlay
-  eq(#overlay.fontStrings > 0, true, "game menu panels register their font strings")
+  eq(#overlay.fontStrings > 0, true, "escape overlay panels register their font strings")
   local menuFs = overlay.fontStrings[1].fs
-  RakaMod.db.fonts.gameMenu = "Rk Montserrat Medium"
+  RakaMod.db.fonts.overlay = "Rk Montserrat Medium"
   overlay:ApplyFont()
-  eq(Stub.stored(menuFs, "Font"), Media.FontPathByName("Rk Montserrat Medium"), "game menu font applies live to the panel text")
-  RakaMod.db.fonts.gameMenu = "Game Default"
+  eq(Stub.stored(menuFs, "Font"), Media.FontPathByName("Rk Montserrat Medium"), "escape overlay font applies live to the panel text")
+  RakaMod.db.fonts.overlay = "Game Default"
   eq(Stub.stored(fs, "Font"), Media.UIFontPath, "default app font restores")
 end
 
