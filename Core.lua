@@ -20,6 +20,7 @@ local DEFAULTS = {
   },
   reveal = { enabled = true, casting = true, health = true, mouseover = true, combat = true, pet = false },
   zoneText = { enabled = true, size = 32, r = 1, g = 1, b = 1, outline = "OUTLINE" },
+  fonts = { afk = Logic.DEFAULT_AFK_FONT, ui = Logic.DEFAULT_UI_FONT },
   afk = {
     enabled = true,
     playEmotes = true,

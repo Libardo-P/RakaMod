@@ -83,7 +83,7 @@ RakaMod.Media.NavIcons = {
   overlay = "ui\\nav-overlay",
   afk = "ui\\nav-afk",
   reveal = "ui\\nav-reveal",
-  zoneText = "ui\\nav-zonetext",
+  fonts = "ui\\nav-zonetext",
   gradient = "ui\\nav-gradient",
 }
 
@@ -142,6 +142,47 @@ function RakaMod.Media.ApplyFadeGrain(texture, host)
   texture:SetVertexColor(1, 1, 1, alpha)
   texture:SetTexCoord(0, w / tile, 0, h / tile)
   texture:Show()
+end
+
+-- Fonts offered in the Fonts page. The icon font is symbols only, so it is not a text choice.
+local TEXT_FONT_EXCLUDED = { ["Rk ToxiUI Icons"] = true }
+
+function RakaMod.Media.FontChoices()
+  local names = {}
+  for i = 1, #FONTS do
+    if not TEXT_FONT_EXCLUDED[FONTS[i][1]] then
+      names[#names + 1] = FONTS[i][1]
+    end
+  end
+  return names
+end
+
+-- Full path of a catalog font by its registered name, or nil when unknown.
+function RakaMod.Media.FontPathByName(name)
+  if type(name) ~= "string" or TEXT_FONT_EXCLUDED[name] then
+    return nil
+  end
+  for i = 1, #FONTS do
+    if FONTS[i][1] == name then
+      return MediaPath(FONTS[i][2])
+    end
+  end
+  return nil
+end
+
+local function SavedFontPath(key, defaultName)
+  local fonts = RakaMod.db and RakaMod.db.fonts
+  local chosen = type(fonts) == "table" and fonts[key] or nil
+  return RakaMod.Media.FontPathByName(chosen) or RakaMod.Media.FontPathByName(defaultName)
+end
+
+-- Font of AFK mode text and of the settings window, from the saved Fonts page choices.
+function RakaMod.Media.AfkFontPath()
+  return SavedFontPath("afk", RakaMod.Logic.DEFAULT_AFK_FONT) or RakaMod.Media.FontPath
+end
+
+function RakaMod.Media.UiFontPathChosen()
+  return SavedFontPath("ui", RakaMod.Logic.DEFAULT_UI_FONT) or RakaMod.Media.UIFontPath
 end
 
 RakaMod.Media.LegacyNames = RakaMod.Logic.BuildLegacyMediaNames(FONTS, STATUSBARS, BACKGROUNDS)

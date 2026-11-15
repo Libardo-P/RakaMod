@@ -29,13 +29,32 @@ Theme.accent = { r = 0.25, g = 0.62, b = 1.00, dr = 0.09, dg = 0.23, db = 0.38, 
 local painters = {}
 
 function Theme.FontPath()
-  return (RakaMod.Media and RakaMod.Media.UIFontPath) or STANDARD_TEXT_FONT
+  local media = RakaMod.Media
+  return (media and media.UiFontPathChosen and media.UiFontPathChosen())
+    or (media and media.UIFontPath)
+    or STANDARD_TEXT_FONT
+end
+
+-- Every font string and edit box styled through Theme.SetFont, so a font change repaints them all.
+local fontEntries = setmetatable({}, { __mode = "k" })
+
+local function applyFont(fontString, size, flags)
+  local ok = fontString:SetFont(Theme.FontPath(), size, flags)
+  if not ok and STANDARD_TEXT_FONT then
+    fontString:SetFont(STANDARD_TEXT_FONT, size, flags)
+  end
 end
 
 function Theme.SetFont(fontString, size, flags)
-  local ok = fontString:SetFont(Theme.FontPath(), size, flags or "")
-  if not ok and STANDARD_TEXT_FONT then
-    fontString:SetFont(STANDARD_TEXT_FONT, size, flags or "")
+  flags = flags or ""
+  fontEntries[fontString] = { size = size, flags = flags }
+  applyFont(fontString, size, flags)
+end
+
+-- Re-applies the saved settings window font everywhere.
+function Theme.RefreshFonts()
+  for fontString, entry in pairs(fontEntries) do
+    applyFont(fontString, entry.size, entry.flags)
   end
 end
 

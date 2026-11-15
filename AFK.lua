@@ -60,7 +60,8 @@ local function EnsureFont(fs, size, flags)
   if not fs then
     return
   end
-  local path = RakaMod.Media and RakaMod.Media.FontPath
+  local media = RakaMod.Media
+  local path = media and ((media.AfkFontPath and media.AfkFontPath()) or media.FontPath)
   if path and type(size) == "number" then
     local ok = pcall(fs.SetFont, fs, path, size, flags or "OUTLINE")
     if ok then
@@ -90,15 +91,7 @@ end
 -- Tiny UI text (~8–9px). Avoid GameFontNormalSmall — still too large on Forever.
 local SMALL_UI_SIZE = 8
 local function PaintSmall(fs, r, g, b, a)
-  local path
-  if GameFontNormal and GameFontNormal.GetFont then
-    path = GameFontNormal:GetFont()
-  end
-  if path then
-    pcall(fs.SetFont, fs, path, SMALL_UI_SIZE, "")
-  else
-    EnsureFont(fs, SMALL_UI_SIZE, "")
-  end
+  EnsureFont(fs, SMALL_UI_SIZE, "")
   fs:SetTextColor(r, g, b, a or 1)
   fs:SetShadowOffset(1, -1)
   fs:SetShadowColor(0, 0, 0, 1)
@@ -165,9 +158,10 @@ local function ApplyLayout()
   local changelogTop = math.floor(36 * s + 0.5)
   local changelogLeft = math.floor(20 * s + 0.5)
   -- Model: large frame flush to screen bottom-right; camera drops feet to the edge.
-  local modelW = math.floor(math.min(w * 0.56, 800 * s) + 0.5)
+  local modelW = math.floor(math.min(w * 0.54, 760 * s) + 0.5)
   local modelH = math.floor(math.min(h * 1.0, 1000 * s) + 0.5)
   local modelPad = 0
+  local modelShift = math.floor(w * 0.03 + 0.5)
   local chatW = math.floor(math.min(w * 0.24, 300 * s) + 0.5)
   local chatH = math.floor(110 * s + 0.5)
   local timerSize = math.max(12, math.floor(15 * s + 0.5))
@@ -200,7 +194,7 @@ local function ApplyLayout()
 
   model:SetSize(modelW, modelH)
   model:ClearAllPoints()
-  model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -modelPad, modelPad)
+  model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", modelShift - modelPad, modelPad)
   PoseModelCamera()
 
   footerText:ClearAllPoints()

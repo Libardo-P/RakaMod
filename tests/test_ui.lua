@@ -159,8 +159,17 @@ local all = Settings.Inspect()
 eq(#all.navs, 7, "all seven pages listed with no query")
 
 local info = search("afk")
-eq(joined(info.navs), "afk", "search filters the nav by page name")
+eq(joined(info.navs), "afk,fonts", "search filters the nav by page name and option labels (AFK Font)")
 eq(info.selectedNav, "afk", "search jumps to the matching page")
+
+info = search("zone")
+eq(joined(info.navs), "fonts", "Zone Text lives under Fonts")
+eq(info.selectedTab, "zoneText", "searching zone opens the Zone Text tab")
+
+info = search("app font")
+eq(joined(info.navs), "fonts", "app font option is searchable")
+eq(info.selectedTab, "fonts", "app font option opens the Fonts tab")
+eq(joined(info.rows), "app font", "only the app font row stays visible")
 
 info = search("minimap")
 eq(joined(info.navs), "general", "search matches option labels")
@@ -181,6 +190,49 @@ eq(#info.navs, 0, "no matches hides every nav item")
 info = search("")
 eq(#info.navs, 7, "clearing the search restores the nav")
 eq(#info.rows >= 3, true, "clearing the search restores the rows")
+
+-- Fonts page ------------------------------------------------------------------------------
+do
+  local Media = RakaMod.Media
+  eq(RakaMod.db.fonts.afk, "Rk RakaMod", "default AFK font")
+  eq(RakaMod.db.fonts.ui, "Rk Roboto Condensed", "default app font")
+  eq(Media.AfkFontPath(), Media.FontPath, "default AFK font path is the old FontPath")
+  eq(Media.UiFontPathChosen(), Media.UIFontPath, "default app font path is the old UIFontPath")
+
+  local choices = Media.FontChoices()
+  local seen = {}
+  for _, name in ipairs(choices) do seen[name] = true end
+  eq(seen["Rk RakaMod"] and seen["Rk Roboto Condensed"] and seen["Rk Montserrat Bold"], true, "font choices include the defaults")
+  eq(seen["Rk ToxiUI Icons"], nil, "icon font is not a text choice")
+
+  RakaMod.db.fonts.afk = "Rk Montserrat Bold"
+  eq(Media.AfkFontPath(), Media.FontPathByName("Rk Montserrat Bold"), "saved AFK font is used")
+  RakaMod.db.fonts.afk = "No Such Font"
+  eq(Media.AfkFontPath(), Media.FontPath, "unknown AFK font falls back to the default")
+  RakaMod.db.fonts.afk = "Rk RakaMod"
+
+  local fs = Theme.Text(UIParent, 14)
+  eq(Stub.stored(fs, "Font"), Media.UIFontPath, "window text starts in the default app font")
+  RakaMod.db.fonts.ui = "Rk Doris PP"
+  Theme.RefreshFonts()
+  eq(Stub.stored(fs, "Font"), Media.FontPathByName("Rk Doris PP"), "RefreshFonts applies the chosen app font live")
+  eq(select(2, Stub.stored(fs, "Font")), 14, "font size is kept")
+  RakaMod.db.fonts.ui = "Rk Roboto Condensed"
+  Theme.RefreshFonts()
+  eq(Stub.stored(fs, "Font"), Media.UIFontPath, "default app font restores")
+end
+
+-- Reset Page on Fonts restores both font choices
+do
+  Settings:SelectPage("fonts")
+  RakaMod.db.fonts.ui = "Rk Doris PP"
+  RakaMod.db.fonts.afk = "Rk Doris PP"
+  local fontsReset = Stub.script(shell.resetButton, "OnClick")
+  fontsReset(shell.resetButton)
+  fontsReset(shell.resetButton)
+  eq(RakaMod.db.fonts.ui, "Rk Roboto Condensed", "Reset Page restores the app font")
+  eq(RakaMod.db.fonts.afk, "Rk RakaMod", "Reset Page restores the AFK font")
+end
 
 -- Reset Page restores the accent --------------------------------------------
 Settings:SelectPage("general")

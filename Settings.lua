@@ -52,6 +52,7 @@ local PAGE_META = {
   overlay = "Left Escape overlay: professions, collections, and played time beside the game menu.",
   afk = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
   reveal = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
+  fonts = "Fonts used by AFK mode and by this settings window. Applied when AFK starts and instantly here.",
   zoneText = "Custom zone change text appearance.",
   gradient = "Health bar gradients shift by class, NPC reaction, and unit state.",
   gradientBars = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
@@ -93,10 +94,9 @@ local NAV = {
     tabs = { { key = "reveal", label = "Triggers" } },
   },
   {
-    key = "zoneText",
-    label = "Zone Text",
-    master = { section = "zoneText", key = "enabled", label = "Enabled" },
-    tabs = { { key = "zoneText", label = "Style" } },
+    key = "fonts",
+    label = "Fonts",
+    tabs = { { key = "fonts", label = "Fonts" }, { key = "zoneText", label = "Zone Text" } },
   },
   {
     key = "gradient",
@@ -708,14 +708,14 @@ local function AddSlider(card, text, section, key, minValue, maxValue)
   return obj.slider
 end
 
-local function AddDropdown(card, text, section, key, options, fallback, afterChange)
+local function AddDropdown(card, text, section, key, options, fallback, afterChange, width)
   IndexLabel(card, text)
   local row = card.Row(38, text)
   local label = Theme.Text(row, LABEL_FONT, C.TEXT)
   label:SetPoint("LEFT", row, "LEFT", 0, 0)
   label:SetText(text)
 
-  local dropdown = Widgets.Dropdown(row, 156, options, function(value)
+  local dropdown = Widgets.Dropdown(row, width or 156, options, function(value)
     local saved = RakaMod.db and RakaMod.db[section]
     if not saved then
       return
@@ -1012,6 +1012,12 @@ local function RefreshAfk()
   end
 end
 
+local function RefreshZoneText()
+  if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
+    RakaMod.ZoneText:Apply()
+  end
+end
+
 local function RefreshGradient()
   if RakaMod.Gradient and RakaMod.Gradient.Apply then
     RakaMod.Gradient:Apply()
@@ -1238,11 +1244,28 @@ do
   page.Finish()
 end
 
+-- Fonts
+do
+  local page = CreatePage("fonts", "fonts")
+  local choices = RakaMod.Media.FontChoices()
+  local afk = page.Card("AFK Mode", 1)
+  AddDropdown(afk, "AFK Font", "fonts", "afk", choices, RakaMod.Logic.DEFAULT_AFK_FONT, RefreshAfk, 200)
+  AddHint(afk, "Name, timer, identity line, changelog and footer in AFK mode. Applies the next time AFK mode starts.")
+  afk.Done()
+  local ui = page.Card("Settings Window", 2)
+  AddDropdown(ui, "App Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 200)
+  AddHint(ui, "Text of this settings window. Applied immediately.")
+  ui.Done()
+  page.Finish()
+end
+
 -- Zone Text
 do
   local OUTLINES = { "NONE", "OUTLINE", "THICKOUTLINE" }
-  local page = CreatePage("zoneText", "zoneText")
-  AddMaster("zoneText")
+  local page = CreatePage("zoneText", "fonts")
+  local enable = page.Card("Zone Text")
+  AddCheck(enable, "Enabled", "zoneText", "enabled", RefreshZoneText, "toggle")
+  enable.Done()
   local main = page.Card("Text", 1)
   AddSlider(main, "Size", "zoneText", "size", 8, 64)
   main.Done()
@@ -1457,6 +1480,7 @@ function Settings:ResetCurrentPage()
   RefreshGradient()
   self:ApplyScale()
   Theme.Refresh()
+  Theme.RefreshFonts()
   self:SyncFromDB()
 end
 
