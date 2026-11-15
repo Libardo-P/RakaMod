@@ -40,6 +40,10 @@ local pageBody
 
 local PAGE_META = {
   general = { title = "General", description = "Addon-wide options." },
+  features = {
+    title = "Features",
+    description = "Shared Escape and AFK background fade, with optional grain.",
+  },
   overlay = {
     title = "Game Menu",
     description = "Left Escape overlay: professions, collections, and played time beside the game menu.",
@@ -76,6 +80,7 @@ local NAV = {
   { header = "CORE" },
   { key = "general", label = "General" },
   { header = "FEATURES" },
+  { key = "features", label = "Features" },
   { key = "overlay", label = "Game Menu" },
   { key = "afk", label = "AFK" },
   { header = "APPEARANCE" },
@@ -210,7 +215,7 @@ local function AddonVersion()
   if type(ver) == "string" and ver ~= "" then
     return "v" .. ver
   end
-  return "v0.2.0"
+  return "v0.3.0"
 end
 
 local versionText = sidebar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -1002,7 +1007,7 @@ local function BindToggle(pill, section, key, afterChange)
   end)
 end
 
-local function AddCheck(ctx, text, section, key)
+local function AddCheck(ctx, text, section, key, afterChange)
   checkSerial = checkSerial + 1
   local label = ctx.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   label:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", 8, ctx.LocalY() - 4)
@@ -1011,7 +1016,7 @@ local function AddCheck(ctx, text, section, key)
 
   local pill = MakePillToggle(ctx.content)
   pill:SetPoint("TOPLEFT", ctx.content, "TOPLEFT", CONTROL_X, ctx.LocalY() - 4)
-  BindToggle(pill, section, key)
+  BindToggle(pill, section, key, afterChange)
   PassWheel(ctx.scroll, pill)
   checks[#checks + 1] = { widget = pill, section = section, key = key }
   ctx.Advance()
@@ -1102,6 +1107,14 @@ local function AddSlider(ctx, text, section, key, minValue, maxValue)
     end
     if section == "afk" and RakaMod.AFK and RakaMod.AFK.ApplyOptions then
       RakaMod.AFK:ApplyOptions()
+    end
+    if section == "features" and key == "backgroundFade" then
+      if RakaMod.Overlay and RakaMod.Overlay.ApplyDimAlpha then
+        RakaMod.Overlay:ApplyDimAlpha()
+      end
+      if RakaMod.AFK and RakaMod.AFK.ApplyOptions then
+        RakaMod.AFK:ApplyOptions()
+      end
     end
   end)
   PassWheel(ctx.scroll, slider)
@@ -1246,6 +1259,21 @@ AddDescription(general, "Addon-wide options.")
 AddCheck(general, "Show minimap icon", "general", "showMinimapIcon")
 general.Finish()
 
+local function RefreshSharedFades()
+  if RakaMod.Overlay and RakaMod.Overlay.ApplyDimAlpha then
+    RakaMod.Overlay:ApplyDimAlpha()
+  end
+  if RakaMod.AFK and RakaMod.AFK.ApplyOptions then
+    RakaMod.AFK:ApplyOptions()
+  end
+end
+
+local features = CreatePage("features")
+AddDescription(features, "Shared background fade for Escape and AFK. Grain is optional.")
+AddSlider(features, "Background fade", "features", "backgroundFade", 0, 100)
+AddCheck(features, "Grain Background", "features", "fadeGrain", RefreshSharedFades)
+features.Finish()
+
 local reveal = CreatePage("reveal")
 AddDescription(
   reveal,
@@ -1384,7 +1412,6 @@ AddCheckRow(afk, {
   { "Show Changelog", "afk", "showChangelog" },
 })
 -- Show Tips omitted: no tips panel yet. Spec Icon Size omitted: AFK shows class icon, not a resizable spec icon.
-AddSlider(afk, "Background fade", "afk", "backgroundFade", 0, 100)
 afk.Finish()
 
 local function MakeSwatch(parent, scroll, size)

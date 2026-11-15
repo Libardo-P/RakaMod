@@ -27,6 +27,7 @@ local chatLines = {}
 
 local frame
 local shade
+local grain
 local model
 local logo
 local nameText
@@ -626,9 +627,11 @@ local function ApplyShade()
   if not shade then
     return
   end
-  local db = AfkDb()
-  local fade = db and db.backgroundFade
-  shade:SetColorTexture(0, 0, 0, RakaMod.Logic.AfkShadeAlpha(fade))
+  local fade = RakaMod.db and RakaMod.db.features and RakaMod.db.features.backgroundFade
+  shade:SetColorTexture(0, 0, 0, RakaMod.Logic.FadeShadeAlpha(fade))
+  if grain and RakaMod.Media and RakaMod.Media.ApplyFadeGrain then
+    RakaMod.Media.ApplyFadeGrain(grain, frame)
+  end
 end
 
 local function ApplyChangelogVisibility()
@@ -876,6 +879,8 @@ frame:Hide()
 
 shade = frame:CreateTexture(nil, "BACKGROUND")
 shade:SetAllPoints()
+grain = frame:CreateTexture(nil, "BORDER")
+grain:SetAllPoints()
 ApplyShade()
 
 frame:SetScript("OnKeyDown", function(self, key)

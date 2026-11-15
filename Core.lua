@@ -5,7 +5,13 @@ RakaMod.Logic = Logic
 
 local DEFAULTS = {
   general = { showMinimapIcon = true, hide = false, minimapPos = 210 },
-  overlay = { enabled = true, collections = true, played = true, professions = true },
+  features = { fadeGrain = true, backgroundFade = 50 },
+  overlay = {
+    enabled = true,
+    collections = true,
+    played = true,
+    professions = true,
+  },
   reveal = { enabled = true, casting = true, health = true, mouseover = true, combat = true, pet = false },
   zoneText = { enabled = true, size = 32, r = 1, g = 1, b = 1, outline = "OUTLINE" },
   afk = {
@@ -13,7 +19,6 @@ local DEFAULTS = {
     playEmotes = true,
     cameraPan = true,
     showChangelog = true,
-    backgroundFade = 72,
   },
   gradient = Logic.BuildGradientDefaults(),
   played = {},

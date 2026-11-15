@@ -32,6 +32,8 @@ local HEADER_BLUE = { r = 0.20, g = 0.55, b = 1.00 }
 local ROW_TEXT = { r = 0.90, g = 0.92, b = 0.95 }
 
 local dim
+local shade
+local grain
 local panel
 local events
 local menuShowHooked = false
@@ -50,6 +52,17 @@ end
 local function OverlayOn()
   local overlay = RakaMod.db and RakaMod.db.overlay
   return type(overlay) == "table" and overlay.enabled == true
+end
+
+function Overlay:ApplyDimAlpha()
+  if not shade then
+    return
+  end
+  local fade = RakaMod.db and RakaMod.db.features and RakaMod.db.features.backgroundFade
+  shade:SetColorTexture(0, 0, 0, RakaMod.Logic.FadeShadeAlpha(fade))
+  if grain and RakaMod.Media and RakaMod.Media.ApplyFadeGrain then
+    RakaMod.Media.ApplyFadeGrain(grain, dim)
+  end
 end
 
 local function HideWidgets(list)
@@ -164,9 +177,11 @@ local function CreateFrames()
   dim:SetFrameStrata("FULLSCREEN_DIALOG")
   dim:SetFrameLevel(1)
   dim:EnableMouse(false)
-  local shade = dim:CreateTexture(nil, "BACKGROUND")
+  shade = dim:CreateTexture(nil, "BACKGROUND")
   shade:SetAllPoints()
-  shade:SetColorTexture(0, 0, 0, 0.45)
+  grain = dim:CreateTexture(nil, "BORDER")
+  grain:SetAllPoints()
+  Overlay:ApplyDimAlpha()
   dim:Hide()
 
   panel = CreateFrame("Frame", "RakaModOverlayPanel", UIParent)
@@ -448,17 +463,33 @@ local function Layout()
   end
 end
 
+local BASE_PAD = 40
+
+local function ScreenSize()
+  local width = UIParent and UIParent.GetWidth and UIParent:GetWidth() or 0
+  local height = UIParent and UIParent.GetHeight and UIParent:GetHeight() or 0
+  return width, height
+end
+
+local function LayoutScale()
+  local logic = RakaMod.Logic
+  if logic and logic.AfkLayoutScale then
+    local width, height = ScreenSize()
+    return logic.AfkLayoutScale(width, height)
+  end
+  return 1
+end
+
 local function PlacePanel()
-  if not GameMenuFrame then
+  if not panel then
     return
   end
-  local side = RakaMod.Logic.AnchorSide(GameMenuFrame:GetLeft() or 0, 300, 12)
+  -- Top-left of the screen; scale with resolution (same clamp as AFK layout).
+  local scale = LayoutScale()
+  panel:SetScale(scale)
+  local pad = math.floor(BASE_PAD * scale + 0.5)
   panel:ClearAllPoints()
-  if side == "LEFT" then
-    panel:SetPoint("RIGHT", GameMenuFrame, "LEFT", -12, 0)
-  else
-    panel:SetPoint("LEFT", GameMenuFrame, "RIGHT", 12, 0)
-  end
+  panel:SetPoint("TOPLEFT", UIParent, "TOPLEFT", pad, -pad)
 end
 
 local function RaiseMenu()
@@ -555,6 +586,7 @@ local function OnMenuShow()
   end
   MaybeRequestPlayed()
   Overlay:Refresh()
+  Overlay:ApplyDimAlpha()
   dim:Show()
   panel:Show()
   RaiseMenu()
@@ -612,6 +644,8 @@ function Overlay:Enable()
     CreateFrames()
   end
   events:RegisterEvent("TIME_PLAYED_MSG")
+  events:RegisterEvent("DISPLAY_SIZE_CHANGED")
+  events:RegisterEvent("UI_SCALE_CHANGED")
   TryHookMenu()
   if not (menuShowHooked and menuHideHooked) then
     events:RegisterEvent("ADDON_LOADED")
@@ -620,6 +654,8 @@ end
 
 function Overlay:Disable()
   events:UnregisterEvent("TIME_PLAYED_MSG")
+  events:UnregisterEvent("DISPLAY_SIZE_CHANGED")
+  events:UnregisterEvent("UI_SCALE_CHANGED")
   if dim then
     dim:Hide()
   end
@@ -635,6 +671,13 @@ events:SetScript("OnEvent", function(_, event, arg1)
     TryHookMenu()
   elseif event == "TIME_PLAYED_MSG" then
     StorePlayed(arg1)
+  elseif event == "DISPLAY_SIZE_CHANGED" or event == "UI_SCALE_CHANGED" then
+    if dim and dim:IsShown() then
+      Overlay:ApplyDimAlpha()
+    end
+    if panel and panel:IsShown() then
+      PlacePanel()
+    end
   end
 end)
 

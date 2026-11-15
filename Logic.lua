@@ -149,10 +149,13 @@ function Logic.AfkSuppressed(now, suppressUntil)
   return type(suppressUntil) == "number" and now < suppressUntil
 end
 
--- AFK shade alpha from a 0–100 backgroundFade setting.
-function Logic.AfkShadeAlpha(fade)
+-- Shade alpha from a 0–100 fade setting (AFK / Escape overlay).
+function Logic.ShadeAlpha(fade, defaultFade)
+  if type(defaultFade) ~= "number" then
+    defaultFade = 72
+  end
   if type(fade) ~= "number" then
-    fade = 72
+    fade = defaultFade
   end
   if fade < 0 then
     fade = 0
@@ -160,6 +163,48 @@ function Logic.AfkShadeAlpha(fade)
     fade = 100
   end
   return fade / 100
+end
+
+-- Shared Escape/AFK fade default (features.backgroundFade).
+Logic.FADE_BACKGROUND_DEFAULT = 50
+
+function Logic.FadeShadeAlpha(fade)
+  return Logic.ShadeAlpha(fade, Logic.FADE_BACKGROUND_DEFAULT)
+end
+
+-- Kept for older call sites / tests; same shared default.
+function Logic.AfkShadeAlpha(fade)
+  return Logic.FadeShadeAlpha(fade)
+end
+
+-- Fixed fade-grain look when features.fadeGrain is on.
+Logic.FADE_GRAIN_STRENGTH = 40
+Logic.FADE_GRAIN_SCALE = 1
+
+-- Grain overlay alpha from strength (0–100). Default matches fade grain.
+function Logic.GrainAlpha(strength)
+  if type(strength) ~= "number" then
+    strength = Logic.FADE_GRAIN_STRENGTH
+  end
+  if strength < 0 then
+    strength = 0
+  elseif strength > 100 then
+    strength = 100
+  end
+  return strength / 100
+end
+
+-- Pixel tile size from scale (1–10). Higher = coarser grain.
+function Logic.GrainTileSize(scale)
+  if type(scale) ~= "number" then
+    scale = Logic.FADE_GRAIN_SCALE
+  end
+  if scale < 1 then
+    scale = 1
+  elseif scale > 10 then
+    scale = 10
+  end
+  return 32 + (scale - 1) * 16
 end
 
 -- UI scale for AFK overlay vs 1920x1080 baseline. Clamped so 1080p stays compact
