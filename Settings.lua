@@ -516,12 +516,12 @@ local function AddonVersion()
   if type(ver) == "string" and ver ~= "" then
     return "v" .. ver
   end
-  return "v0.4.0"
+  return nil
 end
 
 local versionText = footer:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 versionText:SetPoint("LEFT", 22, 0)
-versionText:SetText("RakaMod " .. AddonVersion())
+versionText:SetText("RakaMod " .. (AddonVersion() or ""))
 versionText:SetTextColor(MUTED.r, MUTED.g, MUTED.b)
 
 local reloadBtn = MakeButton(footer, "Apply & Reload", 130, true)
@@ -2125,7 +2125,7 @@ end
 do
   local page = CreatePage("generalAbout", "general")
   local card = page.Card("RakaMod")
-  AddInfo(card, "Version", AddonVersion())
+  AddInfo(card, "Version", AddonVersion() or "unknown")
   AddInfo(card, "Open settings", "/rakamod   /rmod   /rm")
   AddInfo(card, "Requires", "EllesmereUI")
   card.Done()

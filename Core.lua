@@ -30,8 +30,33 @@ Core.DEFAULTS = DEFAULTS
 RakaMod.Core = Core
 local modules = {}
 local loginDone = false
-local missingPrinted = false
 local lastPlayedRequest = nil
+
+-- The login /played request would print "Total time played" lines in chat. Chat frames
+-- are muted for TIME_PLAYED_MSG just long enough to swallow that one reply.
+local function MutePlayedChat(seconds)
+  local windows = tonumber(NUM_CHAT_WINDOWS) or 10
+  local muted = {}
+  for i = 1, windows do
+    local chat = _G["ChatFrame" .. i]
+    if chat and chat.UnregisterEvent then
+      local ok = pcall(chat.UnregisterEvent, chat, "TIME_PLAYED_MSG")
+      if ok then
+        muted[#muted + 1] = chat
+      end
+    end
+  end
+  local function restore()
+    for i = 1, #muted do
+      pcall(muted[i].RegisterEvent, muted[i], "TIME_PLAYED_MSG")
+    end
+  end
+  if C_Timer and C_Timer.After then
+    C_Timer.After(seconds, restore)
+  else
+    restore()
+  end
+end
 
 function Core:IsForever()
   local _, _, _, interfaceVersion = GetBuildInfo()
@@ -106,10 +131,6 @@ frame:RegisterEvent("PLAYER_LOGIN")
 frame:SetScript("OnEvent", function(_, event, name)
   if event == "ADDON_LOADED" and name == ADDON then
     if not Core:AddonLoaded("EllesmereUI") then
-      if not missingPrinted then
-        print("RakaMod requires EllesmereUI.")
-        missingPrinted = true
-      end
       return
     end
     if RakaMod.Media and RakaMod.Media.LegacyNames then
@@ -126,6 +147,7 @@ frame:SetScript("OnEvent", function(_, event, name)
     loginDone = true
     Core:RefreshModules()
     if Core:CanRequestPlayed(GetTime()) then
+      MutePlayedChat(5)
       RequestTimePlayed()
       Core:NotePlayedRequest(GetTime())
     end

@@ -111,16 +111,6 @@ function Logic.IsForever(interfaceVersion)
   return interfaceVersion == 16001
 end
 
-function Logic.HealthBelow(current, maxHealth, percent, secret)
-  if secret then
-    return false
-  end
-  if type(current) ~= "number" or type(maxHealth) ~= "number" or maxHealth <= 0 then
-    return false
-  end
-  return (current / maxHealth) * 100 < percent
-end
-
 -- True when current + absorbs exceeds max (effective health above 100%).
 function Logic.HealthAboveFull(current, maxHealth, absorbs, secret)
   if secret then
@@ -242,11 +232,6 @@ Logic.FADE_BACKGROUND_DEFAULT = 50
 
 function Logic.FadeShadeAlpha(fade)
   return Logic.ShadeAlpha(fade, Logic.FADE_BACKGROUND_DEFAULT)
-end
-
--- Kept for older call sites / tests; same shared default.
-function Logic.AfkShadeAlpha(fade)
-  return Logic.FadeShadeAlpha(fade)
 end
 
 -- Fixed fade-grain look when features.fadeGrain is on.
@@ -554,7 +539,6 @@ function Logic.BuildGradientDefaults(classColors)
       dead = pair(rgb(0.35, 0.35, 0.35), rgb(0.55, 0.55, 0.55)),
       offline = pair(rgb(0.25, 0.25, 0.30), rgb(0.45, 0.45, 0.55)),
       tapped = pair(rgb(0.40, 0.40, 0.40), rgb(0.65, 0.65, 0.65)),
-      disconnected = pair(rgb(0.30, 0.20, 0.20), rgb(0.55, 0.35, 0.35)),
     },
     power = {
       altPower = hexPair("1E4BB8", "3D7AE8"),
@@ -629,9 +613,6 @@ function Logic.PickGradientPair(gradient, info)
   end
   if info.offline and type(states) == "table" and type(states.offline) == "table" then
     return states.offline
-  end
-  if info.disconnected and type(states) == "table" and type(states.disconnected) == "table" then
-    return states.disconnected
   end
   if info.tapped and type(states) == "table" and type(states.tapped) == "table" then
     return states.tapped

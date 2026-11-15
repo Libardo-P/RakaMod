@@ -45,5 +45,5 @@ read_globals = {
   "SettingsPanel", "UnitChannelInfo", "UnitCastingInfo", "UnitIsTappedByPlayer", "UnitIsTapped", "LoadAddOn",
   "HideUIPanel", "GetTotalAchievementPoints", "EllesmereUIUnitFrames_Player", "EllesmereUIUnitFrames_Pet",
   "canaccessvalue", "UnitIsDeadOrGhost", "Screenshot", "GetBattlefieldStatus", "CloseAllWindows",
-  "NamePlateDriverFrame", "C_NamePlate", "CastingBarFrame", "PlayerCastingBarFrame", "TargetFrameSpellBar",
+  "NUM_CHAT_WINDOWS", "NamePlateDriverFrame", "C_NamePlate", "CastingBarFrame", "PlayerCastingBarFrame", "TargetFrameSpellBar",
 }

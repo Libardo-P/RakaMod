@@ -89,10 +89,10 @@ local function HealthAboveFull()
   local absorbs = 0
   if type(UnitGetTotalAbsorbs) == "function" then
     local okAbsorb, value = pcall(UnitGetTotalAbsorbs, "player")
-    if okAbsorb and type(value) == "number" then
-      absorbs = value
-    elseif okAbsorb and IsSecret(value) then
+    if okAbsorb and IsSecret(value) then
       return false
+    elseif okAbsorb and type(value) == "number" then
+      absorbs = value
     end
   end
   local secret = IsSecret(current) or IsSecret(maxHealth)
@@ -490,7 +490,12 @@ end
 function Reveal:Enable()
   enabled = true
   for i = 1, #EVENTS do
-    pcall(events.RegisterEvent, events, EVENTS[i])
+    local event = EVENTS[i]
+    if UNIT_EVENT[event] and events.RegisterUnitEvent then
+      pcall(events.RegisterUnitEvent, events, event, "player")
+    else
+      pcall(events.RegisterEvent, events, event)
+    end
   end
   TryHookPlayer()
   Reveal:Update()
