@@ -162,7 +162,7 @@ local function ApplyLayout()
   local gapName = -math.floor(4 * s + 0.5)
   local classPx = math.floor(16 * s + 0.5)
   -- Changelog column: top-left, modest width so it stays left of center brand.
-  local changelogW = math.min(math.floor(w * 0.24 + 0.5), math.floor(340 * s + 0.5))
+  local changelogW = math.min(math.floor(w * 0.24 + 0.5), math.floor(320 * s + 0.5))
   if changelogW < 200 then
     changelogW = 200
   end
@@ -405,14 +405,14 @@ local function PlaceChangelogHeader(y, view, width)
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
 
-  ChangelogFont(piece.version, 12, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
+  ChangelogFont(piece.version, 11, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
   piece.version:ClearAllPoints()
   piece.version:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, 0)
   piece.version:SetText(view.version or "")
 
   local badgeAnchor = piece.version
   if view.date and view.date ~= "" then
-    ChangelogFont(piece.date, 9, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
+    ChangelogFont(piece.date, 8, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
     piece.date:ClearAllPoints()
     piece.date:SetPoint("LEFT", piece.version, "RIGHT", 8, 0)
     piece.date:SetText(view.date)
@@ -422,7 +422,7 @@ local function PlaceChangelogHeader(y, view, width)
     piece.date:Hide()
   end
 
-  ChangelogFont(piece.badgeText, 8, 0.05, 0.12, 0.05, 1)
+  ChangelogFont(piece.badgeText, 7, 0.05, 0.12, 0.05, 1)
   piece.badgeText:SetShadowOffset(0, 0)
   piece.badgeText:SetText("LATEST")
   piece.badgeText:ClearAllPoints()
@@ -433,14 +433,14 @@ local function PlaceChangelogHeader(y, view, width)
   piece.badgeBg:Show()
   piece.badgeText:Show()
 
-  ChangelogFont(piece.blurb, 9, CL_BLURB.r, CL_BLURB.g, CL_BLURB.b, 1)
+  ChangelogFont(piece.blurb, 8, CL_BLURB.r, CL_BLURB.g, CL_BLURB.b, 1)
   piece.blurb:ClearAllPoints()
   piece.blurb:SetPoint("TOPLEFT", piece.version, "BOTTOMLEFT", 0, -4)
   piece.blurb:SetWidth(width)
   piece.blurb:SetText("EllesmereUI patch notes")
   piece.blurb:Show()
 
-  local h = 15 + 4 + math.max(11, math.ceil(piece.blurb:GetStringHeight() or 11)) + 4
+  local h = 14 + 4 + math.max(10, math.ceil(piece.blurb:GetStringHeight() or 10)) + 4
   piece:SetSize(width, h)
   return y + h + 4
 end
@@ -449,19 +449,19 @@ local function PlaceChangelogSection(y, width, iconText, label)
   local piece = AcquireChangelogPiece("section")
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
-  piece:SetSize(width, 20)
-  ChangelogFont(piece.icon, 10, CL_SECTION.r, CL_SECTION.g, CL_SECTION.b, 1)
+  piece:SetSize(width, 18)
+  ChangelogFont(piece.icon, 9, CL_SECTION.r, CL_SECTION.g, CL_SECTION.b, 1)
   piece.icon:ClearAllPoints()
   piece.icon:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, -2)
   piece.icon:SetText(iconText)
-  ChangelogFont(piece.label, 10, CL_SECTION.r, CL_SECTION.g, CL_SECTION.b, 1)
+  ChangelogFont(piece.label, 9, CL_SECTION.r, CL_SECTION.g, CL_SECTION.b, 1)
   piece.label:ClearAllPoints()
   piece.label:SetPoint("LEFT", piece.icon, "RIGHT", 4, 0)
   piece.label:SetText(label)
   piece.rule:ClearAllPoints()
   piece.rule:SetPoint("BOTTOMLEFT", piece, "BOTTOMLEFT", 0, 0)
   piece.rule:SetSize(width, 1)
-  return y + 22
+  return y + 20
 end
 
 local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
@@ -479,21 +479,21 @@ local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
   local hasTag = (primary and primary ~= "") or (secondary and secondary ~= "")
   local tagH = 0
   if hasTag then
-    ChangelogFont(piece.primary, 9, cr, cg, cb, 1)
+    ChangelogFont(piece.primary, 8, cr, cg, cb, 1)
     piece.primary:ClearAllPoints()
     piece.primary:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, -2)
     piece.primary:SetWidth(tagW)
     piece.primary:SetText(primary or "")
     piece.primary:Show()
-    tagH = 12
+    tagH = 11
     if secondary and secondary ~= "" then
-      ChangelogFont(piece.secondary, 8, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
+      ChangelogFont(piece.secondary, 7, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
       piece.secondary:ClearAllPoints()
       piece.secondary:SetPoint("TOPLEFT", piece.primary, "BOTTOMLEFT", 0, -1)
       piece.secondary:SetWidth(tagW)
       piece.secondary:SetText(secondary)
       piece.secondary:Show()
-      tagH = 22
+      tagH = 20
     else
       piece.secondary:Hide()
     end
@@ -505,19 +505,19 @@ local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
   local hasTitle = title and title ~= ""
   local bodyH = 0
   if hasTitle then
-    ChangelogFont(piece.title, 10, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
+    ChangelogFont(piece.title, 9, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
     piece.title:ClearAllPoints()
     piece.title:SetPoint("TOPLEFT", piece, "TOPLEFT", tagW + 8, -2)
     piece.title:SetWidth(rightW)
     piece.title:SetText(title)
     piece.title:Show()
-    bodyH = 13
+    bodyH = 12
   else
     piece.title:Hide()
   end
 
   if desc and desc ~= "" then
-    ChangelogFont(piece.desc, 9, CL_DESC.r, CL_DESC.g, CL_DESC.b, 1)
+    ChangelogFont(piece.desc, 8, CL_DESC.r, CL_DESC.g, CL_DESC.b, 1)
     piece.desc:ClearAllPoints()
     if hasTitle then
       piece.desc:SetPoint("TOPLEFT", piece.title, "BOTTOMLEFT", 0, -2)
@@ -527,7 +527,7 @@ local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
     piece.desc:SetWidth(rightW)
     piece.desc:SetText(desc)
     piece.desc:Show()
-    local descH = math.max(11, math.ceil(piece.desc:GetStringHeight() or 11))
+    local descH = math.max(10, math.ceil(piece.desc:GetStringHeight() or 10))
     bodyH = hasTitle and (bodyH + 2 + descH) or descH
   else
     piece.desc:Hide()
@@ -546,7 +546,7 @@ local function PlaceChangelogFallback(y, width, text)
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
   piece:SetWidth(width)
-  ChangelogFont(piece.text, 9, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
+  ChangelogFont(piece.text, 8, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
   piece.text:ClearAllPoints()
   piece.text:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, 0)
   piece.text:SetWidth(width)
