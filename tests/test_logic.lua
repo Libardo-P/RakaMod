@@ -139,6 +139,10 @@ do
 end
 
 do
+  eq(Logic.AfkIdentityLine(80, "Enhancement", "Shaman"), "Lv 80 - Enhancement - Shaman", "identity line with spec")
+  eq(Logic.AfkIdentityLine(80, nil, "Shaman"), "Lv 80 - Shaman", "identity line without spec")
+  eq(Logic.AfkIdentityLine(80, "", "Shaman"), "Lv 80 - Shaman", "empty spec skipped")
+  eq(Logic.AfkIdentityLine(nil, nil, "Shaman"), "Shaman", "missing level skipped")
   eq(Logic.DisplayName("Tester"), "Tester", "single name")
   eq(Logic.DisplayName("Tester-Nebuchadnezzar"), "Tester", "realm suffix dropped")
   eq(Logic.DisplayName("  Ada   Lovelace "), "Ada Lovelace", "first and last name")

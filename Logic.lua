@@ -505,6 +505,21 @@ function Logic.DisplayName(name)
   return words[1] .. " " .. words[#words]
 end
 
+-- AFK identity line: "Lv 80 - Enhancement - Shaman", or "Lv 80 - Shaman" without a spec.
+function Logic.AfkIdentityLine(level, spec, className)
+  local parts = {}
+  if type(level) == "number" and level > 0 then
+    parts[#parts + 1] = "Lv " .. level
+  end
+  if type(spec) == "string" and spec ~= "" then
+    parts[#parts + 1] = spec
+  end
+  if type(className) == "string" and className ~= "" then
+    parts[#parts + 1] = className
+  end
+  return table.concat(parts, " - ")
+end
+
 -- Current specialization name from whichever talent API the client has, or nil.
 -- `api` maps API names to functions (any may be missing). Names equal to the class name are
 -- rejected so the spec line never repeats the class line. Order: the talent tree with the most

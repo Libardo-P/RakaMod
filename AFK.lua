@@ -31,7 +31,6 @@ local grain
 local model
 local classArt
 local nameText
-local specText
 local timerText
 local classText
 local changelogPanel
@@ -166,8 +165,8 @@ local function ApplyLayout()
   local changelogTop = math.floor(36 * s + 0.5)
   local changelogLeft = math.floor(20 * s + 0.5)
   -- Model: large frame flush to screen bottom-right; camera drops feet to the edge.
-  local modelW = math.floor(math.min(w * 0.46, 640 * s) + 0.5)
-  local modelH = math.floor(math.min(h * 0.88, 900 * s) + 0.5)
+  local modelW = math.floor(math.min(w * 0.56, 800 * s) + 0.5)
+  local modelH = math.floor(math.min(h * 1.0, 1000 * s) + 0.5)
   local modelPad = 0
   local chatW = math.floor(math.min(w * 0.24, 300 * s) + 0.5)
   local chatH = math.floor(110 * s + 0.5)
@@ -188,17 +187,9 @@ local function ApplyLayout()
   nameText:SetPoint("TOP", timerText, "BOTTOM", 0, gapTimer)
   EnsureFont(nameText, nameSize, "OUTLINE")
 
-  specText:ClearAllPoints()
-  specText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
-  Paint(specText, titleSize, 0.85, 0.85, 0.85)
-
   classText:ClearAllPoints()
-  if specText:IsShown() then
-    classText:SetPoint("TOP", specText, "BOTTOM", 0, gapName)
-  else
-    classText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
-  end
-  Paint(classText, titleSize, 1, 1, 1)
+  classText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
+  EnsureFont(classText, titleSize, "OUTLINE")
 
   changelogWidth = changelogW
   if changelogPanel then
@@ -702,14 +693,7 @@ function AFK:Enter()
   nameText:SetTextColor(cr, cg, cb, 1)
 
   local spec = PlayerSpecName(localized)
-  if spec then
-    specText:SetText(spec)
-    specText:Show()
-  else
-    specText:SetText("")
-    specText:Hide()
-  end
-  classText:SetText(localized)
+  classText:SetText(RakaMod.Logic.AfkIdentityLine(UnitLevel("player"), spec, localized))
   classText:SetTextColor(cr, cg, cb, 1)
   ApplyClassArt(classFile)
   ApplyLayout()
@@ -887,17 +871,12 @@ nameText = frame:CreateFontString(nil, "OVERLAY")
 nameText:SetJustifyH("CENTER")
 EnsureFont(nameText, 20, "OUTLINE")
 
-specText = frame:CreateFontString(nil, "OVERLAY")
-specText:SetJustifyH("CENTER")
-EnsureFont(specText, 13, "OUTLINE")
-specText:Hide()
-
 classText = frame:CreateFontString(nil, "OVERLAY")
 classText:SetJustifyH("CENTER")
 EnsureFont(classText, 13, "OUTLINE")
 
 -- Center stack widgets, exposed for tests.
-AFK.ui = { classArt = classArt, timerText = timerText, nameText = nameText, specText = specText, classText = classText }
+AFK.ui = { classArt = classArt, timerText = timerText, nameText = nameText, classText = classText }
 
 changelogPanel = CreateFrame("Frame", nil, frame)
 changelogPanel:SetSize(300, 200)

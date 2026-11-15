@@ -325,20 +325,20 @@ do
     eq(Stub.stored(ui.nameText, "Text"), "Tester", "name line")
     local fontSize = function(fs) return select(2, Stub.stored(fs, "Font")) end
     eq(fontSize(ui.timerText) < fontSize(ui.nameText), true, "timer is smaller than the name")
-    eq(Stub.stored(ui.specText, "Text"), "Fury", "spec line")
-    eq(ui.specText:IsShown(), true, "spec line shown")
-    eq(Stub.stored(ui.classText, "Text"), "Warrior", "class line")
+    eq(Stub.stored(ui.classText, "Text"), "Lv 80 - Fury - Warrior", "identity line with spec")
+    local cr, cg, cb = Stub.stored(ui.classText, "TextColor")
+    local nr, ng, nb = Stub.stored(ui.nameText, "TextColor")
+    eq(cr == nr and cg == ng and cb == nb, true, "identity line uses the name's class color")
     afk:Leave(false)
   end
 
   if enter("Warrior") then
-    eq(ui.specText:IsShown(), false, "spec line hidden when the spec API only returns the class name")
+    eq(Stub.stored(ui.classText, "Text"), "Lv 80 - Warrior", "no spec when the spec API only returns the class name")
     afk:Leave(false)
   end
 
   if enter(nil) then
-    eq(ui.specText:IsShown(), false, "spec line hidden when the client has no specs")
-    eq(Stub.stored(ui.classText, "Text"), "Warrior", "class line still shown without a spec")
+    eq(Stub.stored(ui.classText, "Text"), "Lv 80 - Warrior", "identity line without a spec")
     afk:Leave(false)
   end
   rawset(_G, "GetSpecialization", nil)
