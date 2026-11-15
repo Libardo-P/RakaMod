@@ -19,8 +19,29 @@ local UNIT_GLOBALS = {
   "EllesmereUIUnitFrames_Boss8",
 }
 
+local THROTTLE_SECONDS = 0.15
+
 local hooked = {}
+local barState = setmetatable({}, { __mode = "k" })
+local active = false
 local events
+local pending = {}
+local pendingAll = false
+local pendingRescan = false
+local flushScheduled = false
+
+local function IsSecret(value)
+  return issecretvalue ~= nil and issecretvalue(value) == true
+end
+
+local function StateOf(bar)
+  local state = barState[bar]
+  if not state then
+    state = {}
+    barState[bar] = state
+  end
+  return state
+end
 
 local function Scan(object, depth, found)
   if not object or depth > 3 or found[object] then
@@ -45,20 +66,21 @@ local function AddonOn(name)
 end
 
 local function ResolveUnit(bar)
-  if bar and type(bar.RakaModUnit) == "string" and bar.RakaModUnit ~= "" then
-    return bar.RakaModUnit
+  local hint = barState[bar] and barState[bar].unit
+  if type(hint) == "string" and hint ~= "" then
+    return hint
   end
   local frame = bar
   for _ = 1, 10 do
     if not frame then
       break
     end
-    if type(frame.unit) == "string" and frame.unit ~= "" then
+    if type(frame.unit) == "string" and not IsSecret(frame.unit) and frame.unit ~= "" then
       return frame.unit
     end
     if frame.GetAttribute then
       local ok, unit = pcall(frame.GetAttribute, frame, "unit")
-      if ok and type(unit) == "string" and unit ~= "" then
+      if ok and type(unit) == "string" and not IsSecret(unit) and unit ~= "" then
         return unit
       end
     end
@@ -67,22 +89,22 @@ local function ResolveUnit(bar)
   return nil
 end
 
-local function SafeCall(fn, ...)
+-- Returns a plain boolean, or false when the API errors or hands back a secret value.
+local function SafeBool(fn, ...)
   if type(fn) ~= "function" then
     return false
   end
   local ok, result = pcall(fn, ...)
-  if ok then
-    return result and true or false, result
+  if not ok or IsSecret(result) then
+    return false
   end
-  return false
+  return result and true or false
 end
 
 local function UnitInfo(unit)
   local info = {
     dead = false,
     offline = false,
-    disconnected = false,
     tapped = false,
     isPlayer = false,
     classFile = nil,
@@ -91,19 +113,18 @@ local function UnitInfo(unit)
   if type(unit) ~= "string" or unit == "" then
     return info
   end
-  if not UnitExists or not UnitExists(unit) then
+  if not UnitExists or not SafeBool(UnitExists, unit) then
     return info
   end
 
-  info.dead = SafeCall(UnitIsDeadOrGhost, unit) and true or false
-
-  local isPlayer = SafeCall(UnitIsPlayer, unit) and true or false
+  info.dead = SafeBool(UnitIsDeadOrGhost, unit)
+  local isPlayer = SafeBool(UnitIsPlayer, unit)
   info.isPlayer = isPlayer
 
   local connected = true
   if UnitIsConnected then
     local ok, value = pcall(UnitIsConnected, unit)
-    if ok then
+    if ok and not IsSecret(value) then
       connected = value and true or false
     end
   end
@@ -112,23 +133,21 @@ local function UnitInfo(unit)
   end
 
   if UnitIsTapDenied then
-    info.tapped = SafeCall(UnitIsTapDenied, unit) and true or false
+    info.tapped = SafeBool(UnitIsTapDenied, unit)
   elseif UnitIsTapped and UnitIsTappedByPlayer then
-    local tapped = SafeCall(UnitIsTapped, unit)
-    local byPlayer = SafeCall(UnitIsTappedByPlayer, unit)
-    info.tapped = tapped and not byPlayer
+    info.tapped = SafeBool(UnitIsTapped, unit) and not SafeBool(UnitIsTappedByPlayer, unit)
   end
 
   if isPlayer and UnitClass then
     local ok, _, classFile = pcall(UnitClass, unit)
-    if ok and type(classFile) == "string" then
+    if ok and type(classFile) == "string" and not IsSecret(classFile) then
       info.classFile = classFile
     end
   end
 
   if UnitReaction then
     local ok, reaction = pcall(UnitReaction, unit, "player")
-    if ok then
+    if ok and type(reaction) == "number" and not IsSecret(reaction) then
       info.reactionKey = RakaMod.Logic.ReactionKey(reaction)
     end
   end
@@ -136,37 +155,12 @@ local function UnitInfo(unit)
   return info
 end
 
-function Gradient:Hook(bar, unitHint)
-  if not bar or bar.RakaModHooked then
-    if bar and type(unitHint) == "string" and unitHint ~= "" then
-      bar.RakaModUnit = unitHint
-    end
+function Gradient:Paint(bar)
+  if not active then
     return
   end
-  bar.RakaModHooked = true
-  if type(unitHint) == "string" and unitHint ~= "" then
-    bar.RakaModUnit = unitHint
-  end
-  bar.RakaModOriginalColor = bar.SetStatusBarColor
-  if not bar.RakaModLastColor and bar.GetStatusBarColor then
-    local ok, r, g, b, a = pcall(bar.GetStatusBarColor, bar)
-    if ok and type(r) == "number" then
-      bar.RakaModLastColor = { r, g, b, a }
-    end
-  end
-  hooked[#hooked + 1] = bar
-  function bar:SetStatusBarColor(r, g, b, a)
-    bar.RakaModLastColor = { r, g, b, a }
-    bar.RakaModOriginalColor(bar, r, g, b, a)
-    if RakaMod.db and RakaMod.db.gradient and RakaMod.db.gradient.enabled then
-      RakaMod.Gradient:Paint(bar)
-    end
-  end
-end
-
-function Gradient:Paint(bar)
   local gradient = RakaMod.db and RakaMod.db.gradient
-  if type(gradient) ~= "table" then
+  if type(gradient) ~= "table" or gradient.enabled ~= true then
     return
   end
   local unit = ResolveUnit(bar)
@@ -186,13 +180,65 @@ function Gradient:Paint(bar)
   end)
 end
 
+-- Post-hook on the bar's own SetStatusBarColor (never replaces the method, so Ellesmere's
+-- colouring and any other hooks keep working). hooksecurefunc cannot be undone, so the
+-- module-level `active` flag decides whether the hook paints.
+function Gradient:Hook(bar, unitHint)
+  if not bar or not bar.SetStatusBarColor then
+    return
+  end
+  local state = StateOf(bar)
+  if type(unitHint) == "string" and unitHint ~= "" then
+    state.unit = unitHint
+  end
+  if state.hooked then
+    return
+  end
+  state.hooked = true
+  if bar.GetStatusBarColor then
+    local ok, r, g, b, a = pcall(bar.GetStatusBarColor, bar)
+    if ok and type(r) == "number" then
+      state.lastColor = { r, g, b, a }
+    end
+  end
+  hooked[#hooked + 1] = bar
+  hooksecurefunc(bar, "SetStatusBarColor", function(self, r, g, b, a)
+    local st = barState[self]
+    if not st then
+      return
+    end
+    st.lastColor = { r, g, b, a }
+    if active then
+      RakaMod.Gradient:Paint(self)
+    end
+  end)
+end
+
 function Gradient:Apply()
-  local gradient = RakaMod.db and RakaMod.db.gradient
-  if type(gradient) ~= "table" or gradient.enabled ~= true then
+  if not active then
     return
   end
   for i = 1, #hooked do
     self:Paint(hooked[i])
+  end
+end
+
+-- Puts the bar back to the last flat colour Ellesmere gave it. SetStatusBarColor resets the
+-- texture vertex colours; the explicit flat SetGradient is a belt-and-braces fallback for
+-- clients where a previous gradient survives the vertex colour reset.
+local function RestoreBar(bar)
+  local state = barState[bar]
+  local color = state and state.lastColor
+  if type(color) ~= "table" then
+    return
+  end
+  pcall(bar.SetStatusBarColor, bar, color[1], color[2], color[3], color[4])
+  if type(color[1]) == "number" and not IsSecret(color[1]) and type(color[2]) == "number"
+    and not IsSecret(color[2]) and type(color[3]) == "number" and not IsSecret(color[3]) then
+    pcall(function()
+      local flat = CreateColor(color[1], color[2], color[3], 1)
+      bar:GetStatusBarTexture():SetGradient("HORIZONTAL", flat, flat)
+    end)
   end
 end
 
@@ -246,12 +292,72 @@ local function Rescan()
   Gradient:Apply()
 end
 
+-- Events only mark work as pending; one flush per throttle window does the repaint.
+local function Flush()
+  flushScheduled = false
+  if not active then
+    pending = {}
+    pendingAll = false
+    pendingRescan = false
+    return
+  end
+  if pendingRescan then
+    pendingRescan = false
+    pendingAll = false
+    pending = {}
+    Rescan()
+    return
+  end
+  local all = pendingAll
+  local units = pending
+  pendingAll = false
+  pending = {}
+  for i = 1, #hooked do
+    local bar = hooked[i]
+    if all or units[ResolveUnit(bar)] then
+      Gradient:Paint(bar)
+    end
+  end
+end
+
+local function Schedule()
+  if flushScheduled then
+    return
+  end
+  flushScheduled = true
+  if C_Timer and C_Timer.After then
+    C_Timer.After(THROTTLE_SECONDS, Flush)
+  else
+    Flush()
+  end
+end
+
+function Gradient:OnGameEvent(event, unit)
+  if event == "GROUP_ROSTER_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" then
+    pendingRescan = true
+  elseif event == "UNIT_FLAGS" or event == "UNIT_CONNECTION" then
+    if type(unit) ~= "string" or IsSecret(unit) then
+      return
+    end
+    pending[unit] = true
+  elseif event == "PLAYER_TARGET_CHANGED" then
+    pending.target = true
+    pending.targettarget = true
+  elseif event == "UPDATE_MOUSEOVER_UNIT" then
+    pending.mouseover = true
+  else
+    return
+  end
+  Schedule()
+end
+
 function Gradient:Enable()
   if not AddonOn("EllesmereUIUnitFrames")
     and not AddonOn("EllesmereUIRaidFrames")
     and not AddonOn("EllesmereUINameplates") then
     return
   end
+  active = true
   events:RegisterEvent("GROUP_ROSTER_UPDATE")
   events:RegisterEvent("NAME_PLATE_UNIT_ADDED")
   events:RegisterEvent("UNIT_FLAGS")
@@ -262,37 +368,24 @@ function Gradient:Enable()
 end
 
 function Gradient:Disable()
+  active = false
   events:UnregisterEvent("GROUP_ROSTER_UPDATE")
   events:UnregisterEvent("NAME_PLATE_UNIT_ADDED")
   events:UnregisterEvent("UNIT_FLAGS")
   events:UnregisterEvent("UNIT_CONNECTION")
   events:UnregisterEvent("PLAYER_TARGET_CHANGED")
   events:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
+  pending = {}
+  pendingAll = false
+  pendingRescan = false
   for i = 1, #hooked do
-    local bar = hooked[i]
-    local original = bar and bar.RakaModOriginalColor
-    if type(original) == "function" then
-      bar.SetStatusBarColor = original
-      local color = bar.RakaModLastColor
-      if type(color) == "table" then
-        pcall(original, bar, color[1], color[2], color[3], color[4])
-      end
-    end
-    if bar then
-      bar.RakaModHooked = nil
-      bar.RakaModUnit = nil
-    end
-    hooked[i] = nil
+    RestoreBar(hooked[i])
   end
 end
 
 events = CreateFrame("Frame")
-events:SetScript("OnEvent", function(_, event)
-  if event == "GROUP_ROSTER_UPDATE" or event == "NAME_PLATE_UNIT_ADDED" then
-    Rescan()
-  else
-    Gradient:Apply()
-  end
+events:SetScript("OnEvent", function(_, event, unit)
+  Gradient:OnGameEvent(event, unit)
 end)
 
 RakaMod.Core:RegisterModule({
