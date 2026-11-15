@@ -1,5 +1,7 @@
 RakaMod = RakaMod or {}
 
+-- Blizzard's global Settings API (Esc > Options) must be captured before the local table below shadows it.
+local BlizzardSettings = _G.Settings
 local Settings = {}
 RakaMod.Settings = Settings
 
@@ -2533,13 +2535,13 @@ local function RegisterBlizzardCategory()
     end
   end)
 
-  if Settings and Settings.RegisterCanvasLayoutCategory then
-    local category = Settings.RegisterCanvasLayoutCategory(panel, "RakaMod")
+  if BlizzardSettings and BlizzardSettings.RegisterCanvasLayoutCategory then
+    local category = BlizzardSettings.RegisterCanvasLayoutCategory(panel, "RakaMod")
     if type(category) == "table" then
       category.icon = iconPath
     end
-    if Settings.RegisterAddOnCategory then
-      Settings.RegisterAddOnCategory(category)
+    if BlizzardSettings.RegisterAddOnCategory then
+      BlizzardSettings.RegisterAddOnCategory(category)
     end
   elseif InterfaceOptions_AddCategory then
     InterfaceOptions_AddCategory(panel)
