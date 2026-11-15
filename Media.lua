@@ -83,6 +83,7 @@ RakaMod.Media.NavIcons = {
   overlay = "ui\\nav-overlay",
   afk = "ui\\nav-afk",
   reveal = "ui\\nav-reveal",
+  zoneText = "ui\\nav-zonetext",
   fonts = "ui\\nav-fonts",
   gradient = "ui\\nav-gradient",
 }

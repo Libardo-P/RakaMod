@@ -18,7 +18,7 @@ The settings window (v0.6.0) follows an ElvUI-config layout: a sidebar with the 
 - **Search** (top of the sidebar) filters the page list and the options on the open page by label, group title, page and tab name. It jumps to the first page or tab that matches; clear it to see everything again.
 - **Accent color**: General > Colors. Pick a preset (gold, blue, green, red, purple, cyan, white), a custom color through the color picker, or your class color (follows the current character and spec). The whole window recolors immediately, no reload. The default is blue.
 - Pages with a master switch show **Enabled** in the toolbar next to the tabs, together with **Reset Page** (click twice to confirm). Pages without a nav icon show text only.
-- Text uses `Rk Roboto Condensed` by default; the **Fonts** page changes it (and the AFK mode font) live. Zone Text settings are the second tab of Fonts; nav icons are `Media/ui/nav-*.tga` (regenerate with `python3 tools/make_nav_icons.py`).
+- Text uses `Rk Roboto Condensed` by default; the **Fonts** page changes it (and the AFK mode font) live; nav icons are `Media/ui/nav-*.tga` (regenerate with `python3 tools/make_nav_icons.py`).
 
 Layout lives in `UI/` (`Theme.lua` palette, fonts and accent, `Widgets.lua` controls, `Shell.lua` window chrome, `ColorPicker.lua`); `Settings.lua` holds the pages and option bindings. Setting keys are unchanged; the new keys are `general.accent`, `fonts.afk` (default `Rk RakaMod`) and `fonts.ui` (default `Rk Roboto Condensed`).
 

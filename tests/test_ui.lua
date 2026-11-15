@@ -156,15 +156,15 @@ local function joined(list)
 end
 
 local all = Settings.Inspect()
-eq(#all.navs, 7, "all seven pages listed with no query")
+eq(#all.navs, 8, "all eight pages listed with no query")
 
 local info = search("afk")
 eq(joined(info.navs), "afk,fonts", "search filters the nav by page name and option labels (AFK Font)")
 eq(info.selectedNav, "afk", "search jumps to the matching page")
 
 info = search("zone")
-eq(joined(info.navs), "fonts", "Zone Text lives under Fonts")
-eq(info.selectedTab, "zoneText", "searching zone opens the Zone Text tab")
+eq(joined(info.navs), "zoneText", "Zone Text is its own page")
+eq(info.selectedTab, "zoneText", "searching zone opens the Zone Text page")
 
 info = search("app font")
 eq(joined(info.navs), "fonts", "app font option is searchable")
@@ -188,7 +188,7 @@ info = search("zzzz-nothing")
 eq(#info.navs, 0, "no matches hides every nav item")
 
 info = search("")
-eq(#info.navs, 7, "clearing the search restores the nav")
+eq(#info.navs, 8, "clearing the search restores the nav")
 eq(#info.rows >= 3, true, "clearing the search restores the rows")
 
 -- Fonts page ------------------------------------------------------------------------------
@@ -225,6 +225,9 @@ end
 -- Reset Page on Fonts restores both font choices
 do
   Settings:SelectPage("fonts")
+  local fontsInfo = Settings.Inspect()
+  eq(joined(fontsInfo.tabs), "fonts", "Fonts has a single tab")
+  eq(#fontsInfo.rows, 4, "Fonts shows two option rows, each followed by its own description")
   RakaMod.db.fonts.ui = "Rk Doris PP"
   RakaMod.db.fonts.afk = "Rk Doris PP"
   local fontsReset = Stub.script(shell.resetButton, "OnClick")
