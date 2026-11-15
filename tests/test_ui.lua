@@ -233,6 +233,53 @@ do
   eq(picker:IsShown(), false, "Okay closes the picker")
 end
 
+do
+  local function chatFrame(listening)
+    local f = { listening = listening, registers = 0 }
+    f.IsEventRegistered = function(self) return self.listening end
+    f.UnregisterEvent = function(self) self.listening = false end
+    f.RegisterEvent = function(self) self.listening = true; self.registers = self.registers + 1 end
+    return f
+  end
+  local now = 1000
+  local requests = 0
+  local timers = {}
+  GetTime = function() return now end
+  RequestTimePlayed = function() requests = requests + 1 end
+  local timerApi = _G.C_Timer
+  timerApi.After = function(_, fn) timers[#timers + 1] = fn end
+  NUM_CHAT_WINDOWS = 3
+  local chat1, chat2, chat3 = chatFrame(true), chatFrame(false), chatFrame(true)
+  _G.ChatFrame1, _G.ChatFrame2, _G.ChatFrame3 = chat1, chat2, chat3
+  local Core = RakaMod.Core
+
+  now = now + 100
+  eq(Core:RequestPlayed(false), true, "login played request is sent")
+  eq(requests, 1, "login request reaches the server")
+  eq(chat1.listening, true, "login request leaves chat frame 1 listening")
+  eq(chat3.listening, true, "login request leaves chat frame 3 listening")
+  eq(Core:RequestPlayed(false), false, "second request inside the cooldown is refused")
+
+  now = now + 100
+  eq(Core:RequestPlayed(true), true, "silent request is sent")
+  eq(chat1.listening, false, "silent request mutes a listening frame")
+  eq(chat3.listening, false, "silent request mutes the other listening frame")
+  Stub.fire(env, fail, "TIME_PLAYED_MSG", 100, 50)
+  eq(chat1.listening, true, "reply restores frame 1")
+  eq(chat3.listening, true, "reply restores frame 3")
+  eq(chat2.listening, false, "a frame that never listened is not subscribed")
+  eq(chat1.registers, 1, "frame 1 restored exactly once")
+  timers[#timers]()
+  eq(chat1.registers, 1, "late timer does not restore twice")
+
+  now = now + 100
+  eq(Core:RequestPlayed(true), true, "second silent request is sent")
+  eq(chat1.listening, false, "second silent request mutes again")
+  timers[#timers]()
+  eq(chat1.listening, true, "timer restores when no reply arrives")
+  eq(chat3.listening, true, "timer restores frame 3 when no reply arrives")
+end
+
 if failures > 0 then
   os.exit(1)
 end

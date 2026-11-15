@@ -38,32 +38,6 @@ local modules = {}
 local loginDone = false
 local lastPlayedRequest = nil
 
--- The login /played request would print "Total time played" lines in chat. Chat frames
--- are muted for TIME_PLAYED_MSG just long enough to swallow that one reply.
-local function MutePlayedChat(seconds)
-  local windows = tonumber(NUM_CHAT_WINDOWS) or 10
-  local muted = {}
-  for i = 1, windows do
-    local chat = _G["ChatFrame" .. i]
-    if chat and chat.UnregisterEvent then
-      local ok = pcall(chat.UnregisterEvent, chat, "TIME_PLAYED_MSG")
-      if ok then
-        muted[#muted + 1] = chat
-      end
-    end
-  end
-  local function restore()
-    for i = 1, #muted do
-      pcall(muted[i].RegisterEvent, muted[i], "TIME_PLAYED_MSG")
-    end
-  end
-  if C_Timer and C_Timer.After then
-    C_Timer.After(seconds, restore)
-  else
-    restore()
-  end
-end
-
 function Core:IsForever()
   local _, _, _, interfaceVersion = GetBuildInfo()
   return Logic.IsForever(interfaceVersion)
@@ -134,6 +108,69 @@ end
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
+
+local PLAYED_MUTE_MAX_SECONDS = 10
+local playedMuted = nil
+
+-- Hands TIME_PLAYED_MSG back to every chat frame we took it from. Safe to call twice.
+local function RestorePlayedChat()
+  local chats = playedMuted
+  if not chats then
+    return
+  end
+  playedMuted = nil
+  frame:UnregisterEvent("TIME_PLAYED_MSG")
+  for i = 1, #chats do
+    pcall(chats[i].RegisterEvent, chats[i], "TIME_PLAYED_MSG")
+  end
+end
+
+-- Silences the chat lines of one /played reply. Only frames that actually listen are
+-- touched, and the event comes back as soon as the reply arrives (or after a hard cap).
+-- Without a timer there is no guaranteed restore, so nothing is muted at all.
+local function MutePlayedChat()
+  if playedMuted or not (C_Timer and C_Timer.After) then
+    return
+  end
+  local chats = {}
+  local windows = tonumber(NUM_CHAT_WINDOWS) or 10
+  for i = 1, windows do
+    local chat = _G["ChatFrame" .. i]
+    if chat and chat.IsEventRegistered and chat.UnregisterEvent
+      and chat:IsEventRegistered("TIME_PLAYED_MSG")
+      and pcall(chat.UnregisterEvent, chat, "TIME_PLAYED_MSG") then
+      chats[#chats + 1] = chat
+    end
+  end
+  if #chats == 0 then
+    return
+  end
+  playedMuted = chats
+  frame:RegisterEvent("TIME_PLAYED_MSG")
+  C_Timer.After(PLAYED_MUTE_MAX_SECONDS, RestorePlayedChat)
+end
+
+-- Asks the server for /played. The login request prints normally; automatic follow-up
+-- requests (silent = true) swallow their chat lines so the player is not spammed.
+function Core:RequestPlayed(silent)
+  if type(RequestTimePlayed) ~= "function" or type(GetTime) ~= "function" then
+    return false
+  end
+  local now = GetTime()
+  if not self:CanRequestPlayed(now) then
+    return false
+  end
+  if silent then
+    MutePlayedChat()
+  end
+  if not pcall(RequestTimePlayed) then
+    RestorePlayedChat()
+    return false
+  end
+  self:NotePlayedRequest(now)
+  return true
+end
+
 frame:SetScript("OnEvent", function(_, event, name)
   if event == "ADDON_LOADED" and name == ADDON then
     if not Core:AddonLoaded("EllesmereUI") then
@@ -152,11 +189,9 @@ frame:SetScript("OnEvent", function(_, event, name)
     RakaMod.playedThisSession = false
     loginDone = true
     Core:RefreshModules()
-    if Core:CanRequestPlayed(GetTime()) then
-      MutePlayedChat(5)
-      RequestTimePlayed()
-      Core:NotePlayedRequest(GetTime())
-    end
+    Core:RequestPlayed(false)
+  elseif event == "TIME_PLAYED_MSG" then
+    RestorePlayedChat()
   end
 end)
 

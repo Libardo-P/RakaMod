@@ -520,16 +520,7 @@ local function MaybeRequestPlayed()
   if RakaMod.playedThisSession ~= false then
     return
   end
-  if type(RequestTimePlayed) ~= "function" or type(GetTime) ~= "function" then
-    return
-  end
-  local now = GetTime()
-  if not RakaMod.Core:CanRequestPlayed(now) then
-    return
-  end
-  if pcall(RequestTimePlayed) then
-    RakaMod.Core:NotePlayedRequest(now)
-  end
+  RakaMod.Core:RequestPlayed(true)
 end
 
 local function StorePlayed(totalSeconds)
