@@ -1,12 +1,15 @@
 ## Interface: 120105, 16001
 ## Title: RakaMod
 ## Author: Raka
-## Version: 0.3.0
+## Version: 0.4.0
 ## IconTexture: Interface\AddOns\RakaMod\Media\icon.tga
 ## SavedVariables: RakaModDB
 ## Dependencies: EllesmereUI
 ## OptionalDeps: EllesmereUIUnitFrames, EllesmereUIRaidFrames, EllesmereUINameplates, EllesmereUIDataBars, LibSharedMedia-3.0, LibDBIcon-1.0
 
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibSharedMedia-3.0\LibSharedMedia-3.0.lua
 Logic.lua
 Core.lua
 Media.lua
