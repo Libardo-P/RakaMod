@@ -35,6 +35,78 @@ function Logic.MergeDefaults(saved, defaults)
   return out
 end
 
+Logic.MEDIA_PREFIX = "Rk "
+Logic.MEDIA_MIGRATION_VERSION = 1
+
+-- "Doris PP" -> "Rk Doris PP". Idempotent: already-prefixed names are returned as is.
+function Logic.PrefixMediaName(name)
+  if type(name) ~= "string" or name == "" then
+    return name
+  end
+  if name == "Rk" then
+    return Logic.MEDIA_PREFIX .. "RakaMod"
+  end
+  if name:sub(1, #Logic.MEDIA_PREFIX) == Logic.MEDIA_PREFIX then
+    return name
+  end
+  return Logic.MEDIA_PREFIX .. name
+end
+
+-- Builds { oldName = newName } for every registered name (list of names or { name, path } pairs).
+function Logic.BuildLegacyMediaNames(...)
+  local map = { Rk = Logic.MEDIA_PREFIX .. "RakaMod" }
+  for i = 1, select("#", ...) do
+    local list = select(i, ...)
+    for _, entry in ipairs(list or {}) do
+      local name = type(entry) == "table" and entry[1] or entry
+      if type(name) == "string" and name:sub(1, #Logic.MEDIA_PREFIX) == Logic.MEDIA_PREFIX then
+        map[name:sub(#Logic.MEDIA_PREFIX + 1)] = name
+      end
+    end
+  end
+  return map
+end
+
+local function migrateNames(node, legacy, depth)
+  if type(node) ~= "table" or depth > 6 then
+    return
+  end
+  for key, value in pairs(node) do
+    if type(value) == "string" then
+      if legacy[value] then
+        node[key] = legacy[value]
+      end
+    elseif type(value) == "table" then
+      migrateNames(value, legacy, depth + 1)
+    end
+  end
+end
+
+-- One-time rewrite of saved media names (fonts, statusbars, backgrounds) to their "Rk " names.
+-- Runs on the raw saved table before MergeDefaults; the played records are skipped.
+function Logic.MigrateMediaNames(saved, legacy)
+  if type(saved) ~= "table" then
+    return saved
+  end
+  local done = saved.mediaMigration
+  if type(done) == "number" and done >= Logic.MEDIA_MIGRATION_VERSION then
+    return saved
+  end
+  for key, value in pairs(saved) do
+    if key ~= "played" then
+      if type(value) == "string" then
+        if legacy[value] then
+          saved[key] = legacy[value]
+        end
+      elseif type(value) == "table" then
+        migrateNames(value, legacy, 1)
+      end
+    end
+  end
+  saved.mediaMigration = Logic.MEDIA_MIGRATION_VERSION
+  return saved
+end
+
 function Logic.IsForever(interfaceVersion)
   return interfaceVersion == 16001
 end

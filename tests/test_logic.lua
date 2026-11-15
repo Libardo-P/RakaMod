@@ -198,3 +198,21 @@ if failures > 0 then
   os.exit(1)
 end
 print("ok")
+
+eq(Logic.PrefixMediaName("Doris PP"), "Rk Doris PP", "prefix adds Rk")
+eq(Logic.PrefixMediaName("Rk Doris PP"), "Rk Doris PP", "prefix idempotent")
+eq(Logic.PrefixMediaName("Rk"), "Rk RakaMod", "bare Rk becomes Rk RakaMod")
+do
+  local legacy = Logic.BuildLegacyMediaNames({ { "Rk Doris PP", "x" }, { "Rk ToxiUI Clean", "y" } })
+  eq(legacy["Doris PP"], "Rk Doris PP", "legacy map builds")
+  local saved = { font = "Doris PP", nested = { bar = "ToxiUI Clean", keep = "Other" }, played = { ["Doris PP"] = "x" } }
+  Logic.MigrateMediaNames(saved, legacy)
+  eq(saved.font, "Rk Doris PP", "migrate top-level name")
+  eq(saved.nested.bar, "Rk ToxiUI Clean", "migrate nested name")
+  eq(saved.nested.keep, "Other", "migrate leaves unknown")
+  eq(saved.played["Doris PP"], "x", "migrate skips played")
+  eq(saved.mediaMigration, Logic.MEDIA_MIGRATION_VERSION, "migration flag set")
+  saved.font = "Doris PP"
+  Logic.MigrateMediaNames(saved, legacy)
+  eq(saved.font, "Doris PP", "migration runs once")
+end

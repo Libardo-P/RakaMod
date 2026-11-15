@@ -21,6 +21,7 @@ local DEFAULTS = {
     showChangelog = true,
   },
   gradient = Logic.BuildGradientDefaults(),
+  mediaMigration = Logic.MEDIA_MIGRATION_VERSION,
   played = {},
 }
 
@@ -109,6 +110,9 @@ frame:SetScript("OnEvent", function(_, event, name)
         missingPrinted = true
       end
       return
+    end
+    if RakaMod.Media and RakaMod.Media.LegacyNames then
+      Logic.MigrateMediaNames(RakaModDB, RakaMod.Media.LegacyNames)
     end
     RakaModDB = Logic.MergeDefaults(RakaModDB, DEFAULTS)
     RakaMod.db = RakaModDB

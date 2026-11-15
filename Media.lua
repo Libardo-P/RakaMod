@@ -9,13 +9,13 @@ RakaMod.Media = {
   ColorWheelPath = ROOT .. "colorwheel",
   IconPath = ROOT .. "icon",
   GrainPath = ROOT .. "background\\grain",
-  FontName = "Rk",
+  FontName = "Rk RakaMod",
   StatusbarName = "Rk ToxiUI Clean",
 }
 
 -- Catalogs relative to Media/. icon/colorwheel stay RakaMod-only (not LSM).
 local FONTS = {
-  { "Rk", "font\\RakaMod.ttf" },
+  { "Rk RakaMod", "font\\RakaMod.ttf" },
   { "Rk BigNoodleToo", "font\\BigNoodleToo.ttf" },
   { "Rk Doris PP", "font\\Doris PP.ttf" },
   { "Rk Montserrat Black", "font\\Montserrat-Black.ttf" },
@@ -119,6 +119,8 @@ function RakaMod.Media.ApplyFadeGrain(texture, host)
   texture:SetTexCoord(0, w / tile, 0, h / tile)
   texture:Show()
 end
+
+RakaMod.Media.LegacyNames = RakaMod.Logic.BuildLegacyMediaNames(FONTS, STATUSBARS, BACKGROUNDS)
 
 local registered = false
 
