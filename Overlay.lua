@@ -81,10 +81,44 @@ local function ShowRow(row, label, value)
   row:Show()
 end
 
+-- Every font string of the panels, so the Game Menu font can be changed live. The original
+-- font of each (the game's own) is remembered for "Game Default".
+local trackedFonts = {}
+Overlay.fontStrings = trackedFonts
+
+local function ApplyFontEntry(entry)
+  local media = RakaMod.Media
+  local chosen = media and media.GameMenuFontPath and media.GameMenuFontPath()
+  local path = chosen or entry.path
+  if path then
+    pcall(entry.fs.SetFont, entry.fs, path, entry.size, entry.flags)
+  end
+end
+
+local function TrackFont(fs)
+  local path, size, flags = fs:GetFont()
+  local entry = {
+    fs = fs,
+    path = type(path) == "string" and path or nil,
+    size = type(size) == "number" and size or 12,
+    flags = type(flags) == "string" and flags or "",
+  }
+  trackedFonts[#trackedFonts + 1] = entry
+  ApplyFontEntry(entry)
+  return fs
+end
+
+function Overlay:ApplyFont()
+  for i = 1, #trackedFonts do
+    ApplyFontEntry(trackedFonts[i])
+  end
+end
+
 local function CreateHeader(parent, text)
   local header = CreateFrame("Frame", nil, parent)
   header:SetSize(BAR_WIDTH, 18)
   local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  TrackFont(title)
   title:SetPoint("TOPLEFT", 0, 0)
   title:SetJustifyH("LEFT")
   title:SetWordWrap(false)
@@ -112,6 +146,7 @@ local function CreateRow(parent)
   icon:SetPoint("LEFT", 0, 0)
   icon:Hide()
   local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  TrackFont(label)
   label:SetPoint("LEFT", 0, 0)
   label:SetJustifyH("LEFT")
   label:SetWordWrap(false)
@@ -120,6 +155,7 @@ local function CreateRow(parent)
   label:SetShadowOffset(1, -1)
   label:SetShadowColor(0, 0, 0, 1)
   local value = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  TrackFont(value)
   value:SetPoint("RIGHT", 0, 0)
   value:SetJustifyH("RIGHT")
   value:SetWordWrap(false)
@@ -141,6 +177,7 @@ local function CreateBar(parent)
   fill:SetAllPoints()
   fill:SetColorTexture(1, 1, 1, 0.18)
   local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  TrackFont(label)
   label:SetPoint("LEFT", 6, 0)
   label:SetJustifyH("LEFT")
   label:SetWordWrap(false)
@@ -149,6 +186,7 @@ local function CreateBar(parent)
   label:SetShadowOffset(1, -1)
   label:SetShadowColor(0, 0, 0, 1)
   local value = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  TrackFont(value)
   value:SetPoint("RIGHT", -6, 0)
   value:SetJustifyH("RIGHT")
   value:SetWordWrap(false)

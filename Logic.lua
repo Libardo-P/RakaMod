@@ -508,6 +508,8 @@ end
 -- Default font choices (names registered in Media.lua / LibSharedMedia).
 Logic.DEFAULT_AFK_FONT = "Rk RakaMod"
 Logic.DEFAULT_UI_FONT = "Rk Roboto Condensed"
+-- Game Menu text keeps the game's own font until a font is picked.
+Logic.DEFAULT_GAME_MENU_FONT = "Game Default"
 
 -- AFK identity line: "Lv 80 - Enhancement - Shaman", or "Lv 80 - Shaman" without a spec.
 function Logic.AfkIdentityLine(level, spec, className)

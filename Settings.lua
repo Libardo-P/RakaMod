@@ -52,8 +52,7 @@ local PAGE_META = {
   overlay = "Left Escape overlay: professions, collections, and played time beside the game menu.",
   afk = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
   reveal = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
-  fonts = "Fonts used by AFK mode and by this settings window.",
-  zoneText = "Custom zone change text appearance.",
+  fonts = "Fonts used by AFK mode, this settings window and the Game Menu panels.",
   gradient = "Health bar gradients shift by class, NPC reaction, and unit state.",
   gradientBars = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
   gradientResources = "Class resource gradient shifts. Colors are saved now; painting comes later.",
@@ -92,12 +91,6 @@ local NAV = {
     label = "Player Frame",
     master = { section = "reveal", key = "enabled", label = "Enabled" },
     tabs = { { key = "reveal", label = "Triggers" } },
-  },
-  {
-    key = "zoneText",
-    label = "Zone Text",
-    master = { section = "zoneText", key = "enabled", label = "Enabled" },
-    tabs = { { key = "zoneText", label = "Style" } },
   },
   {
     key = "fonts",
@@ -678,9 +671,6 @@ local function AddSlider(card, text, section, key, minValue, maxValue)
     end
     saved[key] = intValue
     RakaMod.Core:RefreshModules()
-    if section == "zoneText" and RakaMod.ZoneText and RakaMod.ZoneText.Apply then
-      RakaMod.ZoneText:Apply()
-    end
     if section == "afk" and RakaMod.AFK and RakaMod.AFK.ApplyOptions then
       RakaMod.AFK:ApplyOptions()
     end
@@ -748,62 +738,6 @@ local function AddDropdown(card, text, section, key, options, fallback, afterCha
     end
   end)
   return dropdown
-end
-
-local function AddColorButton(card, text, getTarget, onChange, getDefault)
-  IndexLabel(card, text)
-  local row = card.Row(36, text)
-  local label = Theme.Text(row, LABEL_FONT, C.TEXT)
-  label:SetPoint("LEFT", row, "LEFT", 0, 0)
-  label:SetText(text)
-
-  local swatch = Widgets.Swatch(row, 24)
-  swatch:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-
-  local function paint()
-    local target = getTarget()
-    local r, g, b = 1, 1, 1
-    if target then
-      if type(target.r) == "number" then r = target.r end
-      if type(target.g) == "number" then g = target.g end
-      if type(target.b) == "number" then b = target.b end
-    end
-    swatch.color:SetColorTexture(r, g, b, 1)
-  end
-
-  swatch:SetScript("OnClick", function()
-    local target = getTarget()
-    if not target then
-      return
-    end
-    PickColor(target, function()
-      paint()
-      onChange()
-    end, { getDefault = getDefault })
-  end)
-  PassWheel(card.scroll, swatch)
-  swatches[#swatches + 1] = { paint = paint }
-  RegisterReset(card, function()
-    local target = getTarget()
-    local default = getDefault and getDefault()
-    if target and default then
-      target.r, target.g, target.b = default.r, default.g, default.b
-    end
-  end)
-  return swatch
-end
-
-local function AddZoneSwatch(card, text)
-  return AddColorButton(card, text, function()
-    return RakaMod.db and RakaMod.db.zoneText
-  end, function()
-    RakaMod.Core:RefreshModules()
-    if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
-      RakaMod.ZoneText:Apply()
-    end
-  end, function()
-    return { r = 1, g = 1, b = 1 }
-  end)
 end
 
 local function AddText(card, text, color, gapBelow)
@@ -1015,6 +949,12 @@ end
 local function RefreshAfk()
   if RakaMod.AFK and RakaMod.AFK.ApplyOptions then
     RakaMod.AFK:ApplyOptions()
+  end
+end
+
+local function RefreshGameMenuFont()
+  if RakaMod.Overlay and RakaMod.Overlay.ApplyFont then
+    RakaMod.Overlay:ApplyFont()
   end
 end
 
@@ -1251,28 +1191,17 @@ do
   local card = page.Card("Fonts")
   AddDropdown(card, "AFK Font", "fonts", "afk", choices, RakaMod.Logic.DEFAULT_AFK_FONT, RefreshAfk, 220)
   AddHint(card, "Name, timer, identity line, changelog and footer in AFK mode. Applies the next time AFK mode starts.")
-  AddDropdown(card, "App Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 220)
-  AddHint(card, "Text of this settings window. Applied immediately.")
+  AddDropdown(card, "General Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 220)
+  AddHint(card, "Text of this settings window and its menus. Applied immediately.")
   card.Done()
-  page.Finish()
-end
-
--- Zone Text
-do
-  local OUTLINES = { "NONE", "OUTLINE", "THICKOUTLINE" }
-  local page = CreatePage("zoneText", "zoneText")
-  AddMaster("zoneText")
-  local main = page.Card("Text", 1)
-  AddSlider(main, "Size", "zoneText", "size", 8, 64)
-  main.Done()
-  local look = page.Card("Appearance", 2)
-  AddDropdown(look, "Outline", "zoneText", "outline", OUTLINES, "OUTLINE", function()
-    if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
-      RakaMod.ZoneText:Apply()
-    end
-  end)
-  AddZoneSwatch(look, "Color")
-  look.Done()
+  local menuChoices = { RakaMod.Logic.DEFAULT_GAME_MENU_FONT }
+  for i = 1, #choices do
+    menuChoices[#menuChoices + 1] = choices[i]
+  end
+  local menu = page.Card("Game Menu")
+  AddDropdown(menu, "Game Menu Font", "fonts", "gameMenu", menuChoices, RakaMod.Logic.DEFAULT_GAME_MENU_FONT, RefreshGameMenuFont, 220)
+  AddHint(menu, "Professions, collections and played-time panels beside the Escape menu. Applied immediately; Game Default keeps the game's own font.")
+  menu.Done()
   page.Finish()
 end
 
@@ -1469,11 +1398,9 @@ function Settings:ResetCurrentPage()
     list[i]()
   end
   RakaMod.Core:RefreshModules()
-  if RakaMod.ZoneText and RakaMod.ZoneText.Apply then
-    RakaMod.ZoneText:Apply()
-  end
   RefreshSharedFades()
   RefreshGradient()
+  RefreshGameMenuFont()
   self:ApplyScale()
   Theme.Refresh()
   Theme.RefreshFonts()

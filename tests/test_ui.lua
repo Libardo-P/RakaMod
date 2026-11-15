@@ -156,20 +156,22 @@ local function joined(list)
 end
 
 local all = Settings.Inspect()
-eq(#all.navs, 8, "all eight pages listed with no query")
+eq(#all.navs, 7, "all seven pages listed with no query")
 
 local info = search("afk")
 eq(joined(info.navs), "afk,fonts", "search filters the nav by page name and option labels (AFK Font)")
 eq(info.selectedNav, "afk", "search jumps to the matching page")
 
 info = search("zone")
-eq(joined(info.navs), "zoneText", "Zone Text is its own page")
-eq(info.selectedTab, "zoneText", "searching zone opens the Zone Text page")
+eq(#info.navs, 0, "Zone Text is gone from the settings")
 
-info = search("app font")
-eq(joined(info.navs), "fonts", "app font option is searchable")
-eq(info.selectedTab, "fonts", "app font option opens the Fonts tab")
-eq(joined(info.rows), "app font", "only the app font row stays visible")
+info = search("general font")
+eq(joined(info.navs), "fonts", "general font option is searchable")
+eq(info.selectedTab, "fonts", "general font option opens the Fonts tab")
+eq(joined(info.rows), "general font", "only the general font row stays visible")
+
+info = search("game menu font")
+eq(joined(info.rows), "game menu font", "game menu font option is searchable")
 
 info = search("minimap")
 eq(joined(info.navs), "general", "search matches option labels")
@@ -188,14 +190,17 @@ info = search("zzzz-nothing")
 eq(#info.navs, 0, "no matches hides every nav item")
 
 info = search("")
-eq(#info.navs, 8, "clearing the search restores the nav")
+eq(#info.navs, 7, "clearing the search restores the nav")
 eq(#info.rows >= 3, true, "clearing the search restores the rows")
 
 -- Fonts page ------------------------------------------------------------------------------
 do
   local Media = RakaMod.Media
   eq(RakaMod.db.fonts.afk, "Rk RakaMod", "default AFK font")
-  eq(RakaMod.db.fonts.ui, "Rk Roboto Condensed", "default app font")
+  eq(RakaMod.db.fonts.ui, "Rk Roboto Condensed", "default general font")
+  eq(RakaMod.db.fonts.gameMenu, "Game Default", "default game menu font keeps the game's own font")
+  eq(RakaMod.db.zoneText, nil, "no zone text settings are saved")
+  eq(Media.GameMenuFontPath(), nil, "default game menu font has no override path")
   eq(Media.AfkFontPath(), Media.FontPath, "default AFK font path is the old FontPath")
   eq(Media.UiFontPathChosen(), Media.UIFontPath, "default app font path is the old UIFontPath")
 
@@ -219,6 +224,13 @@ do
   eq(select(2, Stub.stored(fs, "Font")), 14, "font size is kept")
   RakaMod.db.fonts.ui = "Rk Roboto Condensed"
   Theme.RefreshFonts()
+  local overlay = RakaMod.Overlay
+  eq(#overlay.fontStrings > 0, true, "game menu panels register their font strings")
+  local menuFs = overlay.fontStrings[1].fs
+  RakaMod.db.fonts.gameMenu = "Rk Montserrat Medium"
+  overlay:ApplyFont()
+  eq(Stub.stored(menuFs, "Font"), Media.FontPathByName("Rk Montserrat Medium"), "game menu font applies live to the panel text")
+  RakaMod.db.fonts.gameMenu = "Game Default"
   eq(Stub.stored(fs, "Font"), Media.UIFontPath, "default app font restores")
 end
 
@@ -227,7 +239,7 @@ do
   Settings:SelectPage("fonts")
   local fontsInfo = Settings.Inspect()
   eq(joined(fontsInfo.tabs), "fonts", "Fonts has a single tab")
-  eq(#fontsInfo.rows, 4, "Fonts shows two option rows, each followed by its own description")
+  eq(#fontsInfo.rows, 6, "Fonts shows three option rows, each followed by its own description")
   RakaMod.db.fonts.ui = "Rk Doris PP"
   RakaMod.db.fonts.afk = "Rk Doris PP"
   local fontsReset = Stub.script(shell.resetButton, "OnClick")

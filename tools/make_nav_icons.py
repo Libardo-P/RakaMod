@@ -90,15 +90,6 @@ def unit_frame():
     return finish(img, "reveal")
 
 
-def pin():
-    img, d = canvas()
-    cx, cy, r = 32, 25, 18
-    d.ellipse([p(cx - r), p(cy - r), p(cx + r), p(cy + r)], fill=W)
-    d.polygon([(p(cx - 15), p(cy + 10)), (p(cx + 15), p(cy + 10)), (p(cx), p(58))], fill=W)
-    d.ellipse([p(cx - 7), p(cy - 7), p(cx + 7), p(cy + 7)], fill=(255, 255, 255, 0))
-    return finish(img, "zonetext")
-
-
 def fonts():
     img, d = canvas()
     # Large "A" with a crossbar and a small single-story "a" beside it.
@@ -125,5 +116,5 @@ def gradient():
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    for fn in (gear, sparkle, panel, moon, unit_frame, pin, fonts, gradient):
+    for fn in (gear, sparkle, panel, moon, unit_frame, fonts, gradient):
         print(fn())

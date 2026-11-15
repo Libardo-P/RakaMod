@@ -19,8 +19,7 @@ local DEFAULTS = {
     professions = true,
   },
   reveal = { enabled = true, casting = true, health = true, mouseover = true, combat = true, pet = false },
-  zoneText = { enabled = true, size = 32, r = 1, g = 1, b = 1, outline = "OUTLINE" },
-  fonts = { afk = Logic.DEFAULT_AFK_FONT, ui = Logic.DEFAULT_UI_FONT },
+  fonts = { afk = Logic.DEFAULT_AFK_FONT, ui = Logic.DEFAULT_UI_FONT, gameMenu = Logic.DEFAULT_GAME_MENU_FONT },
   afk = {
     enabled = true,
     playEmotes = true,
@@ -181,6 +180,7 @@ frame:SetScript("OnEvent", function(_, event, name)
       Logic.MigrateMediaNames(RakaModDB, RakaMod.Media.LegacyNames)
     end
     RakaModDB = Logic.MergeDefaults(RakaModDB, DEFAULTS)
+    RakaModDB.zoneText = nil
     RakaMod.db = RakaModDB
   elseif event == "PLAYER_LOGIN" then
     if not RakaMod.db then

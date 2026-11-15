@@ -6,7 +6,6 @@ Companion addon for [EllesmereUI](https://www.curseforge.com/wow/addons/ellesmer
 
 - Escape menu overlay: collections, played time, professions, with shared background fade and grain
 - Player frame reveal (casting, health above 100% including absorbs, mouseover, combat)
-- Zone text styling
 - Full-screen AFK mode with the latest EllesmereUI changelog, class-coloured character info, model animation and a whisper log
 - Per-class, NPC and unit-state health bar gradients on Ellesmere unit, raid and nameplate frames
 - ElvUI-style settings window (`/rakamod`, `/rmod` or `/rm`), minimap icon and an entry under Esc > Options > AddOns

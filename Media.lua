@@ -83,7 +83,6 @@ RakaMod.Media.NavIcons = {
   overlay = "ui\\nav-overlay",
   afk = "ui\\nav-afk",
   reveal = "ui\\nav-reveal",
-  zoneText = "ui\\nav-zonetext",
   fonts = "ui\\nav-fonts",
   gradient = "ui\\nav-gradient",
 }
@@ -180,6 +179,13 @@ end
 -- Font of AFK mode text and of the settings window, from the saved Fonts page choices.
 function RakaMod.Media.AfkFontPath()
   return SavedFontPath("afk", RakaMod.Logic.DEFAULT_AFK_FONT) or RakaMod.Media.FontPath
+end
+
+-- Font path for the Game Menu (Escape) panels, or nil to keep the game's own font.
+function RakaMod.Media.GameMenuFontPath()
+  local fonts = RakaMod.db and RakaMod.db.fonts
+  local chosen = type(fonts) == "table" and fonts.gameMenu or nil
+  return RakaMod.Media.FontPathByName(chosen)
 end
 
 function RakaMod.Media.UiFontPathChosen()
