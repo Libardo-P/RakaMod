@@ -220,6 +220,7 @@ end
 
 local colorClipboard = nil
 local pickerSession = nil
+local pickerAccepted = false
 local rakaPicker
 local pickerButtons = {}
 local pickerFields = {}
@@ -644,19 +645,30 @@ local function EnsureRakaPicker()
     if pickerSession and pickerSession.write then
       pickerSession.write(r, g, b)
     end
+    pickerAccepted = true
     f:Hide()
-    pickerSession = nil
   end)
   cancel:SetScript("OnClick", function()
     if pickerSession and pickerSession.previous and pickerSession.write then
       local p = pickerSession.previous
       pickerSession.write(p.r, p.g, p.b)
     end
+    pickerAccepted = true
     f:Hide()
+  end)
+
+  f:SetScript("OnHide", function()
+    -- Esc (UISpecialFrames) must act as Cancel: restore the color from when the picker opened.
+    if not pickerAccepted and pickerSession and pickerSession.previous and pickerSession.write then
+      local p = pickerSession.previous
+      pickerSession.write(p.r, p.g, p.b)
+    end
     pickerSession = nil
+    pickerAccepted = false
   end)
 
   f:SetScript("OnShow", function()
+    pickerAccepted = false
     SetupColorSelectTextures(select)
     LayoutColorSelect(select)
     UpdatePasteButton()
