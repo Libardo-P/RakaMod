@@ -52,7 +52,7 @@ local PAGE_META = {
   overlay = "Left Escape overlay: professions, collections, and played time beside the game menu.",
   afk = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
   reveal = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
-  fonts = "Fonts used by AFK mode, this settings window and the Escape overlay panels.",
+  fonts = "Fonts used by AFK mode, this settings window and the Game Menu overlay panels.",
   gradient = "Health bar gradients shift by class, NPC reaction, and unit state.",
   gradientBars = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
   gradientResources = "Class resource gradient shifts. Colors are saved now; painting comes later.",
@@ -1188,20 +1188,22 @@ end
 do
   local page = CreatePage("fonts", "fonts")
   local choices = RakaMod.Media.FontChoices()
-  local card = page.Card("Fonts")
-  AddDropdown(card, "AFK Font", "fonts", "afk", choices, RakaMod.Logic.DEFAULT_AFK_FONT, RefreshAfk, 220)
-  AddHint(card, "Name, timer, identity line, changelog and footer in AFK mode. Applies the next time AFK mode starts.")
-  AddDropdown(card, "General Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 220)
-  AddHint(card, "Text of this settings window and its menus. Applied immediately.")
-  card.Done()
-  local menuChoices = { RakaMod.Logic.DEFAULT_OVERLAY_FONT }
+  local general = page.Card("General Fonts")
+  AddDropdown(general, "General Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 220)
+  AddHint(general, "Text of this settings window and its menus. Applied immediately.")
+  general.Done()
+  local afk = page.Card("AFK Mode")
+  AddDropdown(afk, "AFK Font", "fonts", "afk", choices, RakaMod.Logic.DEFAULT_AFK_FONT, RefreshAfk, 220)
+  AddHint(afk, "Name, timer, identity line, changelog and footer in AFK mode. Applies the next time AFK mode starts.")
+  afk.Done()
+  local overlayChoices = { RakaMod.Logic.DEFAULT_OVERLAY_FONT }
   for i = 1, #choices do
-    menuChoices[#menuChoices + 1] = choices[i]
+    overlayChoices[#overlayChoices + 1] = choices[i]
   end
-  local menu = page.Card("Escape Overlay")
-  AddDropdown(menu, "Escape Overlay Font", "fonts", "overlay", menuChoices, RakaMod.Logic.DEFAULT_OVERLAY_FONT, RefreshOverlayFont, 220)
-  AddHint(menu, "Text of the RakaMod panels shown beside the Escape menu: Played, Professions and Collections. The Blizzard menu itself is not restyled. Applied immediately; Game Default keeps the game's own font.")
-  menu.Done()
+  local overlay = page.Card("Game Menu Overlay")
+  AddDropdown(overlay, "Game Menu Overlay Font", "fonts", "overlay", overlayChoices, RakaMod.Logic.DEFAULT_OVERLAY_FONT, RefreshOverlayFont, 220)
+  AddHint(overlay, "Text of the RakaMod panels shown beside the Escape menu: Played, and later Professions and Collections. The Blizzard menu itself is not restyled. Applied immediately; Game Default keeps the game's own font.")
+  overlay.Done()
   page.Finish()
 end
 

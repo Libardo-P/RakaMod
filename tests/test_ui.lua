@@ -152,7 +152,11 @@ local function search(text)
   return Settings.Inspect()
 end
 local function joined(list)
-  return table.concat(list, ",")
+  local out = {}
+  for _, v in ipairs(list) do
+    if type(v) == "string" then out[#out + 1] = v end
+  end
+  return table.concat(out, ",")
 end
 
 local all = Settings.Inspect()
@@ -170,23 +174,23 @@ eq(joined(info.navs), "fonts", "general font option is searchable")
 eq(info.selectedTab, "fonts", "general font option opens the Fonts tab")
 eq(joined(info.rows), "general font", "only the general font row stays visible")
 
-info = search("escape overlay font")
-eq(joined(info.rows), "escape overlay font", "escape overlay font option is searchable")
+info = search("game menu overlay font")
+eq(joined(info.rows), "game menu overlay font", "game menu overlay font option is searchable")
 
-local function labels(list)
-  local out = {}
-  for _, v in ipairs(list) do
-    if type(v) == "string" then out[#out + 1] = v end
-  end
-  return table.concat(out, ",")
-end
+local labels = joined
 
-info = search("escape overlay")
-eq(labels(info.rows), "escape overlay font", "the Escape Overlay card holds only the overlay font")
+info = search("game menu overlay")
+eq(labels(info.rows), "game menu overlay font", "the Game Menu Overlay card holds only the overlay font")
+
+info = search("general fonts")
+eq(labels(info.rows), "general font", "the General Fonts card holds only the general font")
+
+info = search("afk mode")
+eq(labels(info.rows), "afk font", "the AFK Mode card holds only the AFK font")
 
 info = search("fonts")
 eq(info.selectedTab, "fonts", "Fonts nav opens the Fonts tab")
-eq(labels(info.rows), "afk font,general font,escape overlay font", "AFK and General Font first, Escape Overlay Font in its own card after them")
+eq(labels(info.rows), "general font,afk font,game menu overlay font", "one font option per card, in General / AFK / Game Menu Overlay order")
 
 info = search("minimap")
 eq(joined(info.navs), "general", "search matches option labels")
@@ -213,9 +217,9 @@ do
   local Media = RakaMod.Media
   eq(RakaMod.db.fonts.afk, "Rk RakaMod", "default AFK font")
   eq(RakaMod.db.fonts.ui, "Rk Roboto Condensed", "default general font")
-  eq(RakaMod.db.fonts.overlay, "Game Default", "default escape overlay font keeps the game's own font")
+  eq(RakaMod.db.fonts.overlay, "Game Default", "default game menu overlay font keeps the game's own font")
   eq(RakaMod.db.zoneText, nil, "no zone text settings are saved")
-  eq(Media.OverlayFontPath(), nil, "default escape overlay font has no override path")
+  eq(Media.OverlayFontPath(), nil, "default game menu overlay font has no override path")
   eq(Media.AfkFontPath(), Media.FontPath, "default AFK font path is the old FontPath")
   eq(Media.UiFontPathChosen(), Media.UIFontPath, "default app font path is the old UIFontPath")
 
@@ -240,11 +244,11 @@ do
   RakaMod.db.fonts.ui = "Rk Roboto Condensed"
   Theme.RefreshFonts()
   local overlay = RakaMod.Overlay
-  eq(#overlay.fontStrings > 0, true, "escape overlay panels register their font strings")
+  eq(#overlay.fontStrings > 0, true, "game menu overlay panels register their font strings")
   local menuFs = overlay.fontStrings[1].fs
   RakaMod.db.fonts.overlay = "Rk Montserrat Medium"
   overlay:ApplyFont()
-  eq(Stub.stored(menuFs, "Font"), Media.FontPathByName("Rk Montserrat Medium"), "escape overlay font applies live to the panel text")
+  eq(Stub.stored(menuFs, "Font"), Media.FontPathByName("Rk Montserrat Medium"), "game menu overlay font applies live to the panel text")
   RakaMod.db.fonts.overlay = "Game Default"
   eq(Stub.stored(fs, "Font"), Media.UIFontPath, "default app font restores")
 end
