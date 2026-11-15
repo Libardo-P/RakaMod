@@ -74,6 +74,7 @@ Author: Unknown. Licence: Unknown.
 | --- | --- | --- |
 | `icon.tga` (crest icon) | Raka | All rights reserved (see `LICENSE.txt`) |
 | `colorwheel.tga` (colour picker underlay) | Unknown (generated for this addon; source not recorded) | Unknown |
+| `ui/nav-*.tga` (settings window nav icons) | Raka, drawn with `tools/make_nav_icons.py` | All rights reserved (see `LICENSE.txt`) |
 
 ## Bundled libraries (`Libs/`)
 

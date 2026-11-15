@@ -9,6 +9,8 @@ RakaMod.Media = {
   ColorWheelPath = ROOT .. "colorwheel",
   IconPath = ROOT .. "icon",
   GrainPath = ROOT .. "background\\grain",
+  -- Settings window text: bold condensed face (Rk Roboto Condensed).
+  UIFontPath = ROOT .. "font\\Roboto Condensed.ttf",
   FontName = "Rk RakaMod",
   StatusbarName = "Rk ToxiUI Clean",
 }
@@ -72,8 +74,28 @@ local PORTRAIT_FILES = {
   "droplet-left-thin-mask", "droplet-left-thin-mask-32", "droplet-left-thin-mask-64", "droplet-left-thin-mask-128", "droplet-left-thin-mask-256", "droplet-left-thin-mask-512",
 }
 
+-- Settings window nav icons (white glyphs, tinted at runtime). A page without an entry shows text only.
+RakaMod.Media.NavIcons = {
+  general = "ui\\nav-general",
+  features = "ui\\nav-features",
+  overlay = "ui\\nav-overlay",
+  afk = "ui\\nav-afk",
+  reveal = "ui\\nav-reveal",
+  zoneText = "ui\\nav-zonetext",
+  gradient = "ui\\nav-gradient",
+}
+
 local function MediaPath(relative)
   return ROOT .. relative
+end
+
+-- Texture path for a nav page icon, or nil when the page has none.
+function RakaMod.Media.NavIconPath(navKey)
+  local relative = RakaMod.Media.NavIcons[navKey]
+  if type(relative) ~= "string" then
+    return nil
+  end
+  return MediaPath(relative)
 end
 
 function RakaMod.Media.Path(relative)
