@@ -7,7 +7,7 @@ Companion addon for [EllesmereUI](https://www.curseforge.com/wow/addons/ellesmer
 - Escape menu overlay: collections, played time, professions, with shared background fade and grain
 - Player frame reveal (casting, health below 100%, mouseover, combat)
 - Full-screen AFK mode with the latest EllesmereUI changelog, class-coloured character info, model animation and a whisper log
-- Per-class, NPC and unit-state health bar gradients on Ellesmere unit, raid and nameplate frames
+- Per-class, NPC and unit-state health bar gradients on Ellesmere unit, raid and nameplate frames, plus optional power, castbar, class resource and nameplate threat / classification gradients
 - ElvUI-style settings window (`/rakamod`, `/rmod` or `/rm`), minimap icon and an entry under Esc > Options > AddOns
 
 ## Settings window
@@ -36,6 +36,17 @@ Fonts saved variables (`RakaModDB.fonts`):
 | `uiSize` | `15` | General font size: point size (6 to 24) of the settings window's option text. Headings and small text keep their ratio to it. Applied live. |
 | `afk` | `Rk RakaMod` | AFK Font: AFK mode text. Applies the next time AFK mode starts. |
 | `overlay` | `Game Default` | Game Menu Overlay Font: RakaMod's Played / Professions / Collections panels beside the Escape menu. `Game Default` keeps the game's own font. |
+
+Gradient Mode (`RakaModDB.gradient`): the toolbar `enabled` switch gates everything; Health always paints once it is on. The other tabs paint only while their own switch is on, all off by default.
+
+| Key | Default | Paints |
+| --- | --- | --- |
+| `powerEnabled` | `false` | Power bars, colored by power type from `power` (mana, rage, focus, energy, runic power, alt power). Other power types keep Ellesmere's color. |
+| `castbarEnabled` | `false` | Cast bars, `castbar.regular` or `castbar.nonInterruptible`. |
+| `resourcesEnabled` | `false` | Pips of your class resource bar from `classResources` (combo points 1-5, holy power, chi, soul shards, shadow orbs, runes by spec). |
+| `nameplatesEnabled` | `false` | Nameplate health: dead / offline / tapped states first, then `nameplateThreat`, then `nameplateClassification`, then the Health tab colors. `nameplateFadeDirection` (`LEFT` / `RIGHT`) sets which way those bars fade. |
+
+Bars are found on Ellesmere frames by field name (health, power, cast, class power and so on), so a bar only paints when Ellesmere exposes it under such a name. Every `SetGradient` call is protected, so an unknown bar layout never raises an error.
 
 Optional Ellesmere modules unlock features: UnitFrames (Reveal, unit gradients), RaidFrames (party and raid gradients) and Nameplates (nameplate gradients). RakaMod does not write to any Ellesmere saved variables.
 

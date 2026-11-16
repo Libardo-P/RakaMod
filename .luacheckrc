@@ -44,7 +44,7 @@ read_globals = {
   "GetServerTime", "GetGameTime", "SecondsToTime", "GetGuildInfo", "GetNormalizedRealmName",
   "C_Item", "C_CurrencyInfo", "C_QuestLog", "C_EncounterJournal", "C_PlayerInfo", "C_CVar",
   "C_Map", "C_ChatInfo", "C_FriendList", "C_Club", "C_GuildInfo", "C_LFGList", "C_PvP", "C_Housing",
-  "SettingsPanel", "UnitChannelInfo", "UnitCastingInfo", "UnitIsTappedByPlayer", "UnitIsTapped", "LoadAddOn",
+  "SettingsPanel", "UnitChannelInfo", "UnitThreatSituation", "UnitClassification", "UnitPowerType", "UnitCastingInfo", "UnitIsTappedByPlayer", "UnitIsTapped", "LoadAddOn",
   "HideUIPanel", "GetTotalAchievementPoints", "EllesmereUIUnitFrames_Player", "EllesmereUIUnitFrames_Pet",
   "canaccessvalue", "UnitIsDeadOrGhost", "Screenshot", "GetBattlefieldStatus", "CloseAllWindows",
   "NUM_CHAT_WINDOWS", "NamePlateDriverFrame", "C_NamePlate", "CastingBarFrame", "PlayerCastingBarFrame", "TargetFrameSpellBar",

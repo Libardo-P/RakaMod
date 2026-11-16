@@ -270,6 +270,31 @@ do
   eq(RakaMod.db.fonts.uiSize, 15, "Reset Page restores the general font size")
 end
 
+-- Gradient tabs --------------------------------------------------------------------------
+do
+  Settings:SelectPage("gradient")
+  local info = Settings.Inspect()
+  eq(joined(info.tabs), "gradient,gradientBars,gradientResources,gradientNameplates", "Gradient Mode shows Health, Bars, Resources and Nameplates")
+  for _, tab in ipairs({ "gradientBars", "gradientResources", "gradientNameplates" }) do
+    Settings:SelectPage(tab)
+    info = Settings.Inspect()
+    eq(info.selectedTab, tab, tab .. " opens")
+    eq(#info.rows > 0, true, tab .. " has options")
+  end
+  local d = RakaMod.db.gradient
+  eq(d.powerEnabled == false and d.castbarEnabled == false and d.resourcesEnabled == false, true, "new bar kinds are off by default")
+
+  info = search("paint power bars")
+  eq(info.selectedTab, "gradientBars", "power switch is searchable")
+  info = search("paint cast bars")
+  eq(info.selectedTab, "gradientBars", "cast switch is searchable")
+  info = search("paint class resources")
+  eq(info.selectedTab, "gradientResources", "resource switch is searchable")
+  info = search("threat and classification")
+  eq(info.selectedTab, "gradientNameplates", "nameplate switch is searchable")
+  search("")
+end
+
 -- Fonts master switch and General Font size ----------------------------------------------
 do
   local Media = RakaMod.Media

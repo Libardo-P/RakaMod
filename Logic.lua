@@ -136,6 +136,192 @@ function Logic.IsHealthBarKey(key)
   return true
 end
 
+local BAR_KIND_SKIP = { "absorb", "prediction", "shield", "incoming", "overlay", "background" }
+local RESOURCE_KEY_PARTS = { "classpower", "classresource", "resource", "combo", "rune", "holypower", "soulshard", "shadoworb" }
+local RESOURCE_KEY_EXACT = { chi = true, chibar = true, chis = true, orbs = true }
+
+-- Kind of Ellesmere status bar a Lua field name stands for: "health", "power", "castbar",
+-- "resource" (class resources) or nil when the field is none of them (absorb and the like).
+function Logic.BarKindFromKey(key)
+  if type(key) ~= "string" or key == "" then
+    return nil
+  end
+  local lower = string.lower(key)
+  for i = 1, #BAR_KIND_SKIP do
+    if string.find(lower, BAR_KIND_SKIP[i], 1, true) then
+      return nil
+    end
+  end
+  if string.find(lower, "cast", 1, true) or string.find(lower, "channel", 1, true) then
+    return "castbar"
+  end
+  if RESOURCE_KEY_EXACT[lower] then
+    return "resource"
+  end
+  for i = 1, #RESOURCE_KEY_PARTS do
+    if string.find(lower, RESOURCE_KEY_PARTS[i], 1, true) then
+      return "resource"
+    end
+  end
+  if string.find(lower, "power", 1, true) or string.find(lower, "mana", 1, true) then
+    return "power"
+  end
+  if Logic.IsHealthBarKey(key) then
+    return "health"
+  end
+  return nil
+end
+
+local POWER_TOKEN_KEYS = {
+  MANA = "mana",
+  RAGE = "rage",
+  FOCUS = "focus",
+  ENERGY = "energy",
+  RUNIC_POWER = "runicPower",
+  ALTERNATE = "altPower",
+  ALT_POWER = "altPower",
+}
+local POWER_ID_KEYS = { [0] = "mana", [1] = "rage", [2] = "focus", [3] = "energy", [6] = "runicPower", [10] = "altPower" }
+
+-- Key of gradient.power for a unit's power type (token such as "MANA", id such as 0), or nil
+-- for types without a configured gradient so Ellesmere keeps its own color.
+function Logic.PowerKey(token, id)
+  if type(token) == "string" and POWER_TOKEN_KEYS[token] then
+    return POWER_TOKEN_KEYS[token]
+  end
+  if type(id) == "number" then
+    return POWER_ID_KEYS[id]
+  end
+  return nil
+end
+
+local RUNE_SPEC_KEYS = { "bloodRunes", "frostRunes", "unholyRunes" }
+
+-- Key of gradient.classResources for one pip of the player's class resource bar. index is the
+-- pip number (combo points 1-5), spec the specialization index (death knight runes).
+function Logic.ResourceKey(classFile, index, spec)
+  if classFile == "ROGUE" or classFile == "DRUID" then
+    if type(index) == "number" and index >= 1 and index <= 5 then
+      return "comboPoint" .. index
+    end
+    return nil
+  end
+  if classFile == "PALADIN" then
+    return "holyPower"
+  elseif classFile == "MONK" then
+    return "chi"
+  elseif classFile == "WARLOCK" then
+    return "soulShards"
+  elseif classFile == "PRIEST" then
+    return "shadowOrbs"
+  elseif classFile == "DEATHKNIGHT" then
+    return RUNE_SPEC_KEYS[spec] or "deathRunes"
+  end
+  return nil
+end
+
+-- Key of gradient.nameplateThreat for a hostile nameplate, from Blizzard's threat status
+-- (nil = not on the threat table, 0 = lower than the tank, 1 = higher but not tanking,
+-- 2 = insecurely tanking, 3 = securely tanking). otherTank is true when another tank holds it.
+function Logic.ThreatKey(status, isTank, grouped, otherTank)
+  if type(status) ~= "number" then
+    return nil
+  end
+  if not grouped then
+    return "solo"
+  end
+  if isTank then
+    if status >= 3 then
+      return "good"
+    elseif status == 2 then
+      return "goodTransition"
+    elseif otherTank then
+      if status == 1 then
+        return "offTankBad"
+      end
+      return "offTank"
+    end
+    return "bad"
+  end
+  if status >= 3 then
+    return "bad"
+  elseif status >= 1 then
+    return "badTransition"
+  elseif otherTank then
+    return "offTankGood"
+  end
+  return "good"
+end
+
+-- Key of gradient.nameplateClassification for a non-player unit, or nil for ordinary mobs.
+function Logic.ClassificationKey(classification, level, isBoss, classFile)
+  if type(classification) ~= "string" then
+    return nil
+  end
+  if classification == "worldboss" then
+    return "worldBoss"
+  elseif classification == "rareelite" then
+    return "rareElite"
+  elseif classification == "rare" then
+    return "rare"
+  elseif classification == "elite" then
+    if isBoss or level == -1 then
+      return "eliteBoss"
+    end
+    return "eliteMini"
+  elseif (classification == "normal" or classification == "minus" or classification == "trivial") and classFile == "MAGE" then
+    return "caster"
+  end
+  return nil
+end
+
+-- Nameplate health pair: dead / offline / tapped first, then threat, classification, then the
+-- same class / NPC / state choice as unit frames.
+function Logic.PickNameplatePair(gradient, info)
+  if type(gradient) ~= "table" or type(info) ~= "table" then
+    return nil
+  end
+  if not (info.dead or info.offline or info.tapped) then
+    local threat = gradient.nameplateThreat
+    if type(info.threatKey) == "string" and type(threat) == "table" and type(threat[info.threatKey]) == "table" then
+      return threat[info.threatKey]
+    end
+    local classification = gradient.nameplateClassification
+    if type(info.classificationKey) == "string" and type(classification) == "table"
+      and type(classification[info.classificationKey]) == "table" then
+      return classification[info.classificationKey]
+    end
+  end
+  return Logic.PickGradientPair(gradient, info)
+end
+
+-- Pair for a power, castbar or class resource bar. info: powerKey, nonInterruptible, resourceKey.
+function Logic.PickBarPair(gradient, kind, info)
+  if type(gradient) ~= "table" or type(info) ~= "table" then
+    return nil
+  end
+  local group, key
+  if kind == "power" then
+    group, key = gradient.power, info.powerKey
+  elseif kind == "castbar" then
+    group, key = gradient.castbar, info.nonInterruptible and "nonInterruptible" or "regular"
+  elseif kind == "resource" then
+    group, key = gradient.classResources, info.resourceKey
+  end
+  if type(group) == "table" and type(key) == "string" and type(group[key]) == "table" then
+    return group[key]
+  end
+  return nil
+end
+
+-- Left and right color of a horizontal gradient; direction "LEFT" fades toward the left edge.
+function Logic.OrientPair(pairColors, direction)
+  if direction == "LEFT" then
+    return pairColors.right, pairColors.left
+  end
+  return pairColors.left, pairColors.right
+end
+
 function Logic.PlayedSummary(records)
   local account = 0
   local byClass = {}
@@ -791,6 +977,9 @@ function Logic.BuildGradientDefaults(classColors)
   end
   return {
     enabled = false,
+    powerEnabled = false,
+    castbarEnabled = false,
+    resourcesEnabled = false,
     classes = classes,
     npc = {
       friendly = hexPair("2F9607", "84D92B"),

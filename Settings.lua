@@ -54,9 +54,9 @@ local PAGE_META = {
   reveal = "Force-show the Ellesmere player frame while casting, while health is below 100%, on mouseover, or in combat. It never hides the frame itself.",
   fonts = "Fonts used by AFK mode, this settings window and the Game Menu overlay panels. Turn Enabled off to leave every font to the game or Ellesmere.",
   gradient = "Health bar gradients shift by class, NPC reaction, and unit state.",
-  gradientBars = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
-  gradientResources = "Class resource gradient shifts. Colors are saved now; painting comes later.",
-  gradientNameplates = "Nameplate threat and classification gradients. Colors are saved now; painting comes later.",
+  gradientBars = "Power and castbar gradients on Ellesmere unit frames. Each is painted only while its switch is on.",
+  gradientResources = "Class resource gradients (combo points, holy power, chi, shards, runes) on Ellesmere resource bars.",
+  gradientNameplates = "Nameplate threat and classification gradients on Ellesmere nameplate health bars.",
 }
 
 local NAV = {
@@ -103,19 +103,14 @@ local NAV = {
     label = "Gradient Mode",
     -- Master switch shown in the toolbar, above every tab of this page.
     master = { section = "gradient", key = "enabled", label = "Enabled" },
-    tabs = { { key = "gradient", label = "Health" } },
+    tabs = {
+      { key = "gradient", label = "Health" },
+      { key = "gradientBars", label = "Bars" },
+      { key = "gradientResources", label = "Resources" },
+      { key = "gradientNameplates", label = "Nameplates" },
+    },
   },
 }
-
--- Bars, Resources and Nameplates store colors, but Gradient.lua does not paint them yet.
--- Keep them hidden until it does, then flip this flag.
-local SHOW_UNPAINTED_GRADIENT_TABS = false
-if SHOW_UNPAINTED_GRADIENT_TABS then
-  local gradientTabs = NAV[#NAV].tabs
-  gradientTabs[#gradientTabs + 1] = { key = "gradientBars", label = "Bars" }
-  gradientTabs[#gradientTabs + 1] = { key = "gradientResources", label = "Resources" }
-  gradientTabs[#gradientTabs + 1] = { key = "gradientNameplates", label = "Nameplates" }
-end
 
 ---------------------------------------------------------------------------
 -- Search
@@ -1256,10 +1251,11 @@ do
 end
 
 -- Gradient: Bars
-if SHOW_UNPAINTED_GRADIENT_TABS then
+do
   local page = CreatePage("gradientBars", "gradient")
   local power = page.Card("Power Colors", 1)
-  AddHint(power, "Gradient shifts for power types.")
+  AddCheck(power, "Paint power bars", "gradient", "powerEnabled", RefreshGradient)
+  AddHint(power, "Gradient shifts for power types. Power types without a color here keep Ellesmere's own color.")
   AddPairGroup(power, "power", {
     { key = "altPower", label = "Alt Power", color = { r = 0.24, g = 0.48, b = 0.91 } },
     { key = "focus", label = "Focus", color = { r = 0.85, g = 0.44, b = 0.20 } },
@@ -1270,7 +1266,8 @@ if SHOW_UNPAINTED_GRADIENT_TABS then
   })
   power.Done()
   local cast = page.Card("Castbar Colors", 2)
-  AddHint(cast, "Gradient shifts for cast bars.")
+  AddCheck(cast, "Paint cast bars", "gradient", "castbarEnabled", RefreshGradient)
+  AddHint(cast, "Gradient shifts for cast bars. Uses the non-interruptible color while the cast cannot be interrupted.")
   AddPairGroup(cast, "castbar", {
     { key = "regular", label = "Regular", color = { r = 1.00, g = 0.70, b = 0.00 } },
     { key = "nonInterruptible", label = "Non-interruptible", color = { r = 0.56, g = 0.55, b = 0.55 } },
@@ -1280,10 +1277,11 @@ if SHOW_UNPAINTED_GRADIENT_TABS then
 end
 
 -- Gradient: Resources
-if SHOW_UNPAINTED_GRADIENT_TABS then
+do
   local page = CreatePage("gradientResources", "gradient")
   local card = page.Card("Class Resources")
-  AddHint(card, "Gradient shifts for class resource bars.")
+  AddCheck(card, "Paint class resources", "gradient", "resourcesEnabled", RefreshGradient)
+  AddHint(card, "Gradient shifts for the resource bar of your class. Only the colors of your own class are used.")
   AddPairGroup(card, "classResources", {
     { key = "comboPoint1", label = "Combo Point 1", color = { r = 0.75, g = 0.31, b = 0.31 } },
     { key = "comboPoint2", label = "Combo Point 2", color = { r = 0.78, g = 0.56, b = 0.31 } },
@@ -1304,14 +1302,16 @@ if SHOW_UNPAINTED_GRADIENT_TABS then
 end
 
 -- Gradient: Nameplates
-if SHOW_UNPAINTED_GRADIENT_TABS then
+do
   local page = CreatePage("gradientNameplates", "gradient")
   local main = page.Card("Nameplates")
+  AddCheck(main, "Threat and classification colors", "gradient", "nameplatesEnabled", RefreshGradient)
+  AddHint(main, "Colors Ellesmere nameplate health bars by threat and mob classification. Dead, offline and tapped colors still win. Off keeps the Health tab colors.")
   AddDropdown(main, "Fade Direction", "gradient", "nameplateFadeDirection", { "LEFT", "RIGHT" }, "RIGHT", RefreshGradient)
-  AddHint(main, "Class, NPC, and State colors are shared with unit frames. Threat and classification colors below are nameplate-specific.")
+  AddHint(main, "Which side of the nameplate bar the gradient fades toward. Applies while threat and classification colors are on.")
   main.Done()
   local threat = page.Card("Threat Colors")
-  AddHint(threat, "Used when nameplate threat coloring is enabled.")
+  AddHint(threat, "Used on hostile units you have threat information for. Class, NPC and State colors are shared with unit frames.")
   AddPairGroup(threat, "nameplateThreat", {
     { key = "good", label = "Good", color = { r = 0.12, g = 0.62, b = 0.12 } },
     { key = "bad", label = "Bad", color = { r = 1.00, g = 0.27, b = 0.27 } },
@@ -1325,7 +1325,7 @@ if SHOW_UNPAINTED_GRADIENT_TABS then
   threat.Done()
 
   local class = page.Card("Classification Colors")
-  AddHint(class, "Used when nameplate classification coloring is enabled.")
+  AddHint(class, "Used for rare, elite and boss mobs, and for caster mobs. Threat colors win while you are in combat with the unit.")
   AddPairGroup(class, "nameplateClassification", {
     { key = "worldBoss", label = "World Boss", color = { r = 0.90, g = 0.77, b = 0.00 } },
     { key = "rareElite", label = "Rare Elite", color = { r = 0.00, g = 0.84, b = 0.69 } },

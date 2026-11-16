@@ -373,6 +373,83 @@ do
   eq(saved.font, "Doris PP", "migration runs once")
 end
 
+-- Bar kinds, power, resource, threat and classification keys ----------------------------
+do
+  local L = Logic
+  eq(L.BarKindFromKey("healthBar"), "health", "health field")
+  eq(L.BarKindFromKey("health"), "health", "plain health field")
+  eq(L.BarKindFromKey("powerBar"), "power", "power field")
+  eq(L.BarKindFromKey("manaBar"), "power", "mana field")
+  eq(L.BarKindFromKey("castBar"), "castbar", "cast field")
+  eq(L.BarKindFromKey("channelBar"), "castbar", "channel field")
+  eq(L.BarKindFromKey("classPower"), "resource", "class power is a resource, not a power bar")
+  eq(L.BarKindFromKey("holyPowerBar"), "resource", "holy power is a resource")
+  eq(L.BarKindFromKey("runes"), "resource", "runes are a resource")
+  eq(L.BarKindFromKey("chi"), "resource", "chi is a resource")
+  eq(L.BarKindFromKey("healAbsorbBar"), nil, "absorb bars are never painted")
+  eq(L.BarKindFromKey("healthPrediction"), nil, "prediction bars are never painted")
+  eq(L.BarKindFromKey("castBarBackground"), nil, "backgrounds are never painted")
+  eq(L.BarKindFromKey("name"), nil, "unrelated field")
+  eq(L.BarKindFromKey(3), nil, "numeric field")
+
+  eq(L.PowerKey("MANA", 0), "mana", "mana token")
+  eq(L.PowerKey("RUNIC_POWER"), "runicPower", "runic power token")
+  eq(L.PowerKey(nil, 3), "energy", "energy by id")
+  eq(L.PowerKey("FURY", 17), nil, "unconfigured power type")
+
+  eq(L.ResourceKey("ROGUE", 3), "comboPoint3", "rogue combo point pip")
+  eq(L.ResourceKey("DRUID", 6), nil, "combo point pip out of range")
+  eq(L.ResourceKey("PALADIN", 2), "holyPower", "holy power")
+  eq(L.ResourceKey("MONK", 1), "chi", "chi")
+  eq(L.ResourceKey("WARLOCK", 1), "soulShards", "soul shards")
+  eq(L.ResourceKey("DEATHKNIGHT", 1, 2), "frostRunes", "frost rune spec")
+  eq(L.ResourceKey("DEATHKNIGHT", 1, nil), "deathRunes", "death knight without a spec")
+  eq(L.ResourceKey("MAGE", 1), nil, "classes without a resource bar")
+
+  eq(L.ThreatKey(nil, true, true, false), nil, "no threat information")
+  eq(L.ThreatKey(3, false, false, false), "solo", "ungrouped is solo")
+  eq(L.ThreatKey(3, true, true, false), "good", "tank holding aggro")
+  eq(L.ThreatKey(2, true, true, false), "goodTransition", "tank losing aggro")
+  eq(L.ThreatKey(0, true, true, true), "offTank", "another tank holds it")
+  eq(L.ThreatKey(1, true, true, true), "offTankBad", "tank about to pull from the off tank")
+  eq(L.ThreatKey(0, true, true, false), "bad", "tank lost aggro to a non-tank")
+  eq(L.ThreatKey(3, false, true, false), "bad", "non-tank with aggro")
+  eq(L.ThreatKey(1, false, true, false), "badTransition", "non-tank about to pull")
+  eq(L.ThreatKey(0, false, true, true), "offTankGood", "non-tank, off tank holds it")
+  eq(L.ThreatKey(0, false, true, false), "good", "non-tank, nothing wrong")
+
+  eq(L.ClassificationKey("worldboss", 80, false, nil), "worldBoss", "world boss")
+  eq(L.ClassificationKey("rareelite", 80, false, nil), "rareElite", "rare elite")
+  eq(L.ClassificationKey("rare", 80, false, nil), "rare", "rare")
+  eq(L.ClassificationKey("elite", -1, false, nil), "eliteBoss", "skull level elite is a boss")
+  eq(L.ClassificationKey("elite", 80, true, nil), "eliteBoss", "boss unit")
+  eq(L.ClassificationKey("elite", 80, false, nil), "eliteMini", "plain elite")
+  eq(L.ClassificationKey("normal", 80, false, "MAGE"), "caster", "caster mob")
+  eq(L.ClassificationKey("normal", 80, false, "WARRIOR"), nil, "ordinary mob")
+  eq(L.ClassificationKey(nil, 80, false, nil), nil, "unknown classification")
+
+  local d = L.BuildGradientDefaults()
+  eq(d.powerEnabled, false, "power painting is off by default")
+  eq(d.castbarEnabled, false, "cast bar painting is off by default")
+  eq(d.resourcesEnabled, false, "resource painting is off by default")
+
+  eq(L.PickNameplatePair(d, { threatKey = "bad", isPlayer = false, reactionKey = "enemy" }), d.nameplateThreat.bad, "threat wins on nameplates")
+  eq(L.PickNameplatePair(d, { classificationKey = "rare", isPlayer = false, reactionKey = "enemy" }), d.nameplateClassification.rare, "classification is next")
+  eq(L.PickNameplatePair(d, { dead = true, threatKey = "bad", isPlayer = false }), d.states.dead, "state colors beat threat")
+  eq(L.PickNameplatePair(d, { isPlayer = false, reactionKey = "enemy" }), d.npc.enemy, "nameplates fall back to the unit frame choice")
+
+  eq(L.PickBarPair(d, "power", { powerKey = "rage" }), d.power.rage, "power pair")
+  eq(L.PickBarPair(d, "power", { powerKey = nil }), nil, "no power pair without a key")
+  eq(L.PickBarPair(d, "castbar", { nonInterruptible = false }), d.castbar.regular, "regular cast pair")
+  eq(L.PickBarPair(d, "castbar", { nonInterruptible = true }), d.castbar.nonInterruptible, "non-interruptible cast pair")
+  eq(L.PickBarPair(d, "resource", { resourceKey = "chi" }), d.classResources.chi, "resource pair")
+
+  local a, b = L.OrientPair({ left = "L", right = "R" }, "RIGHT")
+  eq(a .. b, "LR", "RIGHT keeps the pair order")
+  a, b = L.OrientPair({ left = "L", right = "R" }, "LEFT")
+  eq(a .. b, "RL", "LEFT swaps the pair")
+end
+
 -- General font size ---------------------------------------------------------------------
 do
   local L = Logic
