@@ -7,6 +7,8 @@ RakaMod.Media = {
   StatusbarPath = ROOT .. "statusbar\\ToxiUI-clean.tga",
   -- Extensionless paths (WoW resolves .tga/.blp). Safer on Forever.
   ColorWheelPath = ROOT .. "colorwheel",
+  -- Thin white crossbar with square end caps for the color-picker value strip.
+  ColorValueThumbPath = ROOT .. "colorvalue-thumb",
   IconPath = ROOT .. "icon",
   GrainPath = ROOT .. "background\\grain",
   -- 2048x2048 sheet, 256px cells, 13 class icons (see Logic.FabledClassTexCoords).
@@ -96,7 +98,7 @@ function RakaMod.Media.ReferencedFiles()
     files[#files + 1] = relative
   end
   local m = RakaMod.Media
-  for _, path in ipairs({ m.FontPath, m.StatusbarPath, m.ColorWheelPath, m.IconPath, m.GrainPath, m.FabledClassPath, m.UIFontPath }) do
+  for _, path in ipairs({ m.FontPath, m.StatusbarPath, m.ColorWheelPath, m.ColorValueThumbPath, m.IconPath, m.GrainPath, m.FabledClassPath, m.UIFontPath }) do
     add((path:sub(#ROOT + 1)))
   end
   for _, list in ipairs({ FONTS, STATUSBARS, BACKGROUNDS }) do

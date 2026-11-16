@@ -43,6 +43,18 @@ local function StateOf(bar)
   return state
 end
 
+-- Reused across health paints (WoW is single-threaded; callers never store the table).
+local unitInfoScratch = {
+  dead = false,
+  offline = false,
+  tapped = false,
+  isPlayer = false,
+  classFile = nil,
+  reactionKey = "neutral",
+  threatKey = nil,
+  classificationKey = nil,
+}
+
 local MAX_RESOURCE_PIPS = 12
 
 local function IsStatusBar(value)
@@ -129,14 +141,15 @@ local function SafeBool(fn, ...)
 end
 
 local function UnitInfo(unit)
-  local info = {
-    dead = false,
-    offline = false,
-    tapped = false,
-    isPlayer = false,
-    classFile = nil,
-    reactionKey = "neutral",
-  }
+  local info = unitInfoScratch
+  info.dead = false
+  info.offline = false
+  info.tapped = false
+  info.isPlayer = false
+  info.classFile = nil
+  info.reactionKey = "neutral"
+  info.threatKey = nil
+  info.classificationKey = nil
   if type(unit) ~= "string" or unit == "" then
     return info
   end
@@ -254,15 +267,19 @@ local function CastNonInterruptible(bar, unit)
   if type(unit) ~= "string" then
     return false
   end
-  local casting = { pcall(UnitCastingInfo or function() end, unit) }
-  if casting[1] and casting[2] ~= nil then
-    local value = casting[9]
-    return type(value) == "boolean" and not IsSecret(value) and value or false
+  local castFn = UnitCastingInfo
+  if type(castFn) == "function" then
+    local ok, name, _, _, _, _, _, _, notInterruptible = pcall(castFn, unit)
+    if ok and name ~= nil then
+      return type(notInterruptible) == "boolean" and not IsSecret(notInterruptible) and notInterruptible or false
+    end
   end
-  local channel = { pcall(UnitChannelInfo or function() end, unit) }
-  if channel[1] and channel[2] ~= nil then
-    local value = channel[8]
-    return type(value) == "boolean" and not IsSecret(value) and value or false
+  local channelFn = UnitChannelInfo
+  if type(channelFn) == "function" then
+    local ok, name, _, _, _, _, _, notInterruptible = pcall(channelFn, unit)
+    if ok and name ~= nil then
+      return type(notInterruptible) == "boolean" and not IsSecret(notInterruptible) and notInterruptible or false
+    end
   end
   return false
 end
@@ -337,10 +354,17 @@ function Gradient:Paint(bar)
   local unit = ResolveUnit(bar)
   local chosen, direction = ChoosePair(bar, state, gradient, unit)
   if type(chosen) ~= "table" then
+    -- No pair for this bar (e.g. unconfigured power type): clear any prior gradient.
+    if state.painted then
+      RestoreBar(bar)
+    end
     return
   end
   local left, right = RakaMod.Logic.OrientPair(chosen, direction)
   if type(left) ~= "table" or type(right) ~= "table" then
+    if state.painted then
+      RestoreBar(bar)
+    end
     return
   end
   local ok = pcall(function()
@@ -350,7 +374,11 @@ function Gradient:Paint(bar)
       CreateColor(right.r, right.g, right.b, 1)
     )
   end)
-  state.painted = ok
+  if ok then
+    state.painted = true
+  elseif state.painted then
+    RestoreBar(bar)
+  end
 end
 
 -- Post-hook on the bar's own SetStatusBarColor (never replaces the method, so Ellesmere's
@@ -378,7 +406,13 @@ function Gradient:Hook(bar, unitHint, opts)
   if bar.GetStatusBarColor then
     local ok, r, g, b, a = pcall(bar.GetStatusBarColor, bar)
     if ok and type(r) == "number" then
-      state.lastColor = { r, g, b, a }
+      local color = state.lastColor
+      if not color then
+        color = { r, g, b, a }
+        state.lastColor = color
+      else
+        color[1], color[2], color[3], color[4] = r, g, b, a
+      end
     end
   end
   hooked[#hooked + 1] = bar
@@ -387,7 +421,13 @@ function Gradient:Hook(bar, unitHint, opts)
     if not st then
       return
     end
-    st.lastColor = { r, g, b, a }
+    local color = st.lastColor
+    if not color then
+      color = { r, g, b, a }
+      st.lastColor = color
+    else
+      color[1], color[2], color[3], color[4] = r, g, b, a
+    end
     if active then
       RakaMod.Gradient:Paint(hookedBar)
     end
@@ -410,6 +450,12 @@ local OPTIONAL_EVENTS = {
   nameplate = { "UNIT_THREAT_SITUATION_UPDATE", "UNIT_THREAT_LIST_UPDATE" },
 }
 local ALL_BARS_EVENTS = { PLAYER_SPECIALIZATION_CHANGED = true, UPDATE_SHAPESHIFT_FORM = true }
+-- Threat payloads are often "player" (situation) or a mob token (list). Either way every
+-- nameplate may need a new pair, so these force a full repaint rather than unit filtering.
+local NAMEPLATE_THREAT_EVENTS = {
+  UNIT_THREAT_SITUATION_UPDATE = true,
+  UNIT_THREAT_LIST_UPDATE = true,
+}
 local optionalRegistered = {}
 
 local function SyncEvents()
@@ -448,6 +494,10 @@ function Gradient:Apply()
     return
   end
   SyncEvents()
+  local gradient = RakaMod.db and RakaMod.db.gradient
+  if type(gradient) ~= "table" or gradient.enabled ~= true then
+    return
+  end
   for i = 1, #hooked do
     self:Paint(hooked[i])
   end
@@ -563,6 +613,8 @@ function Gradient:OnGameEvent(event, unit)
     pending.mouseover = true
   elseif ALL_BARS_EVENTS[event] then
     pendingAll = true
+  elseif NAMEPLATE_THREAT_EVENTS[event] and optionalRegistered[event] then
+    pendingAll = true
   elseif optionalRegistered[event] then
     if type(unit) ~= "string" or IsSecret(unit) then
       return
@@ -603,6 +655,7 @@ function Gradient:Disable()
   pending = {}
   pendingAll = false
   pendingRescan = false
+  flushScheduled = false
   for i = 1, #hooked do
     RestoreBar(hooked[i])
   end
