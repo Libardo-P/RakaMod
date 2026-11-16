@@ -188,8 +188,10 @@ do
   eq(sameLeft(power, g.power.rage), true, "power gradient follows the power type")
   setGlobal("UnitPowerType", function() return 99, "FURY" end)
   local before = power.gradients
+  local flatBeforeUnknown = power.flat
   Gradient:Apply()
-  eq(power.gradients, before, "power types without a gradient keep Ellesmere's color")
+  eq(power.gradients, before, "power types without a gradient do not paint a new gradient")
+  eq(power.flat > flatBeforeUnknown, true, "leaving a painted power type restores the flat colour")
 
   g.castbarEnabled = true
   setGlobal("UnitCastingInfo", function() return "Fireball", "", "", 0, 1, false, "id", false, 1 end)
@@ -208,8 +210,11 @@ do
   eq(sameLeft(pip1, g.classResources.comboPoint1), true, "first combo point pip paints comboPoint1")
   eq(sameLeft(pip2, g.classResources.comboPoint2), true, "second combo point pip paints comboPoint2")
 
-  g.powerEnabled = false
   setGlobal("UnitPowerType", function() return 0, "MANA" end)
+  g.powerEnabled = true
+  Gradient:Apply()
+  eq(sameLeft(power, g.power.mana), true, "power paints again after an unknown type")
+  g.powerEnabled = false
   local flatBefore = power.flat
   Gradient:Apply()
   eq(power.flat > flatBefore, true, "turning a switch off flattens the bars it painted")
@@ -250,6 +255,24 @@ do
   Gradient:Apply()
   eq(sameLeft(plateHealth, g.npc.enemy), true, "ordinary mobs fall back to the NPC gradient")
   eq(registered.UNIT_THREAT_SITUATION_UPDATE, true, "threat events are registered with nameplate colors on")
+
+  -- UNIT_THREAT_SITUATION_UPDATE often reports "player"; must still repaint nameplates.
+  setGlobal("UnitThreatSituation", function() return 3 end)
+  setGlobal("UnitClassification", function() return "elite" end)
+  -- Drain any coalesced flush so Schedule can arm again (mirrors Disable clearing the flag).
+  while #timers > 0 do
+    table.remove(timers, 1)()
+  end
+  local threatTimers = #timers
+  Gradient:OnGameEvent("UNIT_THREAT_SITUATION_UPDATE", "player")
+  eq(#timers, threatTimers + 1, "threat situation schedules a flush")
+  timers[#timers]()
+  eq(sameLeft(plateHealth, g.nameplateThreat.good), true, "threat event with unit player still repaints nameplates")
+
+  setGlobal("UnitThreatSituation", function() return nil end)
+  setGlobal("UnitClassification", function() return "normal" end)
+  Gradient:Apply()
+  eq(sameLeft(plateHealth, g.npc.enemy), true, "nameplates return to NPC colours after threat clears")
 
   g.nameplateFadeDirection = "LEFT"
   Gradient:Apply()
