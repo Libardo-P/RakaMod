@@ -73,11 +73,13 @@ local pickedFallback = Logic.PickGradientPair(g, { isPlayer = false })
 eq(pickedFallback, g.npc.neutral, "npc neutral fallback")
 
 
-eq(Logic.HealthAboveFull(100, 100, 0, false), false, "full no absorb")
-eq(Logic.HealthAboveFull(100, 100, 10, false), true, "absorb over 100")
-eq(Logic.HealthAboveFull(110, 100, 0, false), true, "current above max")
-eq(Logic.HealthAboveFull(90, 100, 5, false), false, "injured with small absorb")
-eq(Logic.HealthAboveFull(100, 100, 10, true), false, "secret above full")
+eq(Logic.HealthBelowFull(100, 100, false), false, "full health does not reveal")
+eq(Logic.HealthBelowFull(99, 100, false), true, "just under full reveals")
+eq(Logic.HealthBelowFull(50, 100, false), true, "injured reveals")
+eq(Logic.HealthBelowFull(110, 100, false), false, "above max does not reveal")
+eq(Logic.HealthBelowFull(50, 100, true), false, "secret values never reveal")
+eq(Logic.HealthBelowFull(50, 0, false), false, "zero max health never reveals")
+eq(Logic.HealthBelowFull(nil, 100, false), false, "missing health never reveals")
 
 eq(Logic.IsHealthBarKey("Health"), true, "health key")
 eq(Logic.IsHealthBarKey("_health"), true, "raid health key")

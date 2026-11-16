@@ -51,7 +51,7 @@ local PAGE_META = {
   features = "Shared background fade for Escape and AFK. Grain is optional.",
   overlay = "Left Escape overlay: professions, collections, and played time beside the game menu.",
   afk = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
-  reveal = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
+  reveal = "Force-show the Ellesmere player frame while casting, while health is below 100%, on mouseover, or in combat. It never hides the frame itself.",
   fonts = "Fonts used by AFK mode, this settings window and the Game Menu overlay panels. Turn Enabled off to leave every font to the game or Ellesmere.",
   gradient = "Health bar gradients shift by class, NPC reaction, and unit state.",
   gradientBars = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
@@ -1186,7 +1186,7 @@ do
   revealNote = AddMaster("reveal", nil, "EllesmereUI Unit Frames is not installed.")
   local triggers = page.Card("Show When", 1)
   AddCheck(triggers, "Casting", "reveal", "casting")
-  AddCheck(triggers, "Health above 100%", "reveal", "health")
+  AddCheck(triggers, "Health below 100%", "reveal", "health")
   AddCheck(triggers, "Mouseover", "reveal", "mouseover")
   AddCheck(triggers, "Combat", "reveal", "combat")
   AddCheck(triggers, "Pet", "reveal", "pet")

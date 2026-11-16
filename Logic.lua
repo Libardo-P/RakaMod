@@ -111,18 +111,15 @@ function Logic.IsForever(interfaceVersion)
   return interfaceVersion == 16001
 end
 
--- True when current + absorbs exceeds max (effective health above 100%).
-function Logic.HealthAboveFull(current, maxHealth, absorbs, secret)
+-- True when current health is below max (under 100%). Absorbs do not count towards health.
+function Logic.HealthBelowFull(current, maxHealth, secret)
   if secret then
     return false
   end
   if type(current) ~= "number" or type(maxHealth) ~= "number" or maxHealth <= 0 then
     return false
   end
-  if type(absorbs) ~= "number" or absorbs < 0 then
-    absorbs = 0
-  end
-  return (current + absorbs) > maxHealth
+  return current < maxHealth
 end
 
 function Logic.IsHealthBarKey(key)
