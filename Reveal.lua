@@ -6,7 +6,6 @@ RakaMod.Reveal = Reveal
 local EVENTS = {
   "UNIT_HEALTH",
   "UNIT_MAXHEALTH",
-  "UNIT_ABSORB_AMOUNT_CHANGED",
   "UNIT_SPELLCAST_START",
   "UNIT_SPELLCAST_STOP",
   "UNIT_SPELLCAST_CHANNEL_START",
@@ -20,7 +19,6 @@ local EVENTS = {
 local UNIT_EVENT = {
   UNIT_HEALTH = true,
   UNIT_MAXHEALTH = true,
-  UNIT_ABSORB_AMOUNT_CHANGED = true,
   UNIT_SPELLCAST_START = true,
   UNIT_SPELLCAST_STOP = true,
   UNIT_SPELLCAST_CHANNEL_START = true,
@@ -74,11 +72,11 @@ local function Protected(frame)
   return ok and value and true or false
 end
 
-local function HealthAboveFull()
+local function HealthBelowFull()
   if type(UnitHealth) ~= "function" or type(UnitHealthMax) ~= "function" then
     return false
   end
-  if not RakaMod.Logic or type(RakaMod.Logic.HealthAboveFull) ~= "function" then
+  if not RakaMod.Logic or type(RakaMod.Logic.HealthBelowFull) ~= "function" then
     return false
   end
   local okCurrent, current = pcall(UnitHealth, "player")
@@ -86,18 +84,9 @@ local function HealthAboveFull()
   if not okCurrent or not okMax then
     return false
   end
-  local absorbs = 0
-  if type(UnitGetTotalAbsorbs) == "function" then
-    local okAbsorb, value = pcall(UnitGetTotalAbsorbs, "player")
-    if okAbsorb and IsSecret(value) then
-      return false
-    elseif okAbsorb and type(value) == "number" then
-      absorbs = value
-    end
-  end
   local secret = IsSecret(current) or IsSecret(maxHealth)
-  local okAbove, above = pcall(RakaMod.Logic.HealthAboveFull, current, maxHealth, absorbs, secret)
-  return okAbove and above or false
+  local okBelow, below = pcall(RakaMod.Logic.HealthBelowFull, current, maxHealth, secret)
+  return okBelow and below or false
 end
 
 local function InfoActive(fn)
@@ -136,7 +125,7 @@ end
 
 local function Triggers(cfg)
   local casting = cfg.casting == true and CastingNow()
-  local health = cfg.health == true and HealthAboveFull()
+  local health = cfg.health == true and HealthBelowFull()
   local mouseover = cfg.mouseover == true and hovering
   local combat = cfg.combat == true and CombatNow()
   return {

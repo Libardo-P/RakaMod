@@ -29,12 +29,9 @@ local frame
 local shade
 local grain
 local model
-local logo
+local classArt
 local nameText
-local titleText
 local timerText
-local levelText
-local classIcon
 local classText
 local changelogPanel
 local changelogPool = {}
@@ -63,7 +60,8 @@ local function EnsureFont(fs, size, flags)
   if not fs then
     return
   end
-  local path = RakaMod.Media and RakaMod.Media.FontPath
+  local media = RakaMod.Media
+  local path = media and ((media.AfkFontPath and media.AfkFontPath()) or media.FontPath)
   if path and type(size) == "number" then
     local ok = pcall(fs.SetFont, fs, path, size, flags or "OUTLINE")
     if ok then
@@ -93,15 +91,7 @@ end
 -- Tiny UI text (~8–9px). Avoid GameFontNormalSmall — still too large on Forever.
 local SMALL_UI_SIZE = 8
 local function PaintSmall(fs, r, g, b, a)
-  local path
-  if GameFontNormal and GameFontNormal.GetFont then
-    path = GameFontNormal:GetFont()
-  end
-  if path then
-    pcall(fs.SetFont, fs, path, SMALL_UI_SIZE, "")
-  else
-    EnsureFont(fs, SMALL_UI_SIZE, "")
-  end
+  EnsureFont(fs, SMALL_UI_SIZE, "")
   fs:SetTextColor(r, g, b, a or 1)
   fs:SetShadowOffset(1, -1)
   fs:SetShadowColor(0, 0, 0, 1)
@@ -149,66 +139,51 @@ local function ScreenSize()
 end
 
 local function ApplyLayout()
-  if not frame or not logo then
+  if not frame or not classArt then
     return
   end
   local w, h = ScreenSize()
   local s = RakaMod.Logic.AfkLayoutScale(w, h)
   local pad = math.floor(24 * s + 0.5)
-  local logoSize = math.floor(72 * s + 0.5)
-  local logoTop = math.floor(52 * s + 0.5)
-  local gapLogo = -math.floor(12 * s + 0.5)
+  local artSize = math.floor(88 * s + 0.5)
+  local artTop = math.floor(44 * s + 0.5)
+  local gapArt = -math.floor(8 * s + 0.5)
   local gapTimer = -math.floor(14 * s + 0.5)
   local gapName = -math.floor(4 * s + 0.5)
-  local classPx = math.floor(16 * s + 0.5)
   -- Changelog column: top-left, modest width so it stays left of center brand.
-  local changelogW = math.min(math.floor(w * 0.24 + 0.5), math.floor(380 * s + 0.5))
+  local changelogW = math.min(math.floor(w * 0.24 + 0.5), math.floor(320 * s + 0.5))
   if changelogW < 200 then
     changelogW = 200
   end
   local changelogTop = math.floor(36 * s + 0.5)
   local changelogLeft = math.floor(20 * s + 0.5)
   -- Model: large frame flush to screen bottom-right; camera drops feet to the edge.
-  local modelW = math.floor(math.min(w * 0.46, 640 * s) + 0.5)
-  local modelH = math.floor(math.min(h * 0.88, 900 * s) + 0.5)
+  local modelW = math.floor(math.min(w * 0.54, 760 * s) + 0.5)
+  local modelH = math.floor(math.min(h * 1.0, 1000 * s) + 0.5)
   local modelPad = 0
+  local modelShift = math.floor(w * 0.03 + 0.5)
   local chatW = math.floor(math.min(w * 0.24, 300 * s) + 0.5)
   local chatH = math.floor(110 * s + 0.5)
-  local timerSize = math.max(18, math.floor(26 * s + 0.5))
+  local timerSize = math.max(12, math.floor(15 * s + 0.5))
   local nameSize = math.max(16, math.floor(20 * s + 0.5))
   local titleSize = math.max(12, math.floor(13 * s + 0.5))
-  local levelSize = math.max(12, math.floor(13 * s + 0.5))
   local footerPad = math.floor(10 * s + 0.5)
 
-  logo:SetSize(logoSize, logoSize)
-  logo:ClearAllPoints()
-  logo:SetPoint("TOP", frame, "TOP", 0, -logoTop)
+  classArt:SetSize(artSize, artSize)
+  classArt:ClearAllPoints()
+  classArt:SetPoint("TOP", frame, "TOP", 0, -artTop)
 
   timerText:ClearAllPoints()
-  timerText:SetPoint("TOP", logo, "BOTTOM", 0, gapLogo)
+  timerText:SetPoint("TOP", classArt, "BOTTOM", 0, gapArt)
   Paint(timerText, timerSize, TIMER_CYAN.r, TIMER_CYAN.g, TIMER_CYAN.b)
 
   nameText:ClearAllPoints()
   nameText:SetPoint("TOP", timerText, "BOTTOM", 0, gapTimer)
   EnsureFont(nameText, nameSize, "OUTLINE")
 
-  titleText:ClearAllPoints()
-  titleText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
-  Paint(titleText, titleSize, 0.85, 0.85, 0.85)
-
-  classIcon:SetSize(classPx, classPx)
-  classIcon:ClearAllPoints()
-  if titleText:IsShown() then
-    classIcon:SetPoint("TOP", titleText, "BOTTOM", 0, -math.floor(12 * s + 0.5))
-  else
-    classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, -math.floor(12 * s + 0.5))
-  end
-  levelText:ClearAllPoints()
-  levelText:SetPoint("RIGHT", classIcon, "LEFT", -math.floor(4 * s + 0.5), 0)
-  Paint(levelText, levelSize, 1, 1, 1)
   classText:ClearAllPoints()
-  classText:SetPoint("LEFT", classIcon, "RIGHT", math.floor(4 * s + 0.5), 0)
-  EnsureFont(classText, levelSize, "OUTLINE")
+  classText:SetPoint("TOP", nameText, "BOTTOM", 0, gapName)
+  EnsureFont(classText, titleSize, "OUTLINE")
 
   changelogWidth = changelogW
   if changelogPanel then
@@ -219,7 +194,7 @@ local function ApplyLayout()
 
   model:SetSize(modelW, modelH)
   model:ClearAllPoints()
-  model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -modelPad, modelPad)
+  model:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", modelShift - modelPad, modelPad)
   PoseModelCamera()
 
   footerText:ClearAllPoints()
@@ -280,22 +255,13 @@ local function UnregisterChat()
 end
 
 local function PlayerName()
-  return UnitName("player") or ""
+  return RakaMod.Logic.DisplayName(UnitName("player"))
 end
 
-local function PlayerTitle()
-  if type(GetCurrentTitle) ~= "function" or type(GetTitleName) ~= "function" then
-    return nil
-  end
-  local ok, titleId = pcall(GetCurrentTitle)
-  if not ok or type(titleId) ~= "number" or titleId <= 0 then
-    return nil
-  end
-  local okName, title = pcall(GetTitleName, titleId)
-  if okName and type(title) == "string" and title ~= "" then
-    return title
-  end
-  return nil
+-- Current specialization name, or nil when the client exposes none (never the class name).
+local function PlayerSpecName(className)
+  local _, _, classId = UnitClass("player")
+  return RakaMod.Logic.ResolveSpecName(RakaMod.Core:SpecApi(), className, classId)
 end
 
 local function ClassInfo()
@@ -307,15 +273,16 @@ local function ClassColor(classFile)
   return RakaMod.Logic.ClassRgb(classFile, RAID_CLASS_COLORS)
 end
 
-local function ApplyClassIcon(classFile)
-  local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[classFile]
-  if type(coords) ~= "table" then
-    classIcon:Hide()
+local function ApplyClassArt(classFile)
+  local l, r, t, b = RakaMod.Logic.FabledClassTexCoords(classFile)
+  local path = RakaMod.Media and RakaMod.Media.FabledClassPath
+  if not l or not path then
+    classArt:Hide()
     return
   end
-  classIcon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CharacterCreate-Classes")
-  classIcon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-  classIcon:Show()
+  classArt:SetTexture(path)
+  classArt:SetTexCoord(l, r, t, b)
+  classArt:Show()
 end
 
 local function EllesmerePatches()
@@ -405,14 +372,14 @@ local function PlaceChangelogHeader(y, view, width)
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
 
-  ChangelogFont(piece.version, 14, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
+  ChangelogFont(piece.version, 11, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
   piece.version:ClearAllPoints()
   piece.version:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, 0)
   piece.version:SetText(view.version or "")
 
   local badgeAnchor = piece.version
   if view.date and view.date ~= "" then
-    ChangelogFont(piece.date, 10, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
+    ChangelogFont(piece.date, 8, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
     piece.date:ClearAllPoints()
     piece.date:SetPoint("LEFT", piece.version, "RIGHT", 8, 0)
     piece.date:SetText(view.date)
@@ -422,7 +389,7 @@ local function PlaceChangelogHeader(y, view, width)
     piece.date:Hide()
   end
 
-  ChangelogFont(piece.badgeText, 9, 0.05, 0.12, 0.05, 1)
+  ChangelogFont(piece.badgeText, 7, 0.05, 0.12, 0.05, 1)
   piece.badgeText:SetShadowOffset(0, 0)
   piece.badgeText:SetText("LATEST")
   piece.badgeText:ClearAllPoints()
@@ -433,14 +400,14 @@ local function PlaceChangelogHeader(y, view, width)
   piece.badgeBg:Show()
   piece.badgeText:Show()
 
-  ChangelogFont(piece.blurb, 10, CL_BLURB.r, CL_BLURB.g, CL_BLURB.b, 1)
+  ChangelogFont(piece.blurb, 8, CL_BLURB.r, CL_BLURB.g, CL_BLURB.b, 1)
   piece.blurb:ClearAllPoints()
   piece.blurb:SetPoint("TOPLEFT", piece.version, "BOTTOMLEFT", 0, -4)
   piece.blurb:SetWidth(width)
   piece.blurb:SetText("EllesmereUI patch notes")
   piece.blurb:Show()
 
-  local h = 17 + 4 + math.max(12, math.ceil(piece.blurb:GetStringHeight() or 12)) + 4
+  local h = 14 + 4 + math.max(10, math.ceil(piece.blurb:GetStringHeight() or 10)) + 4
   piece:SetSize(width, h)
   return y + h + 4
 end
@@ -449,19 +416,19 @@ local function PlaceChangelogSection(y, width, iconText, label)
   local piece = AcquireChangelogPiece("section")
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
-  piece:SetSize(width, 22)
-  ChangelogFont(piece.icon, 11, CL_SECTION.r, CL_SECTION.g, CL_SECTION.b, 1)
+  piece:SetSize(width, 18)
+  ChangelogFont(piece.icon, 9, CL_SECTION.r, CL_SECTION.g, CL_SECTION.b, 1)
   piece.icon:ClearAllPoints()
   piece.icon:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, -2)
   piece.icon:SetText(iconText)
-  ChangelogFont(piece.label, 11, CL_SECTION.r, CL_SECTION.g, CL_SECTION.b, 1)
+  ChangelogFont(piece.label, 9, CL_SECTION.r, CL_SECTION.g, CL_SECTION.b, 1)
   piece.label:ClearAllPoints()
   piece.label:SetPoint("LEFT", piece.icon, "RIGHT", 4, 0)
   piece.label:SetText(label)
   piece.rule:ClearAllPoints()
   piece.rule:SetPoint("BOTTOMLEFT", piece, "BOTTOMLEFT", 0, 0)
   piece.rule:SetSize(width, 1)
-  return y + 24
+  return y + 20
 end
 
 local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
@@ -479,21 +446,21 @@ local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
   local hasTag = (primary and primary ~= "") or (secondary and secondary ~= "")
   local tagH = 0
   if hasTag then
-    ChangelogFont(piece.primary, 10, cr, cg, cb, 1)
+    ChangelogFont(piece.primary, 8, cr, cg, cb, 1)
     piece.primary:ClearAllPoints()
     piece.primary:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, -2)
     piece.primary:SetWidth(tagW)
     piece.primary:SetText(primary or "")
     piece.primary:Show()
-    tagH = 13
+    tagH = 11
     if secondary and secondary ~= "" then
-      ChangelogFont(piece.secondary, 9, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
+      ChangelogFont(piece.secondary, 7, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
       piece.secondary:ClearAllPoints()
       piece.secondary:SetPoint("TOPLEFT", piece.primary, "BOTTOMLEFT", 0, -1)
       piece.secondary:SetWidth(tagW)
       piece.secondary:SetText(secondary)
       piece.secondary:Show()
-      tagH = 25
+      tagH = 20
     else
       piece.secondary:Hide()
     end
@@ -505,19 +472,19 @@ local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
   local hasTitle = title and title ~= ""
   local bodyH = 0
   if hasTitle then
-    ChangelogFont(piece.title, 11, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
+    ChangelogFont(piece.title, 9, CL_TITLE.r, CL_TITLE.g, CL_TITLE.b, 1)
     piece.title:ClearAllPoints()
     piece.title:SetPoint("TOPLEFT", piece, "TOPLEFT", tagW + 8, -2)
     piece.title:SetWidth(rightW)
     piece.title:SetText(title)
     piece.title:Show()
-    bodyH = 14
+    bodyH = 12
   else
     piece.title:Hide()
   end
 
   if desc and desc ~= "" then
-    ChangelogFont(piece.desc, 10, CL_DESC.r, CL_DESC.g, CL_DESC.b, 1)
+    ChangelogFont(piece.desc, 8, CL_DESC.r, CL_DESC.g, CL_DESC.b, 1)
     piece.desc:ClearAllPoints()
     if hasTitle then
       piece.desc:SetPoint("TOPLEFT", piece.title, "BOTTOMLEFT", 0, -2)
@@ -527,7 +494,7 @@ local function PlaceChangelogRow(y, width, primary, secondary, title, desc)
     piece.desc:SetWidth(rightW)
     piece.desc:SetText(desc)
     piece.desc:Show()
-    local descH = math.max(12, math.ceil(piece.desc:GetStringHeight() or 12))
+    local descH = math.max(10, math.ceil(piece.desc:GetStringHeight() or 10))
     bodyH = hasTitle and (bodyH + 2 + descH) or descH
   else
     piece.desc:Hide()
@@ -546,7 +513,7 @@ local function PlaceChangelogFallback(y, width, text)
   piece:ClearAllPoints()
   piece:SetPoint("TOPLEFT", changelogPanel, "TOPLEFT", 0, -y)
   piece:SetWidth(width)
-  ChangelogFont(piece.text, 10, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
+  ChangelogFont(piece.text, 8, CL_MUTED.r, CL_MUTED.g, CL_MUTED.b, 1)
   piece.text:ClearAllPoints()
   piece.text:SetPoint("TOPLEFT", piece, "TOPLEFT", 0, 0)
   piece.text:SetWidth(width)
@@ -714,39 +681,16 @@ function AFK:Enter()
     pcall(frame.SetPropagateKeyboardInput, frame, false)
   end
 
-  ApplyLayout()
-
   local localized, classFile = ClassInfo()
   local cr, cg, cb = ClassColor(classFile)
   nameText:SetText(PlayerName())
   nameText:SetTextColor(cr, cg, cb, 1)
 
-  local sw, sh = ScreenSize()
-  local s = RakaMod.Logic.AfkLayoutScale(sw, sh)
-  local gapClass = -math.floor(12 * s + 0.5)
-
-  local title = PlayerTitle()
-  if title then
-    titleText:SetText(title)
-    titleText:Show()
-    classIcon:ClearAllPoints()
-    classIcon:SetPoint("TOP", titleText, "BOTTOM", 0, gapClass)
-  else
-    titleText:SetText("")
-    titleText:Hide()
-    classIcon:ClearAllPoints()
-    classIcon:SetPoint("TOP", nameText, "BOTTOM", 0, gapClass)
-  end
-
-  levelText:SetText("Lv " .. tostring(UnitLevel("player") or "?"))
-  classText:SetText(localized)
+  local spec = PlayerSpecName(localized)
+  classText:SetText(RakaMod.Logic.AfkIdentityLine(UnitLevel("player"), spec, localized))
   classText:SetTextColor(cr, cg, cb, 1)
-  ApplyClassIcon(classFile)
-
-  local iconPath = RakaMod.Media and RakaMod.Media.IconPath
-  if iconPath then
-    logo:SetTexture(iconPath)
-  end
+  ApplyClassArt(classFile)
+  ApplyLayout()
 
   timerText:SetText(RakaMod.Logic.FormatClock(0))
   ApplyShade()
@@ -909,14 +853,9 @@ frame:SetScript("OnMouseDown", function()
   end
 end)
 
-logo = frame:CreateTexture(nil, "ARTWORK")
-logo:SetPoint("TOP", frame, "TOP", 0, -52)
-do
-  local path = RakaMod.Media and RakaMod.Media.IconPath
-  if path then
-    logo:SetTexture(path)
-  end
-end
+classArt = frame:CreateTexture(nil, "ARTWORK")
+classArt:SetPoint("TOP", frame, "TOP", 0, -44)
+classArt:Hide()
 
 timerText = frame:CreateFontString(nil, "OVERLAY")
 timerText:SetJustifyH("CENTER")
@@ -926,21 +865,12 @@ nameText = frame:CreateFontString(nil, "OVERLAY")
 nameText:SetJustifyH("CENTER")
 EnsureFont(nameText, 20, "OUTLINE")
 
-titleText = frame:CreateFontString(nil, "OVERLAY")
-titleText:SetJustifyH("CENTER")
-EnsureFont(titleText, 13, "OUTLINE")
-titleText:Hide()
-
-classIcon = frame:CreateTexture(nil, "ARTWORK")
-classIcon:Hide()
-
-levelText = frame:CreateFontString(nil, "OVERLAY")
-levelText:SetJustifyH("RIGHT")
-EnsureFont(levelText, 13, "OUTLINE")
-
 classText = frame:CreateFontString(nil, "OVERLAY")
-classText:SetJustifyH("LEFT")
+classText:SetJustifyH("CENTER")
 EnsureFont(classText, 13, "OUTLINE")
+
+-- Center stack widgets, exposed for tests.
+AFK.ui = { classArt = classArt, timerText = timerText, nameText = nameText, classText = classText }
 
 changelogPanel = CreateFrame("Frame", nil, frame)
 changelogPanel:SetSize(300, 200)

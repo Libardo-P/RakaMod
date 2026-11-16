@@ -52,14 +52,11 @@ pack" commit (`8e0fd0a`) without source notes.
 | `background/grain.tga` | `Rk Grain` | Unknown | Unknown |
 | `class/fabled.tga` | `Rk Class Fabled` | Unknown (name suggests ToxiUI) | Unknown |
 | `class/fabledclass.tga` | `Rk Class Fabled Class` | Unknown | Unknown |
-| `class/fabledcore.tga` | `Rk Class Fabled Core` | Unknown | Unknown |
 | `class/fableddimension.tga` | `Rk Class Fabled Dimension` | Unknown | Unknown |
-| `class/fabledmyth.tga` | `Rk Class Fabled Myth` | Unknown | Unknown |
 | `class/fabledpixels.tga` | `Rk Class Fabled Pixels` | Unknown | Unknown |
 | `class/fabledpixelsv2.tga` | `Rk Class Fabled Pixels V2` | Unknown | Unknown |
 | `class/fabledrealm.tga` | `Rk Class Fabled Realm` | Unknown | Unknown |
 | `class/fabledrealmv2.tga` | `Rk Class Fabled Realm V2` | Unknown | Unknown |
-| `class/fabledregalia.tga` | `Rk Class Fabled Regalia` | Unknown | Unknown |
 | `class/intothevoid.tga` | `Rk Class Into The Void` | Unknown | Unknown |
 
 ## Portrait shapes (`Media/portraits/`)
@@ -74,6 +71,7 @@ Author: Unknown. Licence: Unknown.
 | --- | --- | --- |
 | `icon.tga` (crest icon) | Raka | All rights reserved (see `LICENSE.txt`) |
 | `colorwheel.tga` (colour picker underlay) | Unknown (generated for this addon; source not recorded) | Unknown |
+| `ui/nav-*.tga` (settings window nav icons) | Raka, drawn with `tools/make_nav_icons.py` | All rights reserved (see `LICENSE.txt`) |
 
 ## Bundled libraries (`Libs/`)
 

@@ -9,6 +9,10 @@ RakaMod.Media = {
   ColorWheelPath = ROOT .. "colorwheel",
   IconPath = ROOT .. "icon",
   GrainPath = ROOT .. "background\\grain",
+  -- 2048x2048 sheet, 256px cells, 13 class icons (see Logic.FabledClassTexCoords).
+  FabledClassPath = ROOT .. "class\\fabledclass",
+  -- Settings window text: bold condensed face (Rk Roboto Condensed).
+  UIFontPath = ROOT .. "font\\Roboto Condensed.ttf",
   FontName = "Rk RakaMod",
   StatusbarName = "Rk ToxiUI Clean",
 }
@@ -48,14 +52,11 @@ local BACKGROUNDS = {
   { "Rk Grain", "background\\grain.tga" },
   { "Rk Class Fabled", "class\\fabled.tga" },
   { "Rk Class Fabled Class", "class\\fabledclass.tga" },
-  { "Rk Class Fabled Core", "class\\fabledcore.tga" },
   { "Rk Class Fabled Dimension", "class\\fableddimension.tga" },
-  { "Rk Class Fabled Myth", "class\\fabledmyth.tga" },
   { "Rk Class Fabled Pixels", "class\\fabledpixels.tga" },
   { "Rk Class Fabled Pixels V2", "class\\fabledpixelsv2.tga" },
   { "Rk Class Fabled Realm", "class\\fabledrealm.tga" },
   { "Rk Class Fabled Realm V2", "class\\fabledrealmv2.tga" },
-  { "Rk Class Fabled Regalia", "class\\fabledregalia.tga" },
   { "Rk Class Into The Void", "class\\intothevoid.tga" },
 }
 
@@ -72,8 +73,53 @@ local PORTRAIT_FILES = {
   "droplet-left-thin-mask", "droplet-left-thin-mask-32", "droplet-left-thin-mask-64", "droplet-left-thin-mask-128", "droplet-left-thin-mask-256", "droplet-left-thin-mask-512",
 }
 
+-- Settings window nav icons (white glyphs, tinted at runtime). A page without an entry shows text only.
+RakaMod.Media.NavIcons = {
+  general = "ui\\nav-general",
+  features = "ui\\nav-features",
+  overlay = "ui\\nav-overlay",
+  afk = "ui\\nav-afk",
+  reveal = "ui\\nav-reveal",
+  fonts = "ui\\nav-fonts",
+  gradient = "ui\\nav-gradient",
+}
+
 local function MediaPath(relative)
   return ROOT .. relative
+end
+
+-- Every file RakaMod registers or draws, relative to Media/ (extensionless entries have no
+-- extension). Used by the tests to make sure no registration points at a missing file.
+function RakaMod.Media.ReferencedFiles()
+  local files = {}
+  local function add(relative)
+    files[#files + 1] = relative
+  end
+  local m = RakaMod.Media
+  for _, path in ipairs({ m.FontPath, m.StatusbarPath, m.ColorWheelPath, m.IconPath, m.GrainPath, m.FabledClassPath, m.UIFontPath }) do
+    add((path:sub(#ROOT + 1)))
+  end
+  for _, list in ipairs({ FONTS, STATUSBARS, BACKGROUNDS }) do
+    for i = 1, #list do
+      add(list[i][2])
+    end
+  end
+  for i = 1, #PORTRAIT_FILES do
+    add("portraits\\" .. PORTRAIT_FILES[i] .. ".tga")
+  end
+  for _, relative in pairs(m.NavIcons) do
+    add(relative)
+  end
+  return files
+end
+
+-- Texture path for a nav page icon, or nil when the page has none.
+function RakaMod.Media.NavIconPath(navKey)
+  local relative = RakaMod.Media.NavIcons[navKey]
+  if type(relative) ~= "string" then
+    return nil
+  end
+  return MediaPath(relative)
 end
 
 function RakaMod.Media.Path(relative)
@@ -118,6 +164,86 @@ function RakaMod.Media.ApplyFadeGrain(texture, host)
   texture:SetVertexColor(1, 1, 1, alpha)
   texture:SetTexCoord(0, w / tile, 0, h / tile)
   texture:Show()
+end
+
+-- Fonts offered in the Fonts page. The icon font is symbols only, so it is not a text choice.
+local TEXT_FONT_EXCLUDED = { ["Rk ToxiUI Icons"] = true }
+
+function RakaMod.Media.FontChoices()
+  local names = {}
+  for i = 1, #FONTS do
+    if not TEXT_FONT_EXCLUDED[FONTS[i][1]] then
+      names[#names + 1] = FONTS[i][1]
+    end
+  end
+  return names
+end
+
+-- Full path of a catalog font by its registered name, or nil when unknown.
+function RakaMod.Media.FontPathByName(name)
+  if type(name) ~= "string" or TEXT_FONT_EXCLUDED[name] then
+    return nil
+  end
+  for i = 1, #FONTS do
+    if FONTS[i][1] == name then
+      return MediaPath(FONTS[i][2])
+    end
+  end
+  return nil
+end
+
+local function SavedFontPath(key, defaultName)
+  local fonts = RakaMod.db and RakaMod.db.fonts
+  local chosen = type(fonts) == "table" and fonts[key] or nil
+  return RakaMod.Media.FontPathByName(chosen) or RakaMod.Media.FontPathByName(defaultName)
+end
+
+-- Master switch of the Fonts page. While off, RakaMod leaves fonts to the game / Ellesmere.
+function RakaMod.Media.FontsEnabled()
+  local fonts = RakaMod.db and RakaMod.db.fonts
+  return not (type(fonts) == "table" and fonts.enabled == false)
+end
+
+-- The game's current standard font (Ellesmere or Blizzard edits show up here).
+local function GameFont(fallback)
+  if type(STANDARD_TEXT_FONT) == "string" then
+    return STANDARD_TEXT_FONT
+  end
+  return fallback
+end
+
+-- General Font Size in points (the settings window's body text); the default while the Fonts page is off.
+function RakaMod.Media.UiFontSize()
+  local fonts = RakaMod.db and RakaMod.db.fonts
+  if not RakaMod.Media.FontsEnabled() or type(fonts) ~= "table" or type(fonts.uiSize) ~= "number" then
+    return RakaMod.Logic.DEFAULT_UI_FONT_SIZE
+  end
+  return fonts.uiSize
+end
+
+-- Font of AFK mode text, from the saved Fonts page choices.
+function RakaMod.Media.AfkFontPath()
+  if not RakaMod.Media.FontsEnabled() then
+    return GameFont(RakaMod.Media.FontPath)
+  end
+  return SavedFontPath("afk", RakaMod.Logic.DEFAULT_AFK_FONT) or RakaMod.Media.FontPath
+end
+
+-- Font path for the Escape overlay panels (Played, Professions, Collections), or nil to keep the game's own font.
+function RakaMod.Media.OverlayFontPath()
+  if not RakaMod.Media.FontsEnabled() then
+    return nil
+  end
+  local fonts = RakaMod.db and RakaMod.db.fonts
+  local chosen = type(fonts) == "table" and fonts.overlay or nil
+  return RakaMod.Media.FontPathByName(chosen)
+end
+
+function RakaMod.Media.UiFontPathChosen()
+  if not RakaMod.Media.FontsEnabled() then
+    return GameFont(RakaMod.Media.UIFontPath)
+  end
+  return SavedFontPath("ui", RakaMod.Logic.DEFAULT_UI_FONT) or RakaMod.Media.UIFontPath
 end
 
 RakaMod.Media.LegacyNames = RakaMod.Logic.BuildLegacyMediaNames(FONTS, STATUSBARS, BACKGROUNDS)

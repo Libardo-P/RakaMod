@@ -111,18 +111,15 @@ function Logic.IsForever(interfaceVersion)
   return interfaceVersion == 16001
 end
 
--- True when current + absorbs exceeds max (effective health above 100%).
-function Logic.HealthAboveFull(current, maxHealth, absorbs, secret)
+-- True when current health is below max (under 100%). Absorbs do not count towards health.
+function Logic.HealthBelowFull(current, maxHealth, secret)
   if secret then
     return false
   end
   if type(current) ~= "number" or type(maxHealth) ~= "number" or maxHealth <= 0 then
     return false
   end
-  if type(absorbs) ~= "number" or absorbs < 0 then
-    absorbs = 0
-  end
-  return (current + absorbs) > maxHealth
+  return current < maxHealth
 end
 
 function Logic.IsHealthBarKey(key)
@@ -137,6 +134,192 @@ function Logic.IsHealthBarKey(key)
     return false
   end
   return true
+end
+
+local BAR_KIND_SKIP = { "absorb", "prediction", "shield", "incoming", "overlay", "background" }
+local RESOURCE_KEY_PARTS = { "classpower", "classresource", "resource", "combo", "rune", "holypower", "soulshard", "shadoworb" }
+local RESOURCE_KEY_EXACT = { chi = true, chibar = true, chis = true, orbs = true }
+
+-- Kind of Ellesmere status bar a Lua field name stands for: "health", "power", "castbar",
+-- "resource" (class resources) or nil when the field is none of them (absorb and the like).
+function Logic.BarKindFromKey(key)
+  if type(key) ~= "string" or key == "" then
+    return nil
+  end
+  local lower = string.lower(key)
+  for i = 1, #BAR_KIND_SKIP do
+    if string.find(lower, BAR_KIND_SKIP[i], 1, true) then
+      return nil
+    end
+  end
+  if string.find(lower, "cast", 1, true) or string.find(lower, "channel", 1, true) then
+    return "castbar"
+  end
+  if RESOURCE_KEY_EXACT[lower] then
+    return "resource"
+  end
+  for i = 1, #RESOURCE_KEY_PARTS do
+    if string.find(lower, RESOURCE_KEY_PARTS[i], 1, true) then
+      return "resource"
+    end
+  end
+  if string.find(lower, "power", 1, true) or string.find(lower, "mana", 1, true) then
+    return "power"
+  end
+  if Logic.IsHealthBarKey(key) then
+    return "health"
+  end
+  return nil
+end
+
+local POWER_TOKEN_KEYS = {
+  MANA = "mana",
+  RAGE = "rage",
+  FOCUS = "focus",
+  ENERGY = "energy",
+  RUNIC_POWER = "runicPower",
+  ALTERNATE = "altPower",
+  ALT_POWER = "altPower",
+}
+local POWER_ID_KEYS = { [0] = "mana", [1] = "rage", [2] = "focus", [3] = "energy", [6] = "runicPower", [10] = "altPower" }
+
+-- Key of gradient.power for a unit's power type (token such as "MANA", id such as 0), or nil
+-- for types without a configured gradient so Ellesmere keeps its own color.
+function Logic.PowerKey(token, id)
+  if type(token) == "string" and POWER_TOKEN_KEYS[token] then
+    return POWER_TOKEN_KEYS[token]
+  end
+  if type(id) == "number" then
+    return POWER_ID_KEYS[id]
+  end
+  return nil
+end
+
+local RUNE_SPEC_KEYS = { "bloodRunes", "frostRunes", "unholyRunes" }
+
+-- Key of gradient.classResources for one pip of the player's class resource bar. index is the
+-- pip number (combo points 1-5), spec the specialization index (death knight runes).
+function Logic.ResourceKey(classFile, index, spec)
+  if classFile == "ROGUE" or classFile == "DRUID" then
+    if type(index) == "number" and index >= 1 and index <= 5 then
+      return "comboPoint" .. index
+    end
+    return nil
+  end
+  if classFile == "PALADIN" then
+    return "holyPower"
+  elseif classFile == "MONK" then
+    return "chi"
+  elseif classFile == "WARLOCK" then
+    return "soulShards"
+  elseif classFile == "PRIEST" then
+    return "shadowOrbs"
+  elseif classFile == "DEATHKNIGHT" then
+    return RUNE_SPEC_KEYS[spec] or "deathRunes"
+  end
+  return nil
+end
+
+-- Key of gradient.nameplateThreat for a hostile nameplate, from Blizzard's threat status
+-- (nil = not on the threat table, 0 = lower than the tank, 1 = higher but not tanking,
+-- 2 = insecurely tanking, 3 = securely tanking). otherTank is true when another tank holds it.
+function Logic.ThreatKey(status, isTank, grouped, otherTank)
+  if type(status) ~= "number" then
+    return nil
+  end
+  if not grouped then
+    return "solo"
+  end
+  if isTank then
+    if status >= 3 then
+      return "good"
+    elseif status == 2 then
+      return "goodTransition"
+    elseif otherTank then
+      if status == 1 then
+        return "offTankBad"
+      end
+      return "offTank"
+    end
+    return "bad"
+  end
+  if status >= 3 then
+    return "bad"
+  elseif status >= 1 then
+    return "badTransition"
+  elseif otherTank then
+    return "offTankGood"
+  end
+  return "good"
+end
+
+-- Key of gradient.nameplateClassification for a non-player unit, or nil for ordinary mobs.
+function Logic.ClassificationKey(classification, level, isBoss, classFile)
+  if type(classification) ~= "string" then
+    return nil
+  end
+  if classification == "worldboss" then
+    return "worldBoss"
+  elseif classification == "rareelite" then
+    return "rareElite"
+  elseif classification == "rare" then
+    return "rare"
+  elseif classification == "elite" then
+    if isBoss or level == -1 then
+      return "eliteBoss"
+    end
+    return "eliteMini"
+  elseif (classification == "normal" or classification == "minus" or classification == "trivial") and classFile == "MAGE" then
+    return "caster"
+  end
+  return nil
+end
+
+-- Nameplate health pair: dead / offline / tapped first, then threat, classification, then the
+-- same class / NPC / state choice as unit frames.
+function Logic.PickNameplatePair(gradient, info)
+  if type(gradient) ~= "table" or type(info) ~= "table" then
+    return nil
+  end
+  if not (info.dead or info.offline or info.tapped) then
+    local threat = gradient.nameplateThreat
+    if type(info.threatKey) == "string" and type(threat) == "table" and type(threat[info.threatKey]) == "table" then
+      return threat[info.threatKey]
+    end
+    local classification = gradient.nameplateClassification
+    if type(info.classificationKey) == "string" and type(classification) == "table"
+      and type(classification[info.classificationKey]) == "table" then
+      return classification[info.classificationKey]
+    end
+  end
+  return Logic.PickGradientPair(gradient, info)
+end
+
+-- Pair for a power, castbar or class resource bar. info: powerKey, nonInterruptible, resourceKey.
+function Logic.PickBarPair(gradient, kind, info)
+  if type(gradient) ~= "table" or type(info) ~= "table" then
+    return nil
+  end
+  local group, key
+  if kind == "power" then
+    group, key = gradient.power, info.powerKey
+  elseif kind == "castbar" then
+    group, key = gradient.castbar, info.nonInterruptible and "nonInterruptible" or "regular"
+  elseif kind == "resource" then
+    group, key = gradient.classResources, info.resourceKey
+  end
+  if type(group) == "table" and type(key) == "string" and type(group[key]) == "table" then
+    return group[key]
+  end
+  return nil
+end
+
+-- Left and right color of a horizontal gradient; direction "LEFT" fades toward the left edge.
+function Logic.OrientPair(pairColors, direction)
+  if direction == "LEFT" then
+    return pairColors.right, pairColors.left
+  end
+  return pairColors.left, pairColors.right
 end
 
 function Logic.PlayedSummary(records)
@@ -464,6 +647,271 @@ function Logic.ClassRgb(classFile, classColors)
   return 1, 1, 1
 end
 
+-- Media/class/fabledclass.tga: 2048x2048, 256px cells (8x8 grid), icons laid out left to right,
+-- top to bottom in rows of 5 / 4 / 4. Cell = { column, row }, both zero-based.
+Logic.FABLED_CLASS_GRID = 8
+Logic.FABLED_CLASS_CELLS = {
+  MAGE = { 0, 0 }, WARRIOR = { 1, 0 }, ROGUE = { 2, 0 }, DRUID = { 3, 0 }, EVOKER = { 4, 0 },
+  HUNTER = { 0, 1 }, SHAMAN = { 1, 1 }, PRIEST = { 2, 1 }, WARLOCK = { 3, 1 },
+  PALADIN = { 0, 2 }, DEATHKNIGHT = { 1, 2 }, MONK = { 2, 2 }, DEMONHUNTER = { 3, 2 },
+}
+
+-- Texture coordinates (left, right, top, bottom) of a class icon on the Fabled class sheet,
+-- or nil for an unknown class.
+function Logic.FabledClassTexCoords(classFile)
+  local cell = Logic.FABLED_CLASS_CELLS[classFile]
+  if type(cell) ~= "table" then
+    return nil
+  end
+  local step = 1 / Logic.FABLED_CLASS_GRID
+  return cell[1] * step, (cell[1] + 1) * step, cell[2] * step, (cell[2] + 1) * step
+end
+
+-- First and last name for the AFK name line. WoW has no surname API: UnitName returns
+-- (name, realm). A realm suffix is dropped; when the client hands back a spaced name
+-- ("First Last") the first and last words are kept, otherwise just the single name.
+function Logic.DisplayName(name)
+  if type(name) ~= "string" then
+    return ""
+  end
+  name = name:gsub("%-.*$", "")
+  local words = {}
+  for word in name:gmatch("%S+") do
+    words[#words + 1] = word
+  end
+  if #words == 0 then
+    return ""
+  end
+  if #words == 1 then
+    return words[1]
+  end
+  return words[1] .. " " .. words[#words]
+end
+
+-- Default font choices (names registered in Media.lua / LibSharedMedia).
+Logic.DEFAULT_AFK_FONT = "Rk RakaMod"
+Logic.DEFAULT_UI_FONT = "Rk Roboto Condensed"
+-- Escape overlay panel text keeps the game's own font until a font is picked.
+Logic.DEFAULT_OVERLAY_FONT = "Game Default"
+-- General Font Size: point size of the settings window's option labels (the body text).
+-- Every other size of the window keeps its ratio to that body size.
+Logic.DEFAULT_UI_FONT_SIZE = 15
+Logic.UI_FONT_SIZE_MIN = 6
+Logic.UI_FONT_SIZE_MAX = 24
+
+-- Point size of a built-in window text size once the body size is uiSize; never below 6.
+function Logic.ScaledFontSize(size, uiSize)
+  if type(size) ~= "number" then
+    return size
+  end
+  if type(uiSize) ~= "number" then
+    uiSize = Logic.DEFAULT_UI_FONT_SIZE
+  end
+  uiSize = math.max(Logic.UI_FONT_SIZE_MIN, math.min(Logic.UI_FONT_SIZE_MAX, uiSize))
+  return math.max(Logic.UI_FONT_SIZE_MIN, math.floor(size * uiSize / Logic.DEFAULT_UI_FONT_SIZE + 0.5))
+end
+
+-- AFK identity line: "Lv 80 - Enhancement - Shaman", or "Lv 80 - Shaman" without a spec.
+function Logic.AfkIdentityLine(level, spec, className)
+  local parts = {}
+  if type(level) == "number" and level > 0 then
+    parts[#parts + 1] = "Lv " .. level
+  end
+  if type(spec) == "string" and spec ~= "" then
+    parts[#parts + 1] = spec
+  end
+  if type(className) == "string" and className ~= "" then
+    parts[#parts + 1] = className
+  end
+  return table.concat(parts, " - ")
+end
+
+-- Current specialization name from whichever talent API the client has, or nil.
+-- `api` maps API names to functions (any may be missing). Names equal to the class name are
+-- rejected so the spec line never repeats the class line. Order: the talent tree with the most
+-- points spent (classic trees), the primary talent tree (Cata+), then the spec index (Retail, MoP+)
+-- and, when that only yields the class name, the spec id looked up through the by-id APIs.
+function Logic.ResolveSpecName(api, className, classId)
+  if type(api) ~= "table" then
+    return nil, nil
+  end
+  local function call(fn, ...)
+    if type(fn) ~= "function" then
+      return nil
+    end
+    local r = { pcall(fn, ...) }
+    if r[1] then
+      return r[2], r[3], r[4], r[5], r[6]
+    end
+    return nil
+  end
+  local classLower = type(className) == "string" and className:lower() or nil
+  local function usable(name)
+    return type(name) == "string" and name ~= "" and name:lower() ~= classLower
+  end
+
+  local function tabInfo(tab)
+    local first, second, third, _, fifth = call(api.GetTalentTabInfo, tab)
+    if type(first) == "number" then
+      return second, fifth
+    end
+    return first, third
+  end
+
+  local tabs = call(api.GetNumTalentTabs)
+  if type(tabs) == "number" and tabs > 0 then
+    local bestName, bestPoints = nil, 0
+    for tab = 1, tabs do
+      local name, points = tabInfo(tab)
+      if usable(name) and type(points) == "number" and points > bestPoints then
+        bestName, bestPoints = name, points
+      end
+    end
+    if bestName then
+      return bestName, "GetTalentTabInfo"
+    end
+  end
+
+  local primary = call(api.GetPrimaryTalentTree)
+  if type(primary) == "number" and primary > 0 then
+    local name = tabInfo(primary)
+    if usable(name) then
+      return name, "GetPrimaryTalentTree"
+    end
+  end
+
+  -- A spec id can be turned into a name by several APIs; some clients only fill in one.
+  local function nameForSpecId(specId)
+    if type(specId) ~= "number" or specId <= 0 then
+      return nil
+    end
+    local _, byId = call(api.GetSpecializationInfoByID, specId)
+    if usable(byId) then
+      return byId, "GetSpecializationInfoByID"
+    end
+    local direct = call(api.GetSpecializationNameForSpecID, specId)
+    if usable(direct) then
+      return direct, "GetSpecializationNameForSpecID"
+    end
+    local _, forSpec = call(api.GetSpecializationInfoForSpecID, specId)
+    if usable(forSpec) then
+      return forSpec, "GetSpecializationInfoForSpecID"
+    end
+    if type(classId) == "number" then
+      local count = call(api.GetNumSpecializationsForClassID, classId)
+      for i = 1, (type(count) == "number" and count > 0) and count or 4 do
+        local id, name = call(api.GetSpecializationInfoForClassID, classId, i)
+        if id == specId and usable(name) then
+          return name, "GetSpecializationInfoForClassID"
+        end
+      end
+    end
+    return nil
+  end
+
+  local index = call(api.GetSpecialization)
+  if type(index) == "number" and index > 0 then
+    local specId, name = call(api.GetSpecializationInfo, index)
+    if usable(name) then
+      return name, "GetSpecializationInfo"
+    end
+    local byId, source = nameForSpecId(specId)
+    if byId then
+      return byId, source
+    end
+  end
+
+  local inspectId = call(api.GetInspectSpecialization, "player")
+  local inspectName, inspectSource = nameForSpecId(inspectId)
+  if inspectName then
+    return inspectName, inspectSource
+  end
+  return nil, nil
+end
+
+-- Settings window accent: a preset, a custom color or the player's class color.
+Logic.ACCENT_MODES = { "preset", "custom", "class" }
+Logic.ACCENT_PRESETS = {
+  { key = "gold", label = "Gold", r = 0.94, g = 0.77, b = 0.16 },
+  { key = "blue", label = "Blue", r = 0.25, g = 0.62, b = 1.00 },
+  { key = "green", label = "Green", r = 0.30, g = 0.80, b = 0.40 },
+  { key = "red", label = "Red", r = 0.90, g = 0.30, b = 0.30 },
+  { key = "purple", label = "Purple", r = 0.65, g = 0.42, b = 0.95 },
+  { key = "cyan", label = "Cyan", r = 0.20, g = 0.82, b = 0.85 },
+  { key = "white", label = "White", r = 0.92, g = 0.92, b = 0.94 },
+}
+Logic.ACCENT_DEFAULT_PRESET = "blue"
+
+function Logic.AccentPreset(key)
+  for i = 1, #Logic.ACCENT_PRESETS do
+    local preset = Logic.ACCENT_PRESETS[i]
+    if preset.key == key then
+      return preset
+    end
+  end
+  return nil
+end
+
+function Logic.BuildAccentDefaults()
+  local preset = Logic.AccentPreset(Logic.ACCENT_DEFAULT_PRESET)
+  return { mode = "preset", preset = preset.key, r = preset.r, g = preset.g, b = preset.b }
+end
+
+local function validAccentMode(mode)
+  for i = 1, #Logic.ACCENT_MODES do
+    if Logic.ACCENT_MODES[i] == mode then
+      return true
+    end
+  end
+  return false
+end
+
+-- Returns r, g, b for the saved accent table. Never errors on bad or missing data.
+-- classRgb is { r, g, b } (or nil) for the player's class; class mode without it falls back to the default preset.
+function Logic.GetAccentColor(accent, classRgb)
+  local default = Logic.AccentPreset(Logic.ACCENT_DEFAULT_PRESET)
+  if type(accent) ~= "table" then
+    return default.r, default.g, default.b
+  end
+  local mode = accent.mode
+  if not validAccentMode(mode) then
+    mode = "preset"
+  end
+  if mode == "class" then
+    if type(classRgb) == "table" and type(classRgb.r) == "number" and type(classRgb.g) == "number" and type(classRgb.b) == "number" then
+      return clamp01(classRgb.r), clamp01(classRgb.g), clamp01(classRgb.b)
+    end
+    return default.r, default.g, default.b
+  end
+  if mode == "custom" then
+    if type(accent.r) == "number" and type(accent.g) == "number" and type(accent.b) == "number" then
+      return clamp01(accent.r), clamp01(accent.g), clamp01(accent.b)
+    end
+    return default.r, default.g, default.b
+  end
+  local preset = Logic.AccentPreset(accent.preset) or default
+  return preset.r, preset.g, preset.b
+end
+
+-- Perceived brightness 0..1 (Rec. 601 weights).
+function Logic.Luminance(r, g, b)
+  return 0.299 * clamp01(r) + 0.587 * clamp01(g) + 0.114 * clamp01(b)
+end
+
+-- Text color readable on a filled accent surface: near-black on light accents, white on dark ones.
+function Logic.AccentTextColor(r, g, b)
+  if Logic.Luminance(r, g, b) >= 0.45 then
+    return 0.07, 0.07, 0.08
+  end
+  return 1, 1, 1
+end
+
+-- Blend the accent toward black (amount 0..1) for dim fills and borders.
+function Logic.ShadeColor(r, g, b, amount)
+  local keep = 1 - clamp01(amount)
+  return clamp01(r) * keep, clamp01(g) * keep, clamp01(b) * keep
+end
+
 local function rgb(r, g, b)
   return { r = clamp01(r), g = clamp01(g), b = clamp01(b) }
 end
@@ -529,6 +977,9 @@ function Logic.BuildGradientDefaults(classColors)
   end
   return {
     enabled = false,
+    powerEnabled = false,
+    castbarEnabled = false,
+    resourcesEnabled = false,
     classes = classes,
     npc = {
       friendly = hexPair("2F9607", "84D92B"),
