@@ -259,6 +259,23 @@ do
   Gradient:Apply()
   eq(sameLeft(plateHealth, g.states.dead) or plateHealth.lastLeft.r == g.states.dead.right.r, true, "dead nameplates keep the state gradient")
 
+  -- Toolbar master Enabled gates every kind; per-kind switches alone are not enough.
+  setGlobal("UnitIsDeadOrGhost", function() return false end)
+  g.powerEnabled = true
+  g.castbarEnabled = true
+  g.resourcesEnabled = true
+  g.nameplatesEnabled = true
+  g.enabled = false
+  local powerBefore = power.gradients
+  local plateBefore = plateHealth.gradients
+  Gradient:Apply()
+  eq(power.gradients, powerBefore, "master off stops power painting even when powerEnabled")
+  eq(plateHealth.gradients, plateBefore, "master off stops nameplate painting even when nameplatesEnabled")
+  g.enabled = true
+  Gradient:Apply()
+  eq(power.gradients > powerBefore, true, "master on resumes power painting with powerEnabled")
+  eq(plateHealth.gradients > plateBefore, true, "master on resumes nameplate painting with nameplatesEnabled")
+
   Gradient:Disable()
   EllesmereUI = nil
 end

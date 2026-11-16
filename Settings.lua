@@ -239,21 +239,10 @@ searchBox:SetScript("OnEnterPressed", function(self)
 end)
 
 ---------------------------------------------------------------------------
--- Toolbar (right of the tab row): master switch and Reset Page
+-- Toolbar (right of the tab row): master Enable switch (right-aligned).
+-- Reset Page was removed from the toolbar; a left-nav Reset tab comes later.
 ---------------------------------------------------------------------------
 local toolbar = shell.toolbar
-local RESET_TEXT = "Reset Page"
-local resetBtn = Widgets.Button(toolbar, RESET_TEXT, 112, 26)
-shell.resetButton = resetBtn
-resetBtn:SetPoint("RIGHT", toolbar, "RIGHT", 0, 0)
-local resetToken = 0
-local resetArmed = false
-
-local function DisarmReset()
-  resetToken = resetToken + 1
-  resetArmed = false
-  resetBtn.label:SetText(RESET_TEXT)
-end
 
 -- Header master switches (one per nav page that has one, created with the controls
 -- below). Only the selected page's switch is visible; the tabs dim while it is off.
@@ -354,7 +343,6 @@ function Settings:SelectPage(key, exactTab)
   end
   BuildTabRow(navKey, tabKey)
   UpdateMaster()
-  DisarmReset()
   if pages[tabKey].ctx and pages[tabKey].ctx.Layout then
     pages[tabKey].ctx.Layout()
   end
@@ -1146,12 +1134,13 @@ do
   page.Finish()
 end
 
--- Master switch (label + ON/OFF) in the toolbar of one nav page.
--- Returns a small object RefreshNotes can Show/Hide for a "missing addon" note.
+-- Master switch (label + ON/OFF) in the toolbar of one nav page, right-aligned
+-- where Reset Page used to sit. Returns a small object RefreshNotes can Show/Hide
+-- for a "missing addon" note.
 local function AddMaster(navKey, afterChange, noteText)
   local def = navs[navKey].master
   local pill = Widgets.Toggle(toolbar)
-  pill:SetPoint("RIGHT", resetBtn, "LEFT", -20, 0)
+  pill:SetPoint("RIGHT", toolbar, "RIGHT", 0, 0)
   local label = Theme.Text(toolbar, LABEL_FONT, C.TEXT)
   label:SetText(def.label)
   label:SetPoint("RIGHT", pill, "LEFT", -10, 0)
@@ -1387,7 +1376,17 @@ end
 ---------------------------------------------------------------------------
 -- Read-only snapshot of navigation and search state (used by tests/test_ui.lua).
 function Settings.Inspect()
-  local info = { selectedNav = selectedNav, selectedTab = selectedTab, query = query, navs = {}, rows = {}, tabs = {}, cards = {} }
+  local info = {
+    selectedNav = selectedNav,
+    selectedTab = selectedTab,
+    query = query,
+    navs = {},
+    rows = {},
+    tabs = {},
+    cards = {},
+    hasResetButton = shell.resetButton ~= nil,
+    master = nil,
+  }
   for i = 1, #NAV do
     if navs[NAV[i].key].button:IsShown() then
       info.navs[#info.navs + 1] = NAV[i].key
@@ -1404,6 +1403,18 @@ function Settings.Inspect()
   end
   for i = 1, #navs[selectedNav].tabs do
     info.tabs[i] = navs[selectedNav].tabs[i].key
+  end
+  local m = masters[selectedNav]
+  if m then
+    local point, relativeTo, relativePoint, xOfs = m.pill:GetPoint(1)
+    info.master = {
+      label = m.label:GetText(),
+      shown = m.pill:IsShown() and true or false,
+      point = point,
+      relativePoint = relativePoint,
+      xOfs = xOfs,
+      relativeIsToolbar = relativeTo == toolbar,
+    }
   end
   return info
 end
@@ -1451,6 +1462,7 @@ function Settings:ApplyScale()
   frame:SetScale(percent / 100)
 end
 
+-- Kept for a future left-nav Reset tab; no toolbar button calls this today.
 function Settings:ResetCurrentPage()
   local list = resets[selectedNav]
   if type(RakaMod.db) ~= "table" or not list then
@@ -1468,25 +1480,6 @@ function Settings:ResetCurrentPage()
   Theme.RefreshFonts()
   self:SyncFromDB()
 end
-
-resetBtn:SetScript("OnClick", function()
-  if not resetArmed then
-    resetArmed = true
-    resetToken = resetToken + 1
-    local token = resetToken
-    resetBtn.label:SetText("Click to confirm")
-    if C_Timer and C_Timer.After then
-      C_Timer.After(3, function()
-        if resetToken == token and resetArmed then
-          DisarmReset()
-        end
-      end)
-    end
-    return
-  end
-  DisarmReset()
-  Settings:ResetCurrentPage()
-end)
 
 frame:HookScript("OnHide", Widgets.CloseDropdown)
 

@@ -16,7 +16,7 @@ The settings window (v0.6.0) follows an ElvUI-config layout: a sidebar with the 
 
 - **Search** (top of the sidebar) filters the page list and the options on the open page by label, group title, page and tab name. It jumps to the first page or tab that matches; clear it to see everything again.
 - **Accent color**: General > Colors. Pick a preset (gold, blue, green, red, purple, cyan, white), a custom color through the color picker, or your class color (follows the current character and spec). The whole window recolors immediately, no reload. The default is blue.
-- Pages with a master switch show **Enabled** in the toolbar next to the tabs, together with **Reset Page** (click twice to confirm). Pages without a nav icon show text only.
+- Pages with a master switch show **Enabled** (ON/OFF) on the right of the tab row. Pages without a nav icon show text only.
 - Text uses `Rk Roboto Condensed` by default; the **Fonts** page changes it (and the AFK mode font) live; nav icons are `Media/ui/nav-*.tga` (regenerate with `python3 tools/make_nav_icons.py`).
 
 Layout lives in `UI/` (`Theme.lua` palette, fonts and accent, `Widgets.lua` controls, `Shell.lua` window chrome, `ColorPicker.lua`); `Settings.lua` holds the pages and option bindings. Setting keys are unchanged; the new keys are `general.accent` and the `fonts` table documented below.
@@ -37,7 +37,7 @@ Fonts saved variables (`RakaModDB.fonts`):
 | `afk` | `Rk RakaMod` | AFK Font: AFK mode text. Applies the next time AFK mode starts. |
 | `overlay` | `Game Default` | Game Menu Overlay Font: RakaMod's Played / Professions / Collections panels beside the Escape menu. `Game Default` keeps the game's own font. |
 
-Gradient Mode (`RakaModDB.gradient`): the toolbar `enabled` switch gates everything; Health always paints once it is on. The other tabs paint only while their own switch is on, all off by default.
+Gradient Mode (`RakaModDB.gradient`): the toolbar **Enabled** switch is the master for the whole feature (health + bars + resources + nameplates). While it is off, nothing paints. While it is on, Health always paints; Bars / Resources / Nameplates each have their own switch (all off by default) so you can paint only health, only nameplates, and so on.
 
 | Key | Default | Paints |
 | --- | --- | --- |
