@@ -52,9 +52,7 @@ pack" commit (`8e0fd0a`) without source notes.
 | `background/grain.tga` | `Rk Grain` | Unknown | Unknown |
 | `class/fabled.tga` | `Rk Class Fabled` | Unknown (name suggests ToxiUI) | Unknown |
 | `class/fabledclass.tga` | `Rk Class Fabled Class` | Unknown | Unknown |
-| `class/fabledcore.tga` | `Rk Class Fabled Core` | Unknown | Unknown |
 | `class/fableddimension.tga` | `Rk Class Fabled Dimension` | Unknown | Unknown |
-| `class/fabledmyth.tga` | `Rk Class Fabled Myth` | Unknown | Unknown |
 | `class/fabledpixels.tga` | `Rk Class Fabled Pixels` | Unknown | Unknown |
 | `class/fabledpixelsv2.tga` | `Rk Class Fabled Pixels V2` | Unknown | Unknown |
 | `class/fabledrealm.tga` | `Rk Class Fabled Realm` | Unknown | Unknown |
