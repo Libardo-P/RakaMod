@@ -320,6 +320,45 @@ do
   info = search("threat and classification")
   eq(info.selectedTab, "gradientNameplates", "nameplate switch is searchable")
   search("")
+
+  -- Two-column pair cards: switch/hint rows stay full-width; only color pairs are grid cells.
+  Settings:SelectPage("gradientResources")
+  info = Settings.Inspect()
+  eq(#info.cards >= 1, true, "Resources page exposes cards")
+  local resources = info.cards[1]
+  eq(resources.title, "class resources", "Resources card title")
+  eq(resources.grid, 2, "Resources uses a two-column pair grid")
+  eq(resources.rows[1].cell, false, "Paint class resources switch is full-width")
+  eq(resources.rows[2].hint, true, "class resources description is a hint row")
+  eq(resources.rows[2].cell, false, "class resources description is not a grid cell")
+  eq(resources.rows[3].cell, true, "first color pair is a grid cell")
+  eq(resources.rows[4].cell, true, "second color pair is a grid cell")
+
+  Settings:SelectPage("gradientBars")
+  info = Settings.Inspect()
+  local power = info.cards[1]
+  eq(power.grid, 1, "Power Colors stays single-column")
+  eq(power.rows[1].cell, false, "Paint power bars is full-width")
+  eq(power.rows[2].hint, true, "power description is a hint")
+  eq(power.rows[2].cell, false, "power description is not a grid cell")
+
+  Settings:SelectPage("gradientNameplates")
+  info = Settings.Inspect()
+  local titles = {}
+  for i = 1, #info.cards do
+    titles[i] = info.cards[i].title
+  end
+  eq(joined(titles), "nameplates,fade direction,threat colors,classification colors", "Nameplates puts Fade Direction in its own card")
+  local threat = info.cards[3]
+  eq(threat.grid, 2, "Threat Colors uses a two-column pair grid")
+  eq(threat.rows[1].hint, true, "Threat description is a hint")
+  eq(threat.rows[1].cell, false, "Threat description is full-width")
+  eq(threat.rows[2].cell, true, "Threat color pairs start after the description")
+  local classification = info.cards[4]
+  eq(classification.rows[1].hint, true, "Classification description is a hint")
+  eq(classification.rows[1].cell, false, "Classification description is full-width")
+  eq(classification.rows[2].search, "world boss", "World Boss is the first classification pair")
+  eq(classification.rows[2].cell, true, "World Boss is a grid cell under the description")
 end
 
 -- Fonts master switch and General Font size ----------------------------------------------
@@ -402,6 +441,9 @@ do
   eq(Stub.stored(value, "ColorTexture"), nil, "value canvas has no solid fill")
   eq(select.rakaValueFallback ~= nil, true, "value bar has a fallback gradient")
   eq(Stub.stored(Stub.stored(select, "ColorWheelThumbTexture"), "Texture"), "Interface\\Buttons\\UI-ColorPicker-Buttons", "wheel thumb art")
+  local valueThumb = Stub.stored(select, "ColorValueThumbTexture")
+  eq(Stub.stored(valueThumb, "Texture"), RakaMod.Media.ColorValueThumbPath, "value thumb uses the white crossbar art")
+  eq((picker:GetHeight() or 999) <= 270, true, "picker height is tightened above Okay/Cancel")
 
   picker:SetColorRGB(0.5, 0.25, 0.75)
   Stub.script(select, "OnColorSelect")(select)

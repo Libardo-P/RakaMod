@@ -201,12 +201,24 @@ end
 local THUMB_PATH = "Interface\\Buttons\\UI-ColorPicker-Buttons"
 local WHEEL_SIZE = 128
 local VALUE_WIDTH = 16
+-- Indicator is wider than the strip so the square end caps hang past the edges.
+local VALUE_THUMB_W = 28
+local VALUE_THUMB_H = 8
+local PICKER_W = 360
+local PICKER_H = 258
 
 local function WheelArtPath()
   if RakaMod.Media and type(RakaMod.Media.ColorWheelPath) == "string" then
     return RakaMod.Media.ColorWheelPath
   end
   return "Interface\\AddOns\\RakaMod\\Media\\colorwheel"
+end
+
+local function ValueThumbArtPath()
+  if RakaMod.Media and type(RakaMod.Media.ColorValueThumbPath) == "string" then
+    return RakaMod.Media.ColorValueThumbPath
+  end
+  return "Interface\\AddOns\\RakaMod\\Media\\colorvalue-thumb"
 end
 
 -- Vertical gradient from black (bottom) to the given color (top), for the value-bar fallback.
@@ -270,10 +282,10 @@ local function SetupColorSelectTextures(select)
   value:SetPoint("TOPLEFT", wheel, "TOPRIGHT", 10, 0)
   select:SetColorValueTexture(value)
 
+  -- White crossbar with square end caps (see Media/colorvalue-thumb.tga), not the stock side nubs.
   local valueThumb = select:CreateTexture(nil, "OVERLAY")
-  valueThumb:SetSize(VALUE_WIDTH, 8)
-  valueThumb:SetTexture(THUMB_PATH)
-  valueThumb:SetTexCoord(0.25, 1, 0, 0.875)
+  valueThumb:SetSize(VALUE_THUMB_W, VALUE_THUMB_H)
+  valueThumb:SetTexture(ValueThumbArtPath())
   select:SetColorValueThumbTexture(valueThumb)
 end
 
@@ -284,7 +296,7 @@ local function EnsureRakaPicker()
 
   -- Shell frame (Toxi print) + nested ColorSelect for wheel/value only.
   local f = CreateFrame("Frame", "RakaModColorPicker", UIParent, template)
-  f:SetSize(360, 320)
+  f:SetSize(PICKER_W, PICKER_H)
   f:SetPoint("CENTER")
   f:SetFrameStrata("FULLSCREEN_DIALOG")
   f:SetToplevel(true)
@@ -316,15 +328,15 @@ local function EnsureRakaPicker()
 
   local select = CreateFrame("ColorSelect", "RakaModColorSelect", f)
   select:SetSize(160, 128)
-  select:SetPoint("TOPLEFT", 18, -40)
+  select:SetPoint("TOPLEFT", 18, -36)
   SetupColorSelectTextures(select)
   f.select = select
   f.buttons = pickerButtons
 
-  -- Right column: swatches → Copy|Paste → Class → Default → Hex
+  -- Right column: swatches → Copy|Paste → Class → Default
   local newSwatch = f:CreateTexture(nil, "ARTWORK")
   newSwatch:SetSize(90, 18)
-  newSwatch:SetPoint("TOPRIGHT", -18, -40)
+  newSwatch:SetPoint("TOPRIGHT", -18, -36)
   newSwatch:SetColorTexture(1, 1, 1, 1)
   local oldSwatch = f:CreateTexture(nil, "ARTWORK")
   oldSwatch:SetSize(90, 18)
@@ -334,17 +346,39 @@ local function EnsureRakaPicker()
   pickerFields.oldSwatch = oldSwatch
 
   local copy = MakePickerButton(f, "Copy", 70, 24)
-  copy:SetPoint("TOPRIGHT", -94, -86)
+  copy:SetPoint("TOPRIGHT", -94, -80)
   local paste = MakePickerButton(f, "Paste", 70, 24)
-  paste:SetPoint("TOPRIGHT", -18, -86)
+  paste:SetPoint("TOPRIGHT", -18, -80)
 
   local classBtn = MakePickerButton(f, "Class", 146, 24)
-  classBtn:SetPoint("TOPRIGHT", -18, -116)
+  classBtn:SetPoint("TOPRIGHT", -18, -110)
   local defaultBtn = MakePickerButton(f, "Default", 146, 24)
-  defaultBtn:SetPoint("TOPRIGHT", -18, -146)
+  defaultBtn:SetPoint("TOPRIGHT", -18, -140)
 
-  local hex = MakeRgbBox(f, 146, 7, false)
-  hex:SetPoint("TOPRIGHT", -18, -178)
+  -- RGB + Hex on one row under the wheel, then Okay/Cancel tight underneath.
+  local rLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  rLabel:SetPoint("TOPLEFT", select, "BOTTOMLEFT", 0, -12)
+  rLabel:SetText("R")
+  rLabel:SetTextColor(1, 1, 1)
+  local rBox = MakeRgbBox(f, 40, 3, true)
+  rBox:SetPoint("LEFT", rLabel, "RIGHT", 4, 0)
+
+  local gLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  gLabel:SetPoint("LEFT", rBox, "RIGHT", 10, 0)
+  gLabel:SetText("G")
+  gLabel:SetTextColor(1, 1, 1)
+  local gBox = MakeRgbBox(f, 40, 3, true)
+  gBox:SetPoint("LEFT", gLabel, "RIGHT", 4, 0)
+
+  local bLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  bLabel:SetPoint("LEFT", gBox, "RIGHT", 10, 0)
+  bLabel:SetText("B")
+  bLabel:SetTextColor(1, 1, 1)
+  local bBox = MakeRgbBox(f, 40, 3, true)
+  bBox:SetPoint("LEFT", bLabel, "RIGHT", 4, 0)
+
+  local hex = MakeRgbBox(f, 110, 7, false)
+  hex:SetPoint("LEFT", bBox, "RIGHT", 14, 0)
   local hexHash = hex:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   hexHash:SetPoint("LEFT", 6, 0)
   hexHash:SetText("#")
@@ -352,32 +386,10 @@ local function EnsureRakaPicker()
   hex:SetTextInsets(18, 4, 0, 0)
   hex:SetJustifyH("LEFT")
 
-  -- RGB under wheel, one horizontal row
-  local rLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  rLabel:SetPoint("TOPLEFT", select, "BOTTOMLEFT", 0, -14)
-  rLabel:SetText("R")
-  rLabel:SetTextColor(1, 1, 1)
-  local rBox = MakeRgbBox(f, 40, 3, true)
-  rBox:SetPoint("LEFT", rLabel, "RIGHT", 4, 0)
-
-  local gLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  gLabel:SetPoint("LEFT", rBox, "RIGHT", 12, 0)
-  gLabel:SetText("G")
-  gLabel:SetTextColor(1, 1, 1)
-  local gBox = MakeRgbBox(f, 40, 3, true)
-  gBox:SetPoint("LEFT", gLabel, "RIGHT", 4, 0)
-
-  local bLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  bLabel:SetPoint("LEFT", gBox, "RIGHT", 12, 0)
-  bLabel:SetText("B")
-  bLabel:SetTextColor(1, 1, 1)
-  local bBox = MakeRgbBox(f, 40, 3, true)
-  bBox:SetPoint("LEFT", bLabel, "RIGHT", 4, 0)
-
   local okay = MakePickerButton(f, "Okay", 150, 28)
-  okay:SetPoint("BOTTOMLEFT", 18, 14)
+  okay:SetPoint("TOPLEFT", rLabel, "BOTTOMLEFT", 0, -14)
   local cancel = MakePickerButton(f, "Cancel", 150, 28)
-  cancel:SetPoint("BOTTOMRIGHT", -18, 14)
+  cancel:SetPoint("TOPRIGHT", hex, "BOTTOMRIGHT", 0, -14)
 
   pickerButtons.copy = copy
   pickerButtons.paste = paste

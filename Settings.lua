@@ -479,12 +479,14 @@ local function CreatePage(pageKey, navKey)
       rows = {},
     }
     -- A row is a fixed-height strip; Layout stacks the visible ones, so search can hide rows.
+    -- row.cell = true only for two-column color-pair rows; hints/checks/dropdowns stay full-width.
     function card.Row(height, searchText, isHint)
       local row = CreateFrame("Frame", nil, box)
       row:SetHeight(height)
       row.height = height
       row.search = type(searchText) == "string" and string.lower(searchText) or nil
       row.hint = isHint and true or false
+      row.cell = false
       card.rows[#card.rows + 1] = row
       return row
     end
@@ -492,6 +494,25 @@ local function CreatePage(pageKey, navKey)
     cards[#cards + 1] = card
     IndexLabel(card, title)
     return card
+  end
+
+  -- Snapshot of card/row layout flags for UI tests (grid cells vs full-width hints).
+  function ctx.InspectCards()
+    local out = {}
+    for c = 1, #cards do
+      local card = cards[c]
+      local rows = {}
+      for r = 1, #card.rows do
+        local row = card.rows[r]
+        rows[r] = {
+          search = row.search,
+          hint = row.hint and true or false,
+          cell = row.cell and true or false,
+        }
+      end
+      out[c] = { title = card.title, grid = card.grid, rows = rows }
+    end
+    return out
   end
 
   function ctx.Layout()
@@ -551,11 +572,20 @@ local function CreatePage(pageKey, navKey)
         end
         local y = -Widgets.GROUP_TITLE_H
         local lineHeight = 0
+        local cellIndex = 0
+        local function flushGridLine()
+          if cellIndex % 2 == 1 then
+            y = y - lineHeight
+          end
+          cellIndex = 0
+          lineHeight = 0
+        end
         for i = 1, #visible do
           local row = visible[i]
           row:ClearAllPoints()
-          if card.grid == 2 then
-            local rightSide = i % 2 == 0
+          if card.grid == 2 and row.cell then
+            cellIndex = cellIndex + 1
+            local rightSide = cellIndex % 2 == 0
             if rightSide then
               row:SetPoint("TOPLEFT", box, "TOP", 8, y)
               row:SetPoint("TOPRIGHT", box, "TOPRIGHT", -card.padX, y)
@@ -564,11 +594,14 @@ local function CreatePage(pageKey, navKey)
               row:SetPoint("TOPRIGHT", box, "TOP", -8, y)
             end
             lineHeight = math.max(lineHeight, row.height)
-            if rightSide or i == #visible then
+            if rightSide then
               y = y - lineHeight
               lineHeight = 0
             end
           else
+            if cellIndex > 0 then
+              flushGridLine()
+            end
             row:SetPoint("TOPLEFT", box, "TOPLEFT", card.padX, y)
             row:SetPoint("TOPRIGHT", box, "TOPRIGHT", -card.padX, y)
             y = y - row.height
@@ -577,6 +610,9 @@ local function CreatePage(pageKey, navKey)
           if row.search then
             ctx.visibleRows[#ctx.visibleRows + 1] = row.search
           end
+        end
+        if cellIndex > 0 then
+          flushGridLine()
         end
         local height = (-y) + 14
         box:SetHeight(height)
@@ -743,6 +779,7 @@ local function AddText(card, text, color, gapBelow)
   local row = card.Row(14, nil, true)
   local fs = Theme.Text(row, 14, color)
   fs:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -2)
+  fs:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -2)
   fs:SetWidth(card.hintWidth)
   fs:SetJustifyH("LEFT")
   fs:SetJustifyV("TOP")
@@ -812,6 +849,9 @@ end
 local function AddPairRow(card, labelText, labelColor, getPair, getDefaultPair)
   IndexLabel(card, labelText)
   local row = card.Row(PAIR_ROW, labelText)
+  if card.grid == 2 then
+    row.cell = true
+  end
   local label = Theme.Text(row, LABEL_FONT, labelColor or C.TEXT)
   label:SetPoint("LEFT", row, "LEFT", 0, 0)
   label:SetWidth(112)
@@ -1307,9 +1347,13 @@ do
   local main = page.Card("Nameplates")
   AddCheck(main, "Threat and classification colors", "gradient", "nameplatesEnabled", RefreshGradient)
   AddHint(main, "Colors Ellesmere nameplate health bars by threat and mob classification. Dead, offline and tapped colors still win. Off keeps the Health tab colors.")
-  AddDropdown(main, "Fade Direction", "gradient", "nameplateFadeDirection", { "LEFT", "RIGHT" }, "RIGHT", RefreshGradient)
-  AddHint(main, "Which side of the nameplate bar the gradient fades toward. Applies while threat and classification colors are on.")
   main.Done()
+
+  local fade = page.Card("Fade Direction")
+  AddDropdown(fade, "Fade Direction", "gradient", "nameplateFadeDirection", { "LEFT", "RIGHT" }, "RIGHT", RefreshGradient)
+  AddHint(fade, "Which side of the nameplate bar the gradient fades toward. Applies while threat and classification colors are on.")
+  fade.Done()
+
   local threat = page.Card("Threat Colors")
   AddHint(threat, "Used on hostile units you have threat information for. Class, NPC and State colors are shared with unit frames.")
   AddPairGroup(threat, "nameplateThreat", {
@@ -1343,7 +1387,7 @@ end
 ---------------------------------------------------------------------------
 -- Read-only snapshot of navigation and search state (used by tests/test_ui.lua).
 function Settings.Inspect()
-  local info = { selectedNav = selectedNav, selectedTab = selectedTab, query = query, navs = {}, rows = {}, tabs = {} }
+  local info = { selectedNav = selectedNav, selectedTab = selectedTab, query = query, navs = {}, rows = {}, tabs = {}, cards = {} }
   for i = 1, #NAV do
     if navs[NAV[i].key].button:IsShown() then
       info.navs[#info.navs + 1] = NAV[i].key
@@ -1354,6 +1398,9 @@ function Settings.Inspect()
     for i = 1, #entry.ctx.visibleRows do
       info.rows[i] = entry.ctx.visibleRows[i]
     end
+  end
+  if entry and entry.ctx and entry.ctx.InspectCards then
+    info.cards = entry.ctx.InspectCards()
   end
   for i = 1, #navs[selectedNav].tabs do
     info.tabs[i] = navs[selectedNav].tabs[i].key
