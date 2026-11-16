@@ -52,7 +52,7 @@ local PAGE_META = {
   overlay = "Left Escape overlay: professions, collections, and played time beside the game menu.",
   afk = "Full-screen AFK overlay with RakaMod branding, timer, character model, and Ellesmere patch notes. Dismiss with any key or click.",
   reveal = "Force-show the Ellesmere player frame while casting, while effective health is above 100% (absorbs / overshield), on mouseover, or in combat. It never hides the frame itself.",
-  fonts = "Fonts used by AFK mode, this settings window and the Game Menu overlay panels.",
+  fonts = "Fonts used by AFK mode, this settings window and the Game Menu overlay panels. Turn Enabled off to leave every font to the game or Ellesmere.",
   gradient = "Health bar gradients shift by class, NPC reaction, and unit state.",
   gradientBars = "Power and castbar gradient shifts. Colors are saved now; painting comes later.",
   gradientResources = "Class resource gradient shifts. Colors are saved now; painting comes later.",
@@ -95,6 +95,7 @@ local NAV = {
   {
     key = "fonts",
     label = "Fonts",
+    master = { section = "fonts", key = "enabled", label = "Enabled" },
     tabs = { { key = "fonts", label = "Fonts" } },
   },
   {
@@ -678,6 +679,9 @@ local function AddSlider(card, text, section, key, minValue, maxValue)
     if section == "general" and key == "windowScale" and not dragging then
       Settings:ApplyScale()
     end
+    if section == "fonts" and key == "uiScale" then
+      Theme.RefreshFonts()
+    end
     if section == "features" and key == "backgroundFade" then
       if RakaMod.Overlay and RakaMod.Overlay.ApplyDimAlpha then
         RakaMod.Overlay:ApplyDimAlpha()
@@ -958,6 +962,12 @@ local function RefreshOverlayFont()
   end
 end
 
+local function RefreshAllFonts()
+  Theme.RefreshFonts()
+  RefreshOverlayFont()
+  RefreshAfk()
+end
+
 local function RefreshGradient()
   if RakaMod.Gradient and RakaMod.Gradient.Apply then
     RakaMod.Gradient:Apply()
@@ -1187,10 +1197,13 @@ end
 -- Fonts
 do
   local page = CreatePage("fonts", "fonts")
+  AddMaster("fonts", RefreshAllFonts)
   local choices = RakaMod.Media.FontChoices()
   local general = page.Card("General Fonts")
   AddDropdown(general, "General Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 220)
   AddHint(general, "Text of this settings window and its menus. Applied immediately.")
+  AddSlider(general, "General font size (%)", "fonts", "uiScale", RakaMod.Logic.UI_FONT_SCALE_MIN, RakaMod.Logic.UI_FONT_SCALE_MAX)
+  AddHint(general, "Scales the text of this settings window. 100 keeps the built-in sizes.")
   general.Done()
   local afk = page.Card("AFK Mode")
   AddDropdown(afk, "AFK Font", "fonts", "afk", choices, RakaMod.Logic.DEFAULT_AFK_FONT, RefreshAfk, 220)

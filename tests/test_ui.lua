@@ -172,7 +172,7 @@ eq(#info.navs, 0, "Zone Text is gone from the settings")
 info = search("general font")
 eq(joined(info.navs), "fonts", "general font option is searchable")
 eq(info.selectedTab, "fonts", "general font option opens the Fonts tab")
-eq(joined(info.rows), "general font", "only the general font row stays visible")
+eq(joined(info.rows), "general font,general font size (%)", "the general font rows stay visible")
 
 info = search("game menu overlay font")
 eq(joined(info.rows), "game menu overlay font", "game menu overlay font option is searchable")
@@ -183,14 +183,14 @@ info = search("game menu overlay")
 eq(labels(info.rows), "game menu overlay font", "the Game Menu Overlay card holds only the overlay font")
 
 info = search("general fonts")
-eq(labels(info.rows), "general font", "the General Fonts card holds only the general font")
+eq(labels(info.rows), "general font,general font size (%)", "the General Fonts card holds the font and its size")
 
 info = search("afk mode")
 eq(labels(info.rows), "afk font", "the AFK Mode card holds only the AFK font")
 
 info = search("fonts")
 eq(info.selectedTab, "fonts", "Fonts nav opens the Fonts tab")
-eq(labels(info.rows), "general font,afk font,game menu overlay font", "one font option per card, in General / AFK / Game Menu Overlay order")
+eq(labels(info.rows), "general font,general font size (%),afk font,game menu overlay font", "one font option per card, in General / AFK / Game Menu Overlay order")
 
 info = search("minimap")
 eq(joined(info.navs), "general", "search matches option labels")
@@ -258,14 +258,63 @@ do
   Settings:SelectPage("fonts")
   local fontsInfo = Settings.Inspect()
   eq(joined(fontsInfo.tabs), "fonts", "Fonts has a single tab")
-  eq(#fontsInfo.rows, 6, "Fonts shows three option rows, each followed by its own description")
+  eq(#fontsInfo.rows, 8, "Fonts shows four option rows, each followed by its own description")
   RakaMod.db.fonts.ui = "Rk Doris PP"
   RakaMod.db.fonts.afk = "Rk Doris PP"
+  RakaMod.db.fonts.uiScale = 120
   local fontsReset = Stub.script(shell.resetButton, "OnClick")
   fontsReset(shell.resetButton)
   fontsReset(shell.resetButton)
   eq(RakaMod.db.fonts.ui, "Rk Roboto Condensed", "Reset Page restores the app font")
   eq(RakaMod.db.fonts.afk, "Rk RakaMod", "Reset Page restores the AFK font")
+  eq(RakaMod.db.fonts.uiScale, 100, "Reset Page restores the general font size")
+end
+
+-- Fonts master switch and General Font size ----------------------------------------------
+do
+  local Media = RakaMod.Media
+  eq(RakaMod.db.fonts.enabled, true, "Fonts are enabled by default")
+  eq(RakaMod.db.fonts.uiScale, 100, "General font size defaults to 100%")
+
+  local fs = Theme.Text(UIParent, 14)
+  eq(select(2, Stub.stored(fs, "Font")), 14, "100% keeps the built-in size")
+  RakaMod.db.fonts.uiScale = 120
+  Theme.RefreshFonts()
+  eq(select(2, Stub.stored(fs, "Font")), 17, "General font size scales the text live")
+  eq(select(2, Stub.stored(Theme.Text(UIParent, 14), "Font")), 17, "new text uses the scaled size")
+
+  RakaMod.db.fonts.ui = "Rk Doris PP"
+  RakaMod.db.fonts.afk = "Rk Montserrat Bold"
+  RakaMod.db.fonts.overlay = "Rk Montserrat Medium"
+  local menuFs = RakaMod.Overlay.fontStrings[1].fs
+  RakaMod.Overlay.fontStrings[1].path = "Fonts\\ORIGINAL.TTF"
+  RakaMod.Overlay:ApplyFont()
+  eq(Stub.stored(menuFs, "Font"), Media.FontPathByName("Rk Montserrat Medium"), "overlay font applies while enabled")
+
+  RakaMod.db.fonts.enabled = false
+  Theme.RefreshFonts()
+  RakaMod.Overlay:ApplyFont()
+  eq(Stub.stored(fs, "Font"), STANDARD_TEXT_FONT, "disabled Fonts leave the settings window to the game font")
+  eq(select(2, Stub.stored(fs, "Font")), 14, "disabled Fonts ignore the size slider")
+  eq(Media.AfkFontPath(), STANDARD_TEXT_FONT, "disabled Fonts leave AFK mode to the game font")
+  eq(Media.OverlayFontPath(), nil, "disabled Fonts have no overlay override")
+  eq(Stub.stored(menuFs, "Font"), "Fonts\\ORIGINAL.TTF", "overlay panels get their original font back")
+
+  RakaMod.db.fonts.enabled = true
+  Theme.RefreshFonts()
+  RakaMod.Overlay:ApplyFont()
+  eq(Stub.stored(fs, "Font"), Media.FontPathByName("Rk Doris PP"), "re-enabling applies the chosen fonts again")
+  eq(Media.AfkFontPath(), Media.FontPathByName("Rk Montserrat Bold"), "re-enabling restores the AFK font")
+
+  RakaMod.db.fonts.ui = "Rk Roboto Condensed"
+  RakaMod.db.fonts.afk = "Rk RakaMod"
+  RakaMod.db.fonts.overlay = "Game Default"
+  RakaMod.db.fonts.uiScale = 100
+  Theme.RefreshFonts()
+  RakaMod.Overlay:ApplyFont()
+
+  Settings:SelectPage("fonts")
+  eq(Settings.Inspect().selectedNav, "fonts", "Fonts page is selected")
 end
 
 -- Reset Page restores the accent --------------------------------------------

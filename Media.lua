@@ -176,19 +176,51 @@ local function SavedFontPath(key, defaultName)
   return RakaMod.Media.FontPathByName(chosen) or RakaMod.Media.FontPathByName(defaultName)
 end
 
--- Font of AFK mode text and of the settings window, from the saved Fonts page choices.
+-- Master switch of the Fonts page. While off, RakaMod leaves fonts to the game / Ellesmere.
+function RakaMod.Media.FontsEnabled()
+  local fonts = RakaMod.db and RakaMod.db.fonts
+  return not (type(fonts) == "table" and fonts.enabled == false)
+end
+
+-- The game's current standard font (Ellesmere or Blizzard edits show up here).
+local function GameFont(fallback)
+  if type(STANDARD_TEXT_FONT) == "string" then
+    return STANDARD_TEXT_FONT
+  end
+  return fallback
+end
+
+-- General Font Size percent (100 = built-in sizes); 100 while the Fonts page is off.
+function RakaMod.Media.UiFontScale()
+  local fonts = RakaMod.db and RakaMod.db.fonts
+  if not RakaMod.Media.FontsEnabled() or type(fonts) ~= "table" or type(fonts.uiScale) ~= "number" then
+    return RakaMod.Logic.DEFAULT_UI_FONT_SCALE
+  end
+  return fonts.uiScale
+end
+
+-- Font of AFK mode text, from the saved Fonts page choices.
 function RakaMod.Media.AfkFontPath()
+  if not RakaMod.Media.FontsEnabled() then
+    return GameFont(RakaMod.Media.FontPath)
+  end
   return SavedFontPath("afk", RakaMod.Logic.DEFAULT_AFK_FONT) or RakaMod.Media.FontPath
 end
 
 -- Font path for the Escape overlay panels (Played, Professions, Collections), or nil to keep the game's own font.
 function RakaMod.Media.OverlayFontPath()
+  if not RakaMod.Media.FontsEnabled() then
+    return nil
+  end
   local fonts = RakaMod.db and RakaMod.db.fonts
   local chosen = type(fonts) == "table" and fonts.overlay or nil
   return RakaMod.Media.FontPathByName(chosen)
 end
 
 function RakaMod.Media.UiFontPathChosen()
+  if not RakaMod.Media.FontsEnabled() then
+    return GameFont(RakaMod.Media.UIFontPath)
+  end
   return SavedFontPath("ui", RakaMod.Logic.DEFAULT_UI_FONT) or RakaMod.Media.UIFontPath
 end
 

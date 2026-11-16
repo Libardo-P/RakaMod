@@ -39,6 +39,9 @@ end
 local fontEntries = setmetatable({}, { __mode = "k" })
 
 local function applyFont(fontString, size, flags)
+  local media = RakaMod.Media
+  local scale = media and media.UiFontScale and media.UiFontScale()
+  size = RakaMod.Logic.ScaledFontSize(size, scale)
   local ok = fontString:SetFont(Theme.FontPath(), size, flags)
   if not ok and STANDARD_TEXT_FONT then
     fontString:SetFont(STANDARD_TEXT_FONT, size, flags)

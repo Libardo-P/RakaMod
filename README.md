@@ -19,13 +19,23 @@ The settings window (v0.6.0) follows an ElvUI-config layout: a sidebar with the 
 - Pages with a master switch show **Enabled** in the toolbar next to the tabs, together with **Reset Page** (click twice to confirm). Pages without a nav icon show text only.
 - Text uses `Rk Roboto Condensed` by default; the **Fonts** page changes it (and the AFK mode font) live; nav icons are `Media/ui/nav-*.tga` (regenerate with `python3 tools/make_nav_icons.py`).
 
-Layout lives in `UI/` (`Theme.lua` palette, fonts and accent, `Widgets.lua` controls, `Shell.lua` window chrome, `ColorPicker.lua`); `Settings.lua` holds the pages and option bindings. Setting keys are unchanged; the new keys are `general.accent`, `fonts.afk` (default `Rk RakaMod`) and `fonts.ui` (default `Rk Roboto Condensed`).
+Layout lives in `UI/` (`Theme.lua` palette, fonts and accent, `Widgets.lua` controls, `Shell.lua` window chrome, `ColorPicker.lua`); `Settings.lua` holds the pages and option bindings. Setting keys are unchanged; the new keys are `general.accent` and the `fonts` table documented below.
 
 ## Install
 
 1. Install EllesmereUI. RakaMod declares it as a required dependency and will not load without it.
 2. Copy this folder to `World of Warcraft/_retail_/Interface/AddOns/RakaMod` (or `_classic_era_`/Forever's AddOns folder). The folder name must be `RakaMod`.
 3. `/reload`, then `/rakamod`.
+
+Fonts saved variables (`RakaModDB.fonts`):
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Master switch of the Fonts page. When `false` RakaMod overrides no font: the settings window and AFK mode use the game's standard font (`STANDARD_TEXT_FONT`, so Ellesmere or Blizzard font edits prevail), the Game Menu overlay panels keep their original font, and `uiScale` is ignored. |
+| `ui` | `Rk Roboto Condensed` | General Font: text of the settings window. |
+| `uiScale` | `100` | General font size in percent (80 to 130) of the built-in sizes. Applied live. |
+| `afk` | `Rk RakaMod` | AFK Font: AFK mode text. Applies the next time AFK mode starts. |
+| `overlay` | `Game Default` | Game Menu Overlay Font: RakaMod's Played / Professions / Collections panels beside the Escape menu. `Game Default` keeps the game's own font. |
 
 Optional Ellesmere modules unlock features: UnitFrames (Reveal, unit gradients), RaidFrames (party and raid gradients) and Nameplates (nameplate gradients). RakaMod does not write to any Ellesmere saved variables.
 

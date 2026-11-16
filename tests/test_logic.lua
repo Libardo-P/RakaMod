@@ -371,6 +371,18 @@ do
   eq(saved.font, "Doris PP", "migration runs once")
 end
 
+-- General font size ---------------------------------------------------------------------
+do
+  local L = Logic
+  eq(L.ScaledFontSize(14, 100), 14, "100% keeps the size")
+  eq(L.ScaledFontSize(14, 120), 17, "120% of 14 rounds to 17")
+  eq(L.ScaledFontSize(14, 50), 11, "scale is clamped to the minimum")
+  eq(L.ScaledFontSize(14, 500), 18, "scale is clamped to the maximum")
+  eq(L.ScaledFontSize(7, 80), 6, "never below 6 points")
+  eq(L.ScaledFontSize(14, nil), 14, "missing percent means 100")
+  eq(L.ScaledFontSize(nil, 100), nil, "non-numeric sizes pass through")
+end
+
 if failures > 0 then
   os.exit(1)
 end

@@ -510,6 +510,22 @@ Logic.DEFAULT_AFK_FONT = "Rk RakaMod"
 Logic.DEFAULT_UI_FONT = "Rk Roboto Condensed"
 -- Escape overlay panel text keeps the game's own font until a font is picked.
 Logic.DEFAULT_OVERLAY_FONT = "Game Default"
+-- General (settings window) text size, as a percent of the built-in sizes.
+Logic.DEFAULT_UI_FONT_SCALE = 100
+Logic.UI_FONT_SCALE_MIN = 80
+Logic.UI_FONT_SCALE_MAX = 130
+
+-- Size in points after the General Font Size percent; never below 6 so text stays readable.
+function Logic.ScaledFontSize(size, percent)
+  if type(size) ~= "number" then
+    return size
+  end
+  if type(percent) ~= "number" then
+    percent = Logic.DEFAULT_UI_FONT_SCALE
+  end
+  percent = math.max(Logic.UI_FONT_SCALE_MIN, math.min(Logic.UI_FONT_SCALE_MAX, percent))
+  return math.max(6, math.floor(size * percent / 100 + 0.5))
+end
 
 -- AFK identity line: "Lv 80 - Enhancement - Shaman", or "Lv 80 - Shaman" without a spec.
 function Logic.AfkIdentityLine(level, spec, className)
