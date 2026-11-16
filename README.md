@@ -12,7 +12,7 @@ Companion addon for [EllesmereUI](https://www.curseforge.com/wow/addons/ellesmer
 
 ## Settings window
 
-The settings window (v0.6.0) follows an ElvUI-config layout: a sidebar with the RakaMod crest, a search box and icon navigation; a header with the title, version and close button; a tab row above a bordered body with titled option groups in two columns; and a footer with **Apply & Reload UI**.
+The settings window (v0.6.1) follows an ElvUI-config layout: a sidebar with the RakaMod crest, a search box and icon navigation; a header with the title, version and close button; a tab row above a bordered body with titled option groups in two columns; and a footer with **Apply & Reload UI**.
 
 - **Search** (top of the sidebar) filters the page list and the options on the open page by label, group title, page and tab name. It jumps to the first page or tab that matches; clear it to see everything again.
 - **Accent color**: General > Colors. Pick a preset (gold, blue, green, red, purple, cyan, white), a custom color through the color picker, or your class color (follows the current character and spec). The whole window recolors immediately, no reload. The default is blue.
