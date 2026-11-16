@@ -59,7 +59,6 @@ pack" commit (`8e0fd0a`) without source notes.
 | `class/fabledpixelsv2.tga` | `Rk Class Fabled Pixels V2` | Unknown | Unknown |
 | `class/fabledrealm.tga` | `Rk Class Fabled Realm` | Unknown | Unknown |
 | `class/fabledrealmv2.tga` | `Rk Class Fabled Realm V2` | Unknown | Unknown |
-| `class/fabledregalia.tga` | `Rk Class Fabled Regalia` | Unknown | Unknown |
 | `class/intothevoid.tga` | `Rk Class Into The Void` | Unknown | Unknown |
 
 ## Portrait shapes (`Media/portraits/`)

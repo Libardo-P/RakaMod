@@ -59,7 +59,6 @@ local BACKGROUNDS = {
   { "Rk Class Fabled Pixels V2", "class\\fabledpixelsv2.tga" },
   { "Rk Class Fabled Realm", "class\\fabledrealm.tga" },
   { "Rk Class Fabled Realm V2", "class\\fabledrealmv2.tga" },
-  { "Rk Class Fabled Regalia", "class\\fabledregalia.tga" },
   { "Rk Class Into The Void", "class\\intothevoid.tga" },
 }
 
