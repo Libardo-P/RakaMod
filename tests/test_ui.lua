@@ -160,11 +160,17 @@ local function joined(list)
 end
 
 local all = Settings.Inspect()
-eq(#all.navs, 7, "all seven pages listed with no query")
+eq(#all.navs, 5, "all five sidebar pages listed with no query")
+eq(joined(all.navs), "general,features,reveal,fonts,gradient", "sidebar order: General, Features, Player Frame, Fonts, Gradient Mode")
+
+Settings:SelectPage("features")
+local featuresInfo = Settings.Inspect()
+eq(joined(featuresInfo.tabs), "features,overlay,afk", "Features has Background, Game Menu and AFK tabs")
 
 local info = search("afk")
-eq(joined(info.navs), "afk,fonts", "search filters the nav by page name and option labels (AFK Font)")
-eq(info.selectedNav, "afk", "search jumps to the matching page")
+eq(joined(info.navs), "features,fonts", "search filters the nav by page name and option labels (AFK Font)")
+eq(info.selectedNav, "features", "search jumps to Features for AFK")
+eq(info.selectedTab, "afk", "search opens the AFK tab under Features")
 
 info = search("zone")
 eq(#info.navs, 0, "Zone Text is gone from the settings")
@@ -209,7 +215,7 @@ info = search("zzzz-nothing")
 eq(#info.navs, 0, "no matches hides every nav item")
 
 info = search("")
-eq(#info.navs, 7, "clearing the search restores the nav")
+eq(#info.navs, 5, "clearing the search restores the nav")
 eq(#info.rows >= 3, true, "clearing the search restores the rows")
 
 -- Fonts page ------------------------------------------------------------------------------

@@ -72,19 +72,11 @@ local NAV = {
   {
     key = "features",
     label = "Features",
-    tabs = { { key = "features", label = "Background" } },
-  },
-  {
-    key = "overlay",
-    label = "Game Menu",
-    master = { section = "overlay", key = "enabled", label = "Enabled" },
-    tabs = { { key = "overlay", label = "Panels" } },
-  },
-  {
-    key = "afk",
-    label = "AFK",
-    master = { section = "afk", key = "enabled", label = "Enabled" },
-    tabs = { { key = "afk", label = "Behavior" } },
+    tabs = {
+      { key = "features", label = "Background" },
+      { key = "overlay", label = "Game Menu", master = { section = "overlay", key = "enabled", label = "Enabled" } },
+      { key = "afk", label = "AFK", master = { section = "afk", key = "enabled", label = "Enabled" } },
+    },
   },
   {
     key = "reveal",
@@ -132,13 +124,27 @@ local function NavMatches(navKey)
   return nav ~= nil and Contains(nav.search, query)
 end
 
--- A tab matches on its own labels or on any option inside it.
+-- A tab matches on its own label or on any option inside it.
 local function PageMatches(tabKey)
   if query == "" then
     return true
   end
   local entry = pages[tabKey]
-  return entry ~= nil and entry.ctx ~= nil and Contains(entry.ctx.search, query)
+  if entry ~= nil and entry.ctx ~= nil and Contains(entry.ctx.search, query) then
+    return true
+  end
+  local navKey = pageNav[tabKey]
+  local nav = navKey and navs[navKey]
+  if not nav then
+    return false
+  end
+  for i = 1, #nav.tabs do
+    local tab = nav.tabs[i]
+    if tab.key == tabKey and Contains(string.lower(tab.label), query) then
+      return true
+    end
+  end
+  return false
 end
 
 ---------------------------------------------------------------------------
@@ -255,24 +261,31 @@ local function DisarmReset()
   resetBtn.label:SetText(RESET_TEXT)
 end
 
--- Header master switches (one per nav page that has one, created with the controls
--- below). Only the selected page's switch is visible; the tabs dim while it is off.
+-- Master switches: nav-scoped (dim every tab of that page) or tab-scoped (Features →
+-- Game Menu / AFK). Only the active owner’s switch is visible.
 local masters = {}
 
 local function UpdateMaster()
-  for navKey, entry in pairs(navs) do
-    local m = masters[navKey]
-    if m then
-      local visible = navKey == selectedNav
-      local on = m.pill:GetChecked()
-      m.label:SetShown(visible)
-      m.pill:SetShown(visible)
-      m.note:SetShown(visible and m.noteWanted)
-      entry.button:SetStatus(on)
-      for i = 1, #entry.tabs do
-        local page = pages[entry.tabs[i].key]
-        if page and page.page then
-          page.page:SetAlpha(on and 1 or 0.45)
+  for ownerKey, m in pairs(masters) do
+    local visible = m.scope == "tab" and selectedTab == ownerKey or m.scope ~= "tab" and selectedNav == ownerKey
+    local on = m.pill:GetChecked()
+    m.label:SetShown(visible)
+    m.pill:SetShown(visible)
+    m.note:SetShown(visible and m.noteWanted)
+    if m.scope == "tab" then
+      local page = pages[ownerKey]
+      if page and page.page then
+        page.page:SetAlpha(on and 1 or 0.45)
+      end
+    else
+      local entry = navs[ownerKey]
+      if entry then
+        entry.button:SetStatus(on)
+        for i = 1, #entry.tabs do
+          local page = pages[entry.tabs[i].key]
+          if page and page.page then
+            page.page:SetAlpha(on and 1 or 0.45)
+          end
         end
       end
     end
@@ -1106,10 +1119,29 @@ do
   page.Finish()
 end
 
--- Master switch (label + ON/OFF) in the toolbar of one nav page.
--- Returns a small object RefreshNotes can Show/Hide for a "missing addon" note.
-local function AddMaster(navKey, afterChange, noteText)
-  local def = navs[navKey].master
+-- Resolve a master definition for ownerKey: tab-scoped first, else nav-scoped.
+local function MasterDef(ownerKey)
+  local navKey = pageNav[ownerKey]
+  local nav = navKey and navs[navKey]
+  if nav then
+    for i = 1, #nav.tabs do
+      local tab = nav.tabs[i]
+      if tab.key == ownerKey and tab.master then
+        return tab.master, "tab", navKey
+      end
+    end
+  end
+  local entry = navs[ownerKey]
+  if entry and entry.master then
+    return entry.master, "nav", ownerKey
+  end
+  return nil, nil, nil
+end
+
+-- Master switch (label + ON/OFF) in the toolbar. ownerKey is a nav key (page-wide) or a
+-- tab key (Features → Game Menu / AFK). Returns a Show/Hide handle for missing-addon notes.
+local function AddMaster(ownerKey, afterChange, noteText)
+  local def, scope, resetNav = MasterDef(ownerKey)
   local pill = Widgets.Toggle(toolbar)
   pill:SetPoint("RIGHT", resetBtn, "LEFT", -20, 0)
   local label = Theme.Text(toolbar, LABEL_FONT, C.TEXT)
@@ -1121,8 +1153,8 @@ local function AddMaster(navKey, afterChange, noteText)
   Theme.Bind(function(a)
     note:SetTextColor(a.r, a.g, a.b)
   end)
-  local m = { label = label, pill = pill, note = note, noteWanted = false }
-  masters[navKey] = m
+  local m = { label = label, pill = pill, note = note, noteWanted = false, scope = scope }
+  masters[ownerKey] = m
   BindToggle(pill, def.section, def.key, function()
     if afterChange then
       afterChange()
@@ -1130,7 +1162,7 @@ local function AddMaster(navKey, afterChange, noteText)
     UpdateMaster()
   end)
   checks[#checks + 1] = { widget = pill, section = def.section, key = def.key }
-  RegisterReset({ navKey = navKey }, function()
+  RegisterReset({ navKey = resetNav }, function()
     ResetKey(def.section, def.key)
   end)
   label:Hide()
@@ -1148,9 +1180,9 @@ local function AddMaster(navKey, afterChange, noteText)
   }
 end
 
--- Game Menu
+-- Game Menu (Features → Game Menu tab)
 do
-  local page = CreatePage("overlay", "overlay")
+  local page = CreatePage("overlay", "features")
   AddMaster("overlay")
   local panels = page.Card("Panels", 1)
   AddHint(panels, "Extra panels shown beside the game menu.")
@@ -1161,9 +1193,9 @@ do
   page.Finish()
 end
 
--- AFK
+-- AFK (Features → AFK tab)
 do
-  local page = CreatePage("afk", "afk")
+  local page = CreatePage("afk", "features")
   AddMaster("afk", RefreshAfk)
   local behavior = page.Card("Behavior", 1)
   AddHint(behavior, "Full-screen overlay while you are away.")
