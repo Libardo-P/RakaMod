@@ -374,13 +374,16 @@ end
 -- General font size ---------------------------------------------------------------------
 do
   local L = Logic
-  eq(L.ScaledFontSize(14, 100), 14, "100% keeps the size")
-  eq(L.ScaledFontSize(14, 120), 17, "120% of 14 rounds to 17")
-  eq(L.ScaledFontSize(14, 50), 11, "scale is clamped to the minimum")
-  eq(L.ScaledFontSize(14, 500), 18, "scale is clamped to the maximum")
-  eq(L.ScaledFontSize(7, 80), 6, "never below 6 points")
-  eq(L.ScaledFontSize(14, nil), 14, "missing percent means 100")
-  eq(L.ScaledFontSize(nil, 100), nil, "non-numeric sizes pass through")
+  eq(L.DEFAULT_UI_FONT_SIZE, 15, "default body size is the window's label size")
+  eq(L.ScaledFontSize(14, 15), 14, "the default keeps the size")
+  eq(L.ScaledFontSize(15, 24), 24, "the body size follows the setting")
+  eq(L.ScaledFontSize(30, 12), 24, "other sizes keep their ratio")
+  eq(L.ScaledFontSize(15, 6), 6, "6 is the smallest body size")
+  eq(L.ScaledFontSize(12, 6), 6, "never below 6 points")
+  eq(L.ScaledFontSize(15, 100), 24, "size is clamped to the maximum")
+  eq(L.ScaledFontSize(15, 1), 6, "size is clamped to the minimum")
+  eq(L.ScaledFontSize(14, nil), 14, "missing size means the default")
+  eq(L.ScaledFontSize(nil, 15), nil, "non-numeric sizes pass through")
 end
 
 if failures > 0 then

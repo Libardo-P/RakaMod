@@ -172,7 +172,7 @@ eq(#info.navs, 0, "Zone Text is gone from the settings")
 info = search("general font")
 eq(joined(info.navs), "fonts", "general font option is searchable")
 eq(info.selectedTab, "fonts", "general font option opens the Fonts tab")
-eq(joined(info.rows), "general font,general font size (%)", "the general font rows stay visible")
+eq(joined(info.rows), "general font,general font size", "the general font rows stay visible")
 
 info = search("game menu overlay font")
 eq(joined(info.rows), "game menu overlay font", "game menu overlay font option is searchable")
@@ -183,14 +183,14 @@ info = search("game menu overlay")
 eq(labels(info.rows), "game menu overlay font", "the Game Menu Overlay card holds only the overlay font")
 
 info = search("general fonts")
-eq(labels(info.rows), "general font,general font size (%)", "the General Fonts card holds the font and its size")
+eq(labels(info.rows), "general font,general font size", "the General Fonts card holds the font and its size")
 
 info = search("afk mode")
 eq(labels(info.rows), "afk font", "the AFK Mode card holds only the AFK font")
 
 info = search("fonts")
 eq(info.selectedTab, "fonts", "Fonts nav opens the Fonts tab")
-eq(labels(info.rows), "general font,general font size (%),afk font,game menu overlay font", "one font option per card, in General / AFK / Game Menu Overlay order")
+eq(labels(info.rows), "general font,general font size,afk font,game menu overlay font", "one font option per card, in General / AFK / Game Menu Overlay order")
 
 info = search("minimap")
 eq(joined(info.navs), "general", "search matches option labels")
@@ -261,24 +261,25 @@ do
   eq(#fontsInfo.rows, 8, "Fonts shows four option rows, each followed by its own description")
   RakaMod.db.fonts.ui = "Rk Doris PP"
   RakaMod.db.fonts.afk = "Rk Doris PP"
-  RakaMod.db.fonts.uiScale = 120
+  RakaMod.db.fonts.uiSize = 20
   local fontsReset = Stub.script(shell.resetButton, "OnClick")
   fontsReset(shell.resetButton)
   fontsReset(shell.resetButton)
   eq(RakaMod.db.fonts.ui, "Rk Roboto Condensed", "Reset Page restores the app font")
   eq(RakaMod.db.fonts.afk, "Rk RakaMod", "Reset Page restores the AFK font")
-  eq(RakaMod.db.fonts.uiScale, 100, "Reset Page restores the general font size")
+  eq(RakaMod.db.fonts.uiSize, 15, "Reset Page restores the general font size")
 end
 
 -- Fonts master switch and General Font size ----------------------------------------------
 do
   local Media = RakaMod.Media
   eq(RakaMod.db.fonts.enabled, true, "Fonts are enabled by default")
-  eq(RakaMod.db.fonts.uiScale, 100, "General font size defaults to 100%")
+  eq(RakaMod.db.fonts.uiSize, 15, "General font size defaults to 15 points")
+  eq(RakaMod.db.fonts.uiScale, nil, "the old percent key is gone")
 
   local fs = Theme.Text(UIParent, 14)
-  eq(select(2, Stub.stored(fs, "Font")), 14, "100% keeps the built-in size")
-  RakaMod.db.fonts.uiScale = 120
+  eq(select(2, Stub.stored(fs, "Font")), 14, "the default size keeps the built-in sizes")
+  RakaMod.db.fonts.uiSize = 18
   Theme.RefreshFonts()
   eq(select(2, Stub.stored(fs, "Font")), 17, "General font size scales the text live")
   eq(select(2, Stub.stored(Theme.Text(UIParent, 14), "Font")), 17, "new text uses the scaled size")
@@ -309,7 +310,7 @@ do
   RakaMod.db.fonts.ui = "Rk Roboto Condensed"
   RakaMod.db.fonts.afk = "Rk RakaMod"
   RakaMod.db.fonts.overlay = "Game Default"
-  RakaMod.db.fonts.uiScale = 100
+  RakaMod.db.fonts.uiSize = 15
   Theme.RefreshFonts()
   RakaMod.Overlay:ApplyFont()
 

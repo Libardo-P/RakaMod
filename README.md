@@ -31,9 +31,9 @@ Fonts saved variables (`RakaModDB.fonts`):
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `enabled` | `true` | Master switch of the Fonts page. When `false` RakaMod overrides no font: the settings window and AFK mode use the game's standard font (`STANDARD_TEXT_FONT`, so Ellesmere or Blizzard font edits prevail), the Game Menu overlay panels keep their original font, and `uiScale` is ignored. |
+| `enabled` | `true` | Master switch of the Fonts page. When `false` RakaMod overrides no font: the settings window and AFK mode use the game's standard font (`STANDARD_TEXT_FONT`, so Ellesmere or Blizzard font edits prevail), the Game Menu overlay panels keep their original font, and `uiSize` is ignored. |
 | `ui` | `Rk Roboto Condensed` | General Font: text of the settings window. |
-| `uiScale` | `100` | General font size in percent (80 to 130) of the built-in sizes. Applied live. |
+| `uiSize` | `15` | General font size: point size (6 to 24) of the settings window's option text. Headings and small text keep their ratio to it. Applied live. |
 | `afk` | `Rk RakaMod` | AFK Font: AFK mode text. Applies the next time AFK mode starts. |
 | `overlay` | `Game Default` | Game Menu Overlay Font: RakaMod's Played / Professions / Collections panels beside the Escape menu. `Game Default` keeps the game's own font. |
 

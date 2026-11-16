@@ -679,7 +679,7 @@ local function AddSlider(card, text, section, key, minValue, maxValue)
     if section == "general" and key == "windowScale" and not dragging then
       Settings:ApplyScale()
     end
-    if section == "fonts" and key == "uiScale" then
+    if section == "fonts" and key == "uiSize" then
       Theme.RefreshFonts()
     end
     if section == "features" and key == "backgroundFade" then
@@ -1202,8 +1202,8 @@ do
   local general = page.Card("General Fonts")
   AddDropdown(general, "General Font", "fonts", "ui", choices, RakaMod.Logic.DEFAULT_UI_FONT, Theme.RefreshFonts, 220)
   AddHint(general, "Text of this settings window and its menus. Applied immediately.")
-  AddSlider(general, "General font size (%)", "fonts", "uiScale", RakaMod.Logic.UI_FONT_SCALE_MIN, RakaMod.Logic.UI_FONT_SCALE_MAX)
-  AddHint(general, "Scales the text of this settings window. 100 keeps the built-in sizes.")
+  AddSlider(general, "General font size", "fonts", "uiSize", RakaMod.Logic.UI_FONT_SIZE_MIN, RakaMod.Logic.UI_FONT_SIZE_MAX)
+  AddHint(general, "Point size of the option text in this settings window (6 to 24, default 15). Headings and small text scale along with it.")
   general.Done()
   local afk = page.Card("AFK Mode")
   AddDropdown(afk, "AFK Font", "fonts", "afk", choices, RakaMod.Logic.DEFAULT_AFK_FONT, RefreshAfk, 220)

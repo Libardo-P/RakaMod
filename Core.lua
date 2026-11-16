@@ -22,7 +22,7 @@ local DEFAULTS = {
   fonts = {
     enabled = true,
     ui = Logic.DEFAULT_UI_FONT,
-    uiScale = Logic.DEFAULT_UI_FONT_SCALE,
+    uiSize = Logic.DEFAULT_UI_FONT_SIZE,
     afk = Logic.DEFAULT_AFK_FONT,
     overlay = Logic.DEFAULT_OVERLAY_FONT,
   },
@@ -187,6 +187,7 @@ frame:SetScript("OnEvent", function(_, event, name)
     end
     RakaModDB = Logic.MergeDefaults(RakaModDB, DEFAULTS)
     RakaModDB.zoneText = nil
+    RakaModDB.fonts.uiScale = nil
     RakaMod.db = RakaModDB
   elseif event == "PLAYER_LOGIN" then
     if not RakaMod.db then

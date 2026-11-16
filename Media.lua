@@ -190,13 +190,13 @@ local function GameFont(fallback)
   return fallback
 end
 
--- General Font Size percent (100 = built-in sizes); 100 while the Fonts page is off.
-function RakaMod.Media.UiFontScale()
+-- General Font Size in points (the settings window's body text); the default while the Fonts page is off.
+function RakaMod.Media.UiFontSize()
   local fonts = RakaMod.db and RakaMod.db.fonts
-  if not RakaMod.Media.FontsEnabled() or type(fonts) ~= "table" or type(fonts.uiScale) ~= "number" then
-    return RakaMod.Logic.DEFAULT_UI_FONT_SCALE
+  if not RakaMod.Media.FontsEnabled() or type(fonts) ~= "table" or type(fonts.uiSize) ~= "number" then
+    return RakaMod.Logic.DEFAULT_UI_FONT_SIZE
   end
-  return fonts.uiScale
+  return fonts.uiSize
 end
 
 -- Font of AFK mode text, from the saved Fonts page choices.
