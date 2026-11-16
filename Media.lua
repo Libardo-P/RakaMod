@@ -90,6 +90,31 @@ local function MediaPath(relative)
   return ROOT .. relative
 end
 
+-- Every file RakaMod registers or draws, relative to Media/ (extensionless entries have no
+-- extension). Used by the tests to make sure no registration points at a missing file.
+function RakaMod.Media.ReferencedFiles()
+  local files = {}
+  local function add(relative)
+    files[#files + 1] = relative
+  end
+  local m = RakaMod.Media
+  for _, path in ipairs({ m.FontPath, m.StatusbarPath, m.ColorWheelPath, m.IconPath, m.GrainPath, m.FabledClassPath, m.UIFontPath }) do
+    add((path:sub(#ROOT + 1)))
+  end
+  for _, list in ipairs({ FONTS, STATUSBARS, BACKGROUNDS }) do
+    for i = 1, #list do
+      add(list[i][2])
+    end
+  end
+  for i = 1, #PORTRAIT_FILES do
+    add("portraits\\" .. PORTRAIT_FILES[i] .. ".tga")
+  end
+  for _, relative in pairs(m.NavIcons) do
+    add(relative)
+  end
+  return files
+end
+
 -- Texture path for a nav page icon, or nil when the page has none.
 function RakaMod.Media.NavIconPath(navKey)
   local relative = RakaMod.Media.NavIcons[navKey]

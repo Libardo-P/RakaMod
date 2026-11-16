@@ -270,6 +270,33 @@ do
   eq(RakaMod.db.fonts.uiSize, 15, "Reset Page restores the general font size")
 end
 
+-- Every media file RakaMod registers or draws exists on disk --------------------------------
+do
+  local function readable(relative)
+    local path = "Media/" .. (relative:gsub("\\", "/"))
+    for _, ext in ipairs({ "", ".tga", ".blp" }) do
+      local f = io.open(path .. ext, "rb")
+      if f then
+        local size = f:seek("end")
+        f:close()
+        if size and size > 18 then
+          return true
+        end
+      end
+    end
+    return false
+  end
+  local files = RakaMod.Media.ReferencedFiles()
+  eq(#files > 100, true, "media catalog is not empty")
+  local missing = {}
+  for _, relative in ipairs(files) do
+    if not readable(relative) then
+      missing[#missing + 1] = relative
+    end
+  end
+  eq(table.concat(missing, ", "), "", "no registration points at a missing media file")
+end
+
 -- Gradient tabs --------------------------------------------------------------------------
 do
   Settings:SelectPage("gradient")
